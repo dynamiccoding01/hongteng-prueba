@@ -26,7 +26,8 @@ const eslintConfig = [
     rules: { 'no-console': 'off' },
   },
   {
-    ignores: ['.next/**', 'node_modules/**', 'lib/supabase/database.types.ts'],
+    // Archivos generados: no se editan, no se lintean.
+    ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts', 'lib/supabase/database.types.ts'],
   },
 ];
 

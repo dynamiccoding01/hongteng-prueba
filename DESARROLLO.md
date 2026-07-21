@@ -45,6 +45,23 @@ supabase/migrations/    esquema SQL versionado — única fuente de verdad
 supabase/seed.sql       roles, permisos, categorías y monedas base
 ```
 
+## Aplicar el esquema sin el CLI de Supabase
+
+Si no tienes Supabase CLI ni Docker instalados, se puede aplicar el esquema al proyecto en la nube desde el editor SQL del panel:
+
+```bash
+npm run db:sql        # genera supabase/_aplicar-en-editor-sql.sql
+npm run db:probar     # verifica la conexion y que tablas existen
+```
+
+1. Abrir el proyecto en [supabase.com](https://supabase.com) → **SQL Editor** → **New query**.
+2. Pegar el contenido completo de `supabase/_aplicar-en-editor-sql.sql` y ejecutar.
+3. Volver a correr `npm run db:probar`: debe reportar 16/16 tablas.
+
+El archivo generado envuelve todo en `begin; … commit;`, así que si algo falla no queda el esquema a medias. Es un archivo **derivado**: no se versiona ni se edita a mano.
+
+> Esta vía es un puente. En cuanto haya CLI instalado, el flujo correcto es `supabase link` + `supabase db push`, que además lleva el registro de qué migraciones se aplicaron.
+
 ## Base de datos
 
 El esquema **solo** se modifica con migraciones. Nunca desde el panel de Supabase.
