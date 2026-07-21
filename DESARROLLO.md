@@ -1,0 +1,100 @@
+# Guía de desarrollo
+
+## Requisitos
+
+- Node.js ≥ 20.9
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (para la base de datos local)
+- Docker Desktop (lo usa `supabase start`)
+
+## Puesta en marcha
+
+```bash
+npm install
+cp .env.example .env.local     # completar con las claves del proyecto Supabase
+
+supabase start                 # levanta PostgreSQL + Auth locales
+supabase db reset              # aplica supabase/migrations en orden + seed.sql
+
+npm run dev                    # http://localhost:3000
+```
+
+## Comandos
+
+| Comando             | Qué hace                                                   |
+| ------------------- | ---------------------------------------------------------- |
+| `npm run dev`       | Servidor de desarrollo                                     |
+| `npm run build`     | Build de producción (falla si hay errores de tipos o lint) |
+| `npm run lint`      | ESLint                                                     |
+| `npm run typecheck` | `tsc --noEmit`                                             |
+| `npm run format`    | Prettier sobre todo el repositorio                         |
+| `npm test`          | Pruebas con Vitest                                         |
+| `npm run db:reset`  | Recrea la base local desde las migraciones + seed          |
+| `npm run db:types`  | Regenera `lib/supabase/database.types.ts` desde el esquema |
+
+## Estructura
+
+```
+app/                    rutas y páginas (Next.js App Router)
+components/             componentes de interfaz
+lib/
+  env.ts                variables de entorno validadas con Zod
+  supabase/             clientes de navegador y de servidor
+  bodega/               lectura y parseo de BODEGA.xls (con sus tests)
+scripts/                utilidades de línea de comandos
+supabase/migrations/    esquema SQL versionado — única fuente de verdad
+supabase/seed.sql       roles, permisos, categorías y monedas base
+```
+
+## Base de datos
+
+El esquema **solo** se modifica con migraciones. Nunca desde el panel de Supabase.
+
+```bash
+supabase migration new descripcion_del_cambio   # crea el archivo
+# ... escribir el SQL ...
+supabase db reset                               # verificar que corre desde cero
+npm run db:types                                # regenerar tipos
+```
+
+Las migraciones se aplican en orden alfabético; por eso van numeradas:
+
+| Archivo               | Contenido                                                                  |
+| --------------------- | -------------------------------------------------------------------------- |
+| `0001_utilidades.sql` | `fn_set_updated_at`, `fn_auditar`                                          |
+| `0002_seguridad.sql`  | `rol`, `permiso`, `rol_permiso`, `usuario`, `auditoria`, `tiene_permiso()` |
+| `0003_catalogo.sql`   | monedas, categorías, proveedores, bodegas, zonas, productos y variantes    |
+| `0004_inventario.sql` | `stock`, `movimiento`, triggers de stock, traspaso, anulación y vistas     |
+| `0005_rls.sql`        | RLS y políticas de todas las tablas                                        |
+
+## Migración de BODEGA.xls
+
+Antes de cargar nada, ejecutar el diagnóstico. **No escribe en la base de datos:**
+
+```bash
+npx tsx scripts/analizar-bodega.ts "ruta/al/BODEGA.xls"
+```
+
+Valida los totales contra la hoja 汇总, verifica la regla 实存 = 入库 − 出库 y reporta
+qué filas necesitan revisión humana. Estado con la planilla entregada el 2026-07-20:
+
+```
+TOTAL filas: 2524
+Totales por categoría: los 4 cuadran exactamente con la hoja 汇总
+Filas con 实存 != 入库 - 出库: 0
+Zonas parseadas automáticamente: 2399/2524 (95,0 %)
+Filas parseadas con anotaciones desactualizadas: 67
+Filas que requieren revisión humana: 125
+  · 89 con la zona vacía en la planilla
+  · 28 con códigos pegados sin separador ('1-63-6(1)')
+  ·  8 con dos zonas y ninguna cantidad ('1-3 1-8')
+```
+
+Las planillas con datos del cliente **no se versionan** (`.gitignore` excluye `*.xls`).
+
+## Antes de abrir un Pull Request
+
+```bash
+npm run format && npm run lint && npm run typecheck && npm test && npm run build
+```
+
+Es exactamente lo que corre el CI. Ver la [Definición de Terminado](PLAN_AVANZE.md#criterios-de-avance-definición-de-terminado).
