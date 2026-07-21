@@ -15,8 +15,12 @@ cp .env.example .env.local     # completar con las claves del proyecto Supabase
 supabase start                 # levanta PostgreSQL + Auth locales
 supabase db reset              # aplica supabase/migrations en orden + seed.sql
 
-npm run dev                    # http://localhost:3000
+npm run dev                    # http://localhost:3001
 ```
+
+> El proyecto usa el puerto **3001** porque el 3000 suele estar tomado por otras
+> aplicaciones. Para levantarlo en otro puerto puntualmente:
+> `npm run dev -- -p 4000`
 
 ## Comandos
 
