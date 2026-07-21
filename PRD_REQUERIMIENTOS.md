@@ -73,12 +73,12 @@ Prioridad: **Alta** (núcleo) · **Media** (operación completa) · **Baja** (va
 
 ## Administración y seguridad
 
-| Código | Requerimiento                                                                                                                                         | Prioridad |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| ADM-01 | Usuarios, roles y permisos por módulo. Un usuario tiene un rol; cada rol agrupa muchos permisos (relación rol–permiso administrable desde el sistema) | Alta      |
-| ADM-02 | Bitácora de auditoría (quién hizo qué y cuándo)                                                                                                       | Alta      |
-| ADM-03 | Datos de empresa, correlativos de documentos y respaldos                                                                                              | Media     |
-| ADM-04 | Migración inicial de datos desde BODEGA.xls                                                                                                           | Alta      |
+| Código | Requerimiento                                                                                                                                                                                                                                                                   | Prioridad |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| ADM-01 | Usuarios, roles y permisos por módulo. Un usuario tiene un rol; cada rol agrupa muchos permisos (relación rol–permiso administrable desde el sistema)                                                                                                                           | Alta      |
+| ADM-02 | **Bitácora**: toda acción de un usuario se registra con su `usuario_id`, la fecha, la tabla y el registro afectado, y el detalle de qué cambió. Incluye altas, cambios, bajas, inicios de sesión, exportaciones y anulaciones. Es de solo lectura: no se puede editar ni borrar | Alta      |
+| ADM-03 | Datos de empresa, correlativos de documentos y respaldos                                                                                                                                                                                                                        | Media     |
+| ADM-04 | Migración inicial de datos desde BODEGA.xls                                                                                                                                                                                                                                     | Alta      |
 
 # REQUERIMIENTOS NO FUNCIONALES
 

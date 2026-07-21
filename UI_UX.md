@@ -13,18 +13,20 @@ Tailwind CSS + shadcn/ui (componentes accesibles) + TanStack Table (grillas con 
 
 ## Pantallas principales (Fase 1)
 
-| Pantalla              | Contenido clave                                                                                |
-| --------------------- | ---------------------------------------------------------------------------------------------- |
-| Login                 | Acceso con correo/contraseña (Supabase Auth); redirección por rol                              |
-| Dashboard / Resumen   | Existencias por categoría (equivalente a la hoja 汇总), totales en cajas y unidades            |
-| Buscador de artículos | Búsqueda global por código/descripción; muestra existencia y zona de ubicación (REP-03)        |
-| Catálogo de productos | Grilla con SKU, categoría, tallas, pares por caja, descripción bilingüe; alta/edición (MAE-01) |
-| Maestros              | Categorías, zonas de bodega, proveedores, clientes (MAE-03 a MAE-05)                           |
-| Stock por zona        | Existencias por producto y ubicación, en cajas y unidades (INV-01)                             |
-| Movimientos           | Registro de entrada/salida/ajuste con fecha, usuario y referencia (INV-02)                     |
-| Kardex                | Historial cronológico de movimientos y saldos por producto (INV-03)                            |
-| Importaciones         | Registro de compras con detalle por producto e ingreso automático a stock (COM-01/03)          |
-| Administración        | Usuarios, roles y permisos; bitácora de auditoría (ADM-01/02)                                  |
+| Pantalla              | Contenido clave                                                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Login                 | Acceso con correo/contraseña (Supabase Auth); redirección por rol                                                                             |
+| Dashboard / Resumen   | Existencias por categoría (equivalente a la hoja 汇总), totales en cajas y unidades                                                           |
+| Buscador de artículos | Búsqueda global por código/descripción; muestra existencia y zona de ubicación (REP-03)                                                       |
+| Catálogo de productos | Grilla con SKU, categoría, tallas, pares por caja, descripción bilingüe; alta/edición (MAE-01)                                                |
+| Maestros              | Categorías, zonas de bodega, proveedores, clientes (MAE-03 a MAE-05)                                                                          |
+| Stock por zona        | Existencias por producto y ubicación, en cajas y unidades (INV-01)                                                                            |
+| Movimientos           | Registro de entrada/salida/ajuste con fecha, usuario y referencia (INV-02)                                                                    |
+| Kardex                | Historial cronológico de movimientos y saldos por producto (INV-03)                                                                           |
+| Importaciones         | Registro de compras con detalle por producto e ingreso automático a stock (COM-01/03)                                                         |
+| Administración        | Usuarios, roles y permisos (ADM-01)                                                                                                           |
+| Bitácora              | Quién, cuándo, qué acción y sobre qué registro. Filtros por usuario, fecha, módulo y acción; detalle del antes/después. Solo lectura (ADM-02) |
+| Mi actividad          | Cada usuario ve su propio historial, sin requerir permisos de administración                                                                  |
 
 ## Convenciones
 

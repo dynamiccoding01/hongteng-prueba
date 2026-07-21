@@ -49,6 +49,7 @@ Una historia **no está terminada** si no cumple todos estos puntos. No se negoc
 - [ ] TypeScript `strict` sin `any`; entradas validadas con Zod.
 - [ ] Migraciones SQL versionadas en `/supabase/migrations`, reproducibles desde cero.
 - [ ] RLS habilitado y política escrita para cada tabla nueva.
+- [ ] **Trigger de bitácora declarado** en cada tabla operativa nueva (`fn_bitacora()`), y las acciones de aplicación registradas con `registrar_en_bitacora()`.
 - [ ] Tests: unitarios de la lógica y de integración si toca stock (incluida concurrencia).
 - [ ] Sin descuadres de stock: el kardex concilia con las existencias.
 - [ ] Documentación actualizada en el mismo PR ([BACKEND.md](BACKEND.md), [FLUJO.md](FLUJO.md)).

@@ -35,7 +35,7 @@ flowchart TD
     T --> TR["Trigger PostgreSQL<br/>actualiza stock"]
     TR --> CV["Conversión automática<br/>caja ⇄ unidades (pares_por_caja)"]
     TR --> RT["Supabase Realtime<br/>notifica a los demás usuarios"]
-    TR --> AU["Bitácora de auditoría<br/>quién, qué, cuándo"]
+    TR --> AU["Bitácora: usuario_id,<br/>qué y cuándo"]
 ```
 
 **Reglas:**
@@ -77,7 +77,43 @@ flowchart TD
 
 Lo que no se pueda parsear va a un **reporte de excepciones** para revisión manual: nunca se adivina un dato de inventario.
 
-## 6. Flujo de usuario y seguridad (ADM-01, ADM-02)
+## 6. Flujo de la bitácora (ADM-02)
+
+**Toda acción que hace un usuario se registra en la tabla `bitacora`, con su `usuario_id`.** No depende de que el programador se acuerde de escribirlo: lo hacen triggers en la base de datos, así que no hay forma de modificar un dato sin dejar rastro.
+
+```mermaid
+flowchart TD
+    U["Usuario autenticado"] --> ACC{"Tipo de acción"}
+
+    ACC -->|"Cambia datos:<br/>alta, edición, baja"| TR["Trigger fn_bitacora()<br/>en la tabla afectada"]
+    ACC -->|"Login, exportar,<br/>imprimir, anular"| RPC["registrar_en_bitacora()<br/>llamada desde la app"]
+
+    TR --> CAP["Captura:<br/>auth.uid() → usuario_id<br/>datos_antes / datos_despues<br/>campos_modificados"]
+    RPC --> CAP
+
+    CAP --> BIT[("bitacora")]
+    BIT --> RO["Append-only: triggers rechazan<br/>UPDATE y DELETE"]
+    BIT --> VIS{"¿Quién puede verla?"}
+    VIS -->|Su propia actividad| TODOS["Cualquier usuario"]
+    VIS -->|La de todos| PERM["Solo con permiso bitacora.ver"]
+```
+
+**Qué guarda cada registro:**
+
+| Dato        | Columna                                                                |
+| ----------- | ---------------------------------------------------------------------- |
+| Quién       | `usuario_id` (FK a `usuario`) + `usuario_email` congelado              |
+| Cuándo      | `created_at`                                                           |
+| Qué acción  | `accion`: `INSERT`, `UPDATE`, `DELETE`, `LOGIN`, `EXPORTAR`, `ANULAR`… |
+| Sobre qué   | `tabla` + `registro_id`                                                |
+| Qué cambió  | `datos_antes`, `datos_despues` y `campos_modificados`                  |
+| Desde dónde | `ip`, `user_agent`                                                     |
+
+**Tablas cubiertas:** las 14 tablas operativas (`rol`, `permiso`, `rol_permiso`, `usuario`, `moneda`, `tipo_cambio`, `categoria`, `proveedor`, `bodega`, `zona`, `ubicacion_zeta`, `producto`, `producto_variante`, `movimiento`). `stock` queda fuera a propósito: ningún usuario la escribe, la deriva el trigger del movimiento.
+
+**Si un usuario se da de baja**, su bitácora permanece: el email queda congelado en cada registro, así que el rastro sobrevive.
+
+## 7. Flujo de usuario y seguridad (ADM-01, ADM-02)
 
 Cada **usuario** tiene un **rol**, y ese rol acumula **muchos permisos** a través de la tabla intermedia `rol_permiso`. Los permisos no se asignan al usuario directamente: se administran a nivel de rol.
 
@@ -89,6 +125,7 @@ flowchart LR
     PER --> FN["función tiene_permiso()"]
     FN --> RLS["RLS: la BD autoriza<br/>cada operación a nivel de fila"]
     FN --> UI["La interfaz oculta/deshabilita<br/>lo que el rol no puede hacer"]
+    RLS --> BIT["Toda operación queda<br/>registrada en bitacora"]
 ```
 
 **Ejemplo de asignación:**

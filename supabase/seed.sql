@@ -50,7 +50,7 @@ insert into permiso (codigo, modulo, descripcion) values
   ('usuario.ver',       'admin',      'Ver usuarios'),
   ('usuario.editar',    'admin',      'Administrar usuarios'),
   ('rol.editar',        'admin',      'Administrar roles y permisos'),
-  ('auditoria.ver',     'admin',      'Consultar la bitacora de auditoria')
+  ('bitacora.ver',      'admin',      'Ver la bitacora de todos los usuarios')
 on conflict (codigo) do nothing;
 
 -- ---------------------------------------------------------------------------

@@ -17,6 +17,7 @@
     "db:reset": "supabase db reset",
     "db:sql": "tsx scripts/generar-sql-completo.ts",
     "db:probar": "tsx scripts/probar-conexion.ts",
+    "db:migrar": "tsx scripts/aplicar-migraciones.ts",
     "migrar:bodega": "tsx scripts/migrar-bodega.ts"
   },
   "dependencies": {

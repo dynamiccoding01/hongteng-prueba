@@ -152,8 +152,25 @@ create trigger tr_zona_updated_at       before update on zona              for e
 create trigger tr_producto_updated_at   before update on producto          for each row execute function fn_set_updated_at();
 create trigger tr_variante_updated_at   before update on producto_variante for each row execute function fn_set_updated_at();
 
--- Auditoria sobre los maestros que afectan valorizacion y stock (ADM-02)
-create trigger tr_auditar_producto after insert or update or delete on producto
-  for each row execute function fn_auditar();
-create trigger tr_auditar_variante after insert or update or delete on producto_variante
-  for each row execute function fn_auditar();
+-- ---------------------------------------------------------------------------
+-- BITACORA (ADM-02) sobre TODOS los maestros.
+-- Cualquier alta, cambio o baja queda registrada con el id del usuario que la hizo.
+-- ---------------------------------------------------------------------------
+create trigger tr_bitacora_moneda         after insert or update or delete on moneda
+  for each row execute function fn_bitacora();
+create trigger tr_bitacora_tipo_cambio    after insert or update or delete on tipo_cambio
+  for each row execute function fn_bitacora();
+create trigger tr_bitacora_categoria      after insert or update or delete on categoria
+  for each row execute function fn_bitacora();
+create trigger tr_bitacora_proveedor      after insert or update or delete on proveedor
+  for each row execute function fn_bitacora();
+create trigger tr_bitacora_bodega         after insert or update or delete on bodega
+  for each row execute function fn_bitacora();
+create trigger tr_bitacora_zona           after insert or update or delete on zona
+  for each row execute function fn_bitacora();
+create trigger tr_bitacora_ubicacion_zeta after insert or update or delete on ubicacion_zeta
+  for each row execute function fn_bitacora();
+create trigger tr_bitacora_producto       after insert or update or delete on producto
+  for each row execute function fn_bitacora();
+create trigger tr_bitacora_variante       after insert or update or delete on producto_variante
+  for each row execute function fn_bitacora();

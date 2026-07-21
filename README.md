@@ -15,14 +15,14 @@ El objetivo es unificar esta operación en una única fuente de verdad.
 
 ## Alcance Fase 1 (MVP)
 
-| Módulo                  | Entrega                                                                                                                    |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Maestros / Catálogo     | Productos (SKU, categoría, tallas, pares por caja, descripción bilingüe ES/中文), categorías, zonas, proveedores, clientes |
-| Usuarios y seguridad    | Login, roles y permisos, bitácora de auditoría                                                                             |
-| Inventario / Bodega     | Stock por producto y zona en cajas y unidades, movimientos, kardex                                                         |
-| Compras / Importaciones | Registro de importaciones con ingreso automático a stock                                                                   |
-| Migración de datos      | Carga inicial desde `BODEGA.xls`                                                                                           |
-| Reportes básicos        | Existencias por categoría, buscador con ubicación, kardex, exportación a Excel                                             |
+| Módulo                  | Entrega                                                                                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Maestros / Catálogo     | Productos (SKU, categoría, tallas, pares por caja, descripción bilingüe ES/中文), categorías, zonas, proveedores, clientes                   |
+| Usuarios y seguridad    | Login, roles y permisos, y **bitácora**: toda acción de un usuario queda registrada con su id, en una tabla que no se puede editar ni borrar |
+| Inventario / Bodega     | Stock por producto y zona en cajas y unidades, movimientos, kardex                                                                           |
+| Compras / Importaciones | Registro de importaciones con ingreso automático a stock                                                                                     |
+| Migración de datos      | Carga inicial desde `BODEGA.xls`                                                                                                             |
+| Reportes básicos        | Existencias por categoría, buscador con ubicación, kardex, exportación a Excel                                                               |
 
 **Fase 2 (fuera de alcance del MVP):** ventas/facturación, documentos de aduana/zona franca, facturación electrónica (SII/DTE), dashboards, código de barras/QR, app móvil.
 
@@ -58,6 +58,7 @@ Reglas mínimas, detalladas en [BACKEND.md](BACKEND.md#buenas-prácticas-obligat
 - **Commits convencionales** (`feat:`, `fix:`, `docs:`, `refactor:`).
 - **Sin secretos en el repositorio.** Variables de entorno con `.env.example` documentado.
 - **Nada se borra**: borrado lógico en maestros, movimientos de inventario append-only.
+- **Toda acción se registra en la bitácora** con el id del usuario, mediante triggers en la base de datos. No es opcional ni depende de que el programador lo recuerde.
 - **Documentación viva**: si cambia el modelo o un flujo, se actualiza el `.md` en el mismo PR.
 
 ## Metodología

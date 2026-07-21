@@ -62,6 +62,31 @@ El archivo generado envuelve todo en `begin; … commit;`, así que si algo fall
 
 > Esta vía es un puente. En cuanto haya CLI instalado, el flujo correcto es `supabase link` + `supabase db push`, que además lleva el registro de qué migraciones se aplicaron.
 
+## Bitácora: obligatoria en cada tabla nueva
+
+Al crear una tabla operativa, **hay que declarar su trigger de bitácora**. Es parte de la Definición de Terminado:
+
+```sql
+create trigger tr_bitacora_<tabla>
+  after insert or update or delete on <tabla>
+  for each row execute function fn_bitacora();
+
+-- Si la tabla tiene clave compuesta, se indican las columnas que identifican la fila:
+create trigger tr_bitacora_rol_permiso
+  after insert or update or delete on rol_permiso
+  for each row execute function fn_bitacora('rol_id', 'permiso_id');
+```
+
+Para acciones que no son cambios de tabla (login, exportar, imprimir):
+
+```ts
+await supabase.rpc('registrar_en_bitacora', {
+  p_accion: 'EXPORTAR',
+  p_modulo: 'reportes',
+  p_descripcion: 'Resumen por categoría a Excel',
+});
+```
+
 ## Base de datos
 
 El esquema **solo** se modifica con migraciones. Nunca desde el panel de Supabase.
@@ -75,13 +100,13 @@ npm run db:types                                # regenerar tipos
 
 Las migraciones se aplican en orden alfabético; por eso van numeradas:
 
-| Archivo               | Contenido                                                                  |
-| --------------------- | -------------------------------------------------------------------------- |
-| `0001_utilidades.sql` | `fn_set_updated_at`, `fn_auditar`                                          |
-| `0002_seguridad.sql`  | `rol`, `permiso`, `rol_permiso`, `usuario`, `auditoria`, `tiene_permiso()` |
-| `0003_catalogo.sql`   | monedas, categorías, proveedores, bodegas, zonas, productos y variantes    |
-| `0004_inventario.sql` | `stock`, `movimiento`, triggers de stock, traspaso, anulación y vistas     |
-| `0005_rls.sql`        | RLS y políticas de todas las tablas                                        |
+| Archivo               | Contenido                                                                                            |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
+| `0001_utilidades.sql` | `fn_set_updated_at`, `fn_bitacora`, `fn_bitacora_inmutable`                                          |
+| `0002_seguridad.sql`  | `rol`, `permiso`, `rol_permiso`, `usuario`, `bitacora`, `tiene_permiso()`, `registrar_en_bitacora()` |
+| `0003_catalogo.sql`   | monedas, categorías, proveedores, bodegas, zonas, productos y variantes                              |
+| `0004_inventario.sql` | `stock`, `movimiento`, triggers de stock, traspaso, anulación y vistas                               |
+| `0005_rls.sql`        | RLS y políticas de todas las tablas                                                                  |
 
 ## Migración de BODEGA.xls
 

@@ -139,6 +139,18 @@ create trigger tr_movimiento_sin_delete before delete on movimiento
   for each row execute function fn_movimiento_inmutable();
 
 -- ---------------------------------------------------------------------------
+-- BITACORA (ADM-02) sobre el inventario.
+-- El kardex ya guarda el detalle del movimiento; la bitacora ademas deja el
+-- rastro transversal: quien lo registro y desde donde, junto al resto de las
+-- acciones del sistema, para poder revisar la actividad de un usuario completa.
+-- ---------------------------------------------------------------------------
+create trigger tr_bitacora_movimiento after insert on movimiento
+  for each row execute function fn_bitacora();
+
+-- stock no lleva trigger: no lo escribe ningun usuario, lo deriva el trigger
+-- del movimiento. Su historia es exactamente el kardex.
+
+-- ---------------------------------------------------------------------------
 -- Traspaso entre zonas (INV-07): una sola transaccion, dos movimientos.
 -- ---------------------------------------------------------------------------
 create or replace function fn_traspasar(
@@ -256,3 +268,25 @@ left join producto          p on p.categoria_id = c.id and p.activo
 left join producto_variante v on v.producto_id = p.id and v.activo
 left join stock             s on s.variante_id = v.id
 group by c.id, c.nombre_es, c.nombre_zh;
+
+-- Bitacora legible: resuelve nombre y rol del usuario en vez del uuid (ADM-02).
+create view v_bitacora as
+select
+  b.id,
+  b.created_at,
+  b.usuario_id,
+  b.usuario_email,
+  coalesce(u.nombre, 'Sistema') as usuario_nombre,
+  r.nombre                      as rol,
+  b.accion,
+  b.modulo,
+  b.tabla,
+  b.registro_id,
+  b.campos_modificados,
+  b.descripcion
+from bitacora b
+left join usuario u on u.id = b.usuario_id
+left join rol     r on r.id = u.rol_id;
+
+comment on view v_bitacora is
+  'Bitacora para consulta: quien (nombre y rol), cuando, que accion y sobre que registro.';

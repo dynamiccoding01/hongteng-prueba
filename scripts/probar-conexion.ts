@@ -26,7 +26,7 @@ const TABLAS_ESPERADAS = [
   'permiso',
   'rol_permiso',
   'usuario',
-  'auditoria',
+  'bitacora',
   'moneda',
   'tipo_cambio',
   'categoria',

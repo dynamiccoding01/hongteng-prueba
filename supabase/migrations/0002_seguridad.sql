@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- 0002 · Seguridad y auditoria (ADM-01, ADM-02)
+-- 0002 · Seguridad y bitacora (ADM-01, ADM-02)
 -- Cadena de autorizacion:  usuario --> rol --> rol_permiso <-- permiso
 -- Ver BACKEND.md § 4.1
 -- ---------------------------------------------------------------------------
@@ -54,24 +54,105 @@ create table usuario (
 
 comment on table usuario is 'Extiende auth.users de Supabase con nombre y rol del sistema.';
 
-create table auditoria (
-  id            bigint generated always as identity primary key,
-  usuario_id    uuid references usuario(id),
-  tabla         text not null,
-  registro_id   text,
-  accion        text not null check (accion in ('INSERT', 'UPDATE', 'DELETE')),
-  datos_antes   jsonb,
-  datos_despues jsonb,
-  created_at    timestamptz not null default now()
+-- ---------------------------------------------------------------------------
+-- BITACORA (ADM-02)
+-- Toda accion que hace un usuario queda registrada aqui, con su id.
+-- Es append-only: no se edita ni se borra.
+-- ---------------------------------------------------------------------------
+create table bitacora (
+  id                 bigint generated always as identity primary key,
+  usuario_id         uuid references usuario(id),
+  usuario_email      text not null default 'sistema',
+  tabla              text,
+  registro_id        text,
+  accion             text not null,
+  modulo             text,
+  descripcion        text,
+  datos_antes        jsonb,
+  datos_despues      jsonb,
+  campos_modificados text[],
+  ip                 inet,
+  user_agent         text,
+  created_at         timestamptz not null default now(),
+  constraint bitacora_accion_ck check (accion in (
+    -- cambios sobre tablas (los escribe el trigger fn_bitacora)
+    'INSERT', 'UPDATE', 'DELETE',
+    -- acciones de la aplicacion (las escribe registrar_en_bitacora)
+    'LOGIN', 'LOGOUT', 'LOGIN_FALLIDO', 'EXPORTAR', 'IMPRIMIR',
+    'ANULAR', 'CONFIRMAR', 'MIGRAR', 'RESPALDAR'
+  ))
 );
 
-create index auditoria_tabla_registro_ix on auditoria (tabla, registro_id);
-create index auditoria_created_at_ix     on auditoria (created_at desc);
+comment on table bitacora is
+  'Registro de toda accion de usuario (ADM-02). usuario_id dice QUIEN, created_at CUANDO, datos_antes/despues QUE cambio.';
+comment on column bitacora.usuario_id is
+  'Usuario autenticado que ejecuto la accion. NULL solo en procesos del sistema (migracion inicial).';
+comment on column bitacora.usuario_email is
+  'Email congelado al momento de la accion: el rastro sobrevive aunque el usuario se elimine.';
+comment on column bitacora.campos_modificados is
+  'En un UPDATE, solo las columnas que realmente cambiaron.';
+
+create index bitacora_usuario_ix         on bitacora (usuario_id, created_at desc);
+create index bitacora_tabla_registro_ix  on bitacora (tabla, registro_id);
+create index bitacora_created_at_ix      on bitacora (created_at desc);
+create index bitacora_accion_ix          on bitacora (accion);
 create index usuario_rol_ix              on usuario (rol_id);
 create index rol_permiso_permiso_ix      on rol_permiso (permiso_id);
 
+-- La bitacora es evidencia: solo admite INSERT.
+create trigger tr_bitacora_sin_update before update on bitacora
+  for each row execute function fn_bitacora_inmutable();
+create trigger tr_bitacora_sin_delete before delete on bitacora
+  for each row execute function fn_bitacora_inmutable();
+
+-- ---------------------------------------------------------------------------
+-- Registro de acciones que no son cambios de tabla: inicio de sesion,
+-- exportaciones, impresiones. La llama la aplicacion.
+-- ---------------------------------------------------------------------------
+create or replace function registrar_en_bitacora(
+  p_accion      text,
+  p_modulo      text default null,
+  p_descripcion text default null,
+  p_tabla       text default null,
+  p_registro_id text default null
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text;
+  v_id    bigint;
+begin
+  select email into v_email from usuario where id = auth.uid();
+
+  insert into bitacora (usuario_id, usuario_email, accion, modulo, descripcion, tabla, registro_id)
+  values (auth.uid(), coalesce(v_email, 'sistema'), p_accion, p_modulo, p_descripcion,
+          p_tabla, p_registro_id)
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+comment on function registrar_en_bitacora is
+  'Registra en la bitacora una accion de aplicacion (LOGIN, EXPORTAR, IMPRIMIR...) que no es un cambio de tabla.';
+
 create trigger tr_rol_updated_at     before update on rol     for each row execute function fn_set_updated_at();
 create trigger tr_usuario_updated_at before update on usuario for each row execute function fn_set_updated_at();
+
+-- Bitacora sobre las tablas de seguridad: cambiar un rol o un permiso es
+-- justamente lo que mas interesa poder auditar.
+create trigger tr_bitacora_rol         after insert or update or delete on rol
+  for each row execute function fn_bitacora();
+create trigger tr_bitacora_permiso     after insert or update or delete on permiso
+  for each row execute function fn_bitacora();
+-- rol_permiso tiene clave compuesta: se le indican las columnas que identifican la fila.
+create trigger tr_bitacora_rol_permiso after insert or update or delete on rol_permiso
+  for each row execute function fn_bitacora('rol_id', 'permiso_id');
+create trigger tr_bitacora_usuario     after insert or update or delete on usuario
+  for each row execute function fn_bitacora();
 
 -- ---------------------------------------------------------------------------
 -- Verificacion de permisos EN LA BASE DE DATOS, no solo en la interfaz.

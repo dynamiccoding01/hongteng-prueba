@@ -9,7 +9,7 @@ alter table rol               enable row level security;
 alter table permiso           enable row level security;
 alter table rol_permiso       enable row level security;
 alter table usuario           enable row level security;
-alter table auditoria         enable row level security;
+alter table bitacora          enable row level security;
 alter table moneda            enable row level security;
 alter table tipo_cambio       enable row level security;
 alter table categoria         enable row level security;
@@ -54,11 +54,17 @@ create policy rol_permiso_escritura on rol_permiso
   using (tiene_permiso('rol.editar')) with check (tiene_permiso('rol.editar'));
 
 -- ---------------------------------------------------------------------------
--- Auditoria: solo lectura, y solo con permiso. Nadie la escribe ni la borra
--- desde la aplicacion: la alimentan los triggers (SECURITY DEFINER).
+-- BITACORA (ADM-02)
+-- Solo lectura, y solo con permiso. Nadie la escribe ni la borra desde la
+-- aplicacion: la alimentan los triggers y registrar_en_bitacora(), ambos
+-- SECURITY DEFINER. Ademas hay triggers que rechazan UPDATE y DELETE.
+--
+-- Todo usuario puede ver SU PROPIA actividad; ver la de los demas requiere el
+-- permiso bitacora.ver.
 -- ---------------------------------------------------------------------------
-create policy auditoria_lectura on auditoria
-  for select to authenticated using (tiene_permiso('auditoria.ver'));
+create policy bitacora_lectura on bitacora
+  for select to authenticated
+  using (usuario_id = auth.uid() or tiene_permiso('bitacora.ver'));
 
 -- ---------------------------------------------------------------------------
 -- Maestros
