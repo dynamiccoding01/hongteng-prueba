@@ -1,0 +1,1 @@
+# TRD — Documento de Requisitos Técnicos

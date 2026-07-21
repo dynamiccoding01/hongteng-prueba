@@ -1,0 +1,4 @@
+Documento de Requisitos del Producto
+
+# REQUERIMIENTOS FUNCIONALES
+# REQUERIMIENTOS NO FUNCIONALES
