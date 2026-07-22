@@ -110,7 +110,7 @@ implementados en Sprint 1; este sprint se centra en compras/importaciones.
 - [x] ~~COM-03 — `fn_confirmar_importacion`: genera los movimientos de ENTRADA (documento IMPORTACION) y sella la importación (confirmada no se edita, a nivel de base de datos)~~
 - [x] ~~Página «Importaciones»: crear borrador, agregar detalle, confirmar~~ (`app/(app)/compras/importaciones` + sección «Compras» en la navegación)
 - [x] ~~Tests de integración de la confirmación~~ (5 tests: permiso exigido, ingreso a stock con conversión, doble confirmación bloqueada, detalle y cabecera inmutables)
-- [ ] PR del Sprint 3 con CI verde y merge a `main`
+- [x] ~~PR del Sprint 3 con CI verde y merge a `main`~~ (PR #4 mergeado el 2026-07-22)
 
 ## Registro de avance
 
