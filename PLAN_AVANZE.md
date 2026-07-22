@@ -101,6 +101,17 @@ la interfaz y ejecuta la migración de datos.
 - [x] ~~Tests de integración de stock (incluida concurrencia) según la Definición de Terminado~~ (`lib/inventario/stock.integracion.test.ts`, 8 tests contra la base real)
 - [x] ~~PR del Sprint 2 con CI verde y merge a `main`~~ (PR #2 mergeado el 2026-07-22; solo queda ADM-04 esperando al cliente)
 
+## Checklist Sprint 3 (detalle de trabajo)
+
+REP-01 (resumen por categoría) y REP-03 (buscador con existencia y ubicación) ya quedaron
+implementados en Sprint 1; este sprint se centra en compras/importaciones.
+
+- [x] ~~COM-01/02 — Migración `0008_compras.sql`: tablas `importacion` e `importacion_detalle` con RLS, bitácora y estados BORRADOR → CONFIRMADA~~ (aplicada a Supabase el 2026-07-22; tipos regenerados)
+- [x] ~~COM-03 — `fn_confirmar_importacion`: genera los movimientos de ENTRADA (documento IMPORTACION) y sella la importación (confirmada no se edita, a nivel de base de datos)~~
+- [x] ~~Página «Importaciones»: crear borrador, agregar detalle, confirmar~~ (`app/(app)/compras/importaciones` + sección «Compras» en la navegación)
+- [x] ~~Tests de integración de la confirmación~~ (5 tests: permiso exigido, ingreso a stock con conversión, doble confirmación bloqueada, detalle y cabecera inmutables)
+- [ ] PR del Sprint 3 con CI verde y merge a `main`
+
 ## Registro de avance
 
 | Fecha      | Sprint   | Avance / notas                                                                                                                                                                                                                                                                           |
@@ -122,6 +133,7 @@ la interfaz y ejecuta la migración de datos.
 | 2026-07-22 | Sprint 2 | Tests de integración contra la base real (8): conversión caja⇄unidades, sobregiro bloqueado, kardex append-only, concurrencia, traspaso, anulación y conciliación kardex⇄stock. Se omiten sin .env.local                                                                                 |
 | 2026-07-22 | Sprint 2 | GitHub CLI instalado y autenticado: push, PR y merge ahora los ejecuta Claude directamente. PR #2 (INV-01 a INV-03 + tests) mergeado a `main` con CI verde. Sprint 2 solo espera ADM-04 (decisión del cliente)                                                                           |
 | 2026-07-22 | Sprint 2 | Cliente decide **opción A** (manda 实存). Script de migración ADM-04 completo con simulación, barrera anti-doble-corrida, lotes y conciliación final; probado con planilla sintética + 8 tests del planificador. **Sprint 2 cerrado** — la corrida real espera el BODEGA.xls del cliente |
+| 2026-07-22 | Sprint 3 | Rama `feat/sprint-3-compras`. Migración 0008 (importación + detalle, estados, `fn_confirmar_importacion`), página «Importaciones» con flujo borrador → confirmar, y 5 tests de integración. REP-01 y REP-03 ya existían de Sprint 1                                                      |
 
 ## Hallazgo abierto que requiere decisión del cliente
 

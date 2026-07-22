@@ -199,6 +199,132 @@ export type Database = {
         };
         Relationships: [];
       };
+      importacion: {
+        Row: {
+          confirmada_en: string | null;
+          confirmada_por: string | null;
+          created_at: string;
+          documento_aduana: string | null;
+          estado: string;
+          fecha: string;
+          id: number;
+          moneda_id: number;
+          notas: string | null;
+          proveedor_id: number;
+          tipo_cambio: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          confirmada_en?: string | null;
+          confirmada_por?: string | null;
+          created_at?: string;
+          documento_aduana?: string | null;
+          estado?: string;
+          fecha?: string;
+          id?: never;
+          moneda_id: number;
+          notas?: string | null;
+          proveedor_id: number;
+          tipo_cambio?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          confirmada_en?: string | null;
+          confirmada_por?: string | null;
+          created_at?: string;
+          documento_aduana?: string | null;
+          estado?: string;
+          fecha?: string;
+          id?: never;
+          moneda_id?: number;
+          notas?: string | null;
+          proveedor_id?: number;
+          tipo_cambio?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'importacion_confirmada_por_fkey';
+            columns: ['confirmada_por'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'importacion_moneda_id_fkey';
+            columns: ['moneda_id'];
+            isOneToOne: false;
+            referencedRelation: 'moneda';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'importacion_proveedor_id_fkey';
+            columns: ['proveedor_id'];
+            isOneToOne: false;
+            referencedRelation: 'proveedor';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      importacion_detalle: {
+        Row: {
+          cajas: number;
+          costo_caja: number | null;
+          created_at: string;
+          id: number;
+          importacion_id: number;
+          variante_id: number;
+          zona_id: number;
+        };
+        Insert: {
+          cajas: number;
+          costo_caja?: number | null;
+          created_at?: string;
+          id?: never;
+          importacion_id: number;
+          variante_id: number;
+          zona_id: number;
+        };
+        Update: {
+          cajas?: number;
+          costo_caja?: number | null;
+          created_at?: string;
+          id?: never;
+          importacion_id?: number;
+          variante_id?: number;
+          zona_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'importacion_detalle_importacion_id_fkey';
+            columns: ['importacion_id'];
+            isOneToOne: false;
+            referencedRelation: 'importacion';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'importacion_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'producto_variante';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'importacion_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_stock_variante';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'importacion_detalle_zona_id_fkey';
+            columns: ['zona_id'];
+            isOneToOne: false;
+            referencedRelation: 'zona';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       moneda: {
         Row: {
           activo: boolean;
@@ -840,6 +966,10 @@ export type Database = {
       fn_anular_movimiento: {
         Args: { p_motivo: string; p_movimiento_id: number };
         Returns: number;
+      };
+      fn_confirmar_importacion: {
+        Args: { p_importacion_id: number };
+        Returns: undefined;
       };
       fn_traspasar: {
         Args: {
