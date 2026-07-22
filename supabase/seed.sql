@@ -37,6 +37,8 @@ insert into permiso (codigo, modulo, descripcion) values
   ('zona.editar',       'maestros',   'Administrar bodegas y zonas'),
   ('proveedor.ver',     'maestros',   'Ver proveedores'),
   ('proveedor.editar',  'maestros',   'Administrar proveedores'),
+  ('cliente.ver',       'maestros',   'Ver clientes'),
+  ('cliente.editar',    'maestros',   'Administrar clientes'),
   ('moneda.editar',     'maestros',   'Administrar monedas y tipo de cambio'),
   ('stock.ver',         'inventario', 'Consultar existencias'),
   ('movimiento.ver',    'inventario', 'Ver el kardex'),
@@ -84,6 +86,7 @@ on conflict do nothing;
 insert into rol_permiso (rol_id, permiso_id)
 select r.id, p.id from rol r join permiso p on p.codigo in (
   'producto.ver', 'categoria.ver', 'zona.ver',
+  'cliente.ver', 'cliente.editar',
   'stock.ver', 'movimiento.ver', 'reporte.ver', 'reporte.exportar'
 )
  where r.nombre = 'Ventas'
@@ -92,7 +95,7 @@ on conflict do nothing;
 -- Consulta: solo lectura
 insert into rol_permiso (rol_id, permiso_id)
 select r.id, p.id from rol r join permiso p on p.codigo in (
-  'producto.ver', 'categoria.ver', 'zona.ver', 'stock.ver', 'reporte.ver'
+  'producto.ver', 'categoria.ver', 'zona.ver', 'cliente.ver', 'stock.ver', 'reporte.ver'
 )
  where r.nombre = 'Consulta'
 on conflict do nothing;

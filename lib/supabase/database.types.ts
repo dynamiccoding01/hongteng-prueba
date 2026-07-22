@@ -148,6 +148,57 @@ export type Database = {
         };
         Relationships: [];
       };
+      cliente: {
+        Row: {
+          activo: boolean;
+          ciudad: string | null;
+          codigo: string;
+          contacto: string | null;
+          created_at: string;
+          direccion: string | null;
+          email: string | null;
+          id: number;
+          nombre: string;
+          notas: string | null;
+          pais: string;
+          rut: string | null;
+          telefono: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          activo?: boolean;
+          ciudad?: string | null;
+          codigo: string;
+          contacto?: string | null;
+          created_at?: string;
+          direccion?: string | null;
+          email?: string | null;
+          id?: never;
+          nombre: string;
+          notas?: string | null;
+          pais?: string;
+          rut?: string | null;
+          telefono?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          activo?: boolean;
+          ciudad?: string | null;
+          codigo?: string;
+          contacto?: string | null;
+          created_at?: string;
+          direccion?: string | null;
+          email?: string | null;
+          id?: never;
+          nombre?: string;
+          notas?: string | null;
+          pais?: string;
+          rut?: string | null;
+          telefono?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       moneda: {
         Row: {
           activo: boolean;

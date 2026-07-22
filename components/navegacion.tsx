@@ -24,6 +24,7 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
       { href: '/maestros/categorias', texto: 'Categorías', permiso: 'categoria.ver' },
       { href: '/maestros/zonas', texto: 'Bodegas y zonas', permiso: 'zona.ver' },
       { href: '/maestros/proveedores', texto: 'Proveedores', permiso: 'proveedor.ver' },
+      { href: '/maestros/clientes', texto: 'Clientes', permiso: 'cliente.ver' },
     ],
   },
   {
