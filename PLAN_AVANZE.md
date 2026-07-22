@@ -4,12 +4,12 @@ Plan de trabajo con metodología **SCRUM** (sprints de 2 semanas). La **Fase 1 (
 
 ## Fase 1 — MVP (8 semanas)
 
-| Sprint   | Semanas | Requerimientos                  | Entregable                                                                                            | Estado       |
-| -------- | ------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------ |
-| Sprint 0 | 1–2     | (preparación)                   | Entorno Next.js + Supabase, repositorio, CI/CD, migraciones base, script de importación de BODEGA.xls | ✅ Terminado |
-| Sprint 1 | 3–4     | MAE-01 a MAE-06, ADM-01, ADM-02 | Maestros (productos, categorías, zonas, proveedores, clientes) + login, roles (RLS) y auditoría       | ✅ Terminado |
-| Sprint 2 | 5–6     | INV-01 a INV-04, ADM-04         | Inventario: stock por zona (cajas + unidades), movimientos, kardex, triggers y migración del Excel    | ✅ Terminado |
-| Sprint 3 | 7–8     | COM-01 a COM-03, REP-01, REP-03 | Compras/importaciones con ingreso a stock, reportes básicos, despliegue final y capacitación          | ⬜ Pendiente |
+| Sprint   | Semanas | Requerimientos                  | Entregable                                                                                            | Estado                                                                                     |
+| -------- | ------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Sprint 0 | 1–2     | (preparación)                   | Entorno Next.js + Supabase, repositorio, CI/CD, migraciones base, script de importación de BODEGA.xls | ✅ Terminado                                                                               |
+| Sprint 1 | 3–4     | MAE-01 a MAE-06, ADM-01, ADM-02 | Maestros (productos, categorías, zonas, proveedores, clientes) + login, roles (RLS) y auditoría       | ✅ Terminado                                                                               |
+| Sprint 2 | 5–6     | INV-01 a INV-04, ADM-04         | Inventario: stock por zona (cajas + unidades), movimientos, kardex, triggers y migración del Excel    | ✅ Terminado                                                                               |
+| Sprint 3 | 7–8     | COM-01 a COM-03, REP-01, REP-03 | Compras/importaciones con ingreso a stock, reportes básicos, despliegue final y capacitación          | 🟡 Desarrollo listo; faltan despliegue y capacitación (pospuestos por decisión del equipo) |
 
 **🏁 Hito: Release 1 — Núcleo de inventario en producción** (reemplaza a BODEGA.xls).
 
@@ -17,7 +17,7 @@ Plan de trabajo con metodología **SCRUM** (sprints de 2 semanas). La **Fase 1 (
 
 | Sprint   | Requerimientos                  | Entregable                                                                 | Estado       |
 | -------- | ------------------------------- | -------------------------------------------------------------------------- | ------------ |
-| Sprint 4 | VEN-01, VEN-02, VEN-04          | Ventas con descuento automático de stock y listas de precios               | ⬜ Pendiente |
+| Sprint 4 | VEN-01, VEN-02, VEN-04          | Ventas con descuento automático de stock y listas de precios               | ✅ Terminado |
 | Sprint 5 | REP-02, REP-04 a REP-06, INV-05 | Estadística mensual, valorización, alertas de stock, exportación Excel/PDF | ⬜ Pendiente |
 
 **🏁 Hito: Release 2 — Ventas y reportes.**
@@ -121,7 +121,7 @@ base de datos, y el stock solo se toca vía movimientos.
 - [x] ~~Página «Listas de precios» (VEN-04): crear lista por moneda, fijar precios por artículo y asignar lista al cliente~~ (`app/(app)/ventas/precios`)
 - [x] ~~Página «Notas de venta» (VEN-01/02): borrador por cliente, detalle con precio sugerido desde la lista del cliente, confirmar descuenta stock~~ (`app/(app)/ventas/notas` + sección «Ventas» en la navegación)
 - [x] ~~Tests de integración: la venta descuenta stock, el sobregiro falla completo (todo o nada), la doble confirmación y la edición post-confirmación se bloquean~~ (5 tests)
-- [ ] PR del Sprint 4 con CI verde y merge a `main`
+- [x] ~~PR del Sprint 4 con CI verde y merge a `main`~~ (PR #5 mergeado el 2026-07-22 — **Sprint 4 cerrado**)
 
 ## Registro de avance
 
