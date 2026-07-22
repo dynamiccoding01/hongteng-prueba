@@ -15,6 +15,9 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
     enlaces: [
       { href: '/', texto: 'Resumen' },
       { href: '/articulos', texto: 'Buscar artículos', permiso: 'stock.ver' },
+      { href: '/inventario/stock', texto: 'Stock por zona', permiso: 'stock.ver' },
+      { href: '/inventario/movimientos', texto: 'Movimientos', permiso: 'movimiento.ver' },
+      { href: '/inventario/kardex', texto: 'Kardex', permiso: 'movimiento.ver' },
     ],
   },
   {
