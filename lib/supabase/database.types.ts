@@ -158,6 +158,7 @@ export type Database = {
           direccion: string | null;
           email: string | null;
           id: number;
+          lista_precio_id: number | null;
           nombre: string;
           notas: string | null;
           pais: string;
@@ -174,6 +175,7 @@ export type Database = {
           direccion?: string | null;
           email?: string | null;
           id?: never;
+          lista_precio_id?: number | null;
           nombre: string;
           notas?: string | null;
           pais?: string;
@@ -190,6 +192,7 @@ export type Database = {
           direccion?: string | null;
           email?: string | null;
           id?: never;
+          lista_precio_id?: number | null;
           nombre?: string;
           notas?: string | null;
           pais?: string;
@@ -197,7 +200,15 @@ export type Database = {
           telefono?: string | null;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'cliente_lista_precio_id_fkey';
+            columns: ['lista_precio_id'];
+            isOneToOne: false;
+            referencedRelation: 'lista_precio';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       importacion: {
         Row: {
@@ -322,6 +333,90 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'zona';
             referencedColumns: ['id'];
+          },
+        ];
+      };
+      lista_precio: {
+        Row: {
+          activo: boolean;
+          created_at: string;
+          id: number;
+          moneda_id: number;
+          nombre: string;
+          updated_at: string;
+        };
+        Insert: {
+          activo?: boolean;
+          created_at?: string;
+          id?: never;
+          moneda_id: number;
+          nombre: string;
+          updated_at?: string;
+        };
+        Update: {
+          activo?: boolean;
+          created_at?: string;
+          id?: never;
+          moneda_id?: number;
+          nombre?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'lista_precio_moneda_id_fkey';
+            columns: ['moneda_id'];
+            isOneToOne: false;
+            referencedRelation: 'moneda';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      lista_precio_item: {
+        Row: {
+          created_at: string;
+          id: number;
+          lista_id: number;
+          precio_caja: number;
+          updated_at: string;
+          variante_id: number;
+        };
+        Insert: {
+          created_at?: string;
+          id?: never;
+          lista_id: number;
+          precio_caja: number;
+          updated_at?: string;
+          variante_id: number;
+        };
+        Update: {
+          created_at?: string;
+          id?: never;
+          lista_id?: number;
+          precio_caja?: number;
+          updated_at?: string;
+          variante_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'lista_precio_item_lista_id_fkey';
+            columns: ['lista_id'];
+            isOneToOne: false;
+            referencedRelation: 'lista_precio';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'lista_precio_item_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'producto_variante';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'lista_precio_item_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_stock_variante';
+            referencedColumns: ['variante_id'];
           },
         ];
       };
@@ -870,6 +965,129 @@ export type Database = {
           },
         ];
       };
+      venta: {
+        Row: {
+          cliente_id: number;
+          confirmada_en: string | null;
+          confirmada_por: string | null;
+          created_at: string;
+          estado: string;
+          fecha: string;
+          id: number;
+          moneda_id: number;
+          notas: string | null;
+          tipo_cambio: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          cliente_id: number;
+          confirmada_en?: string | null;
+          confirmada_por?: string | null;
+          created_at?: string;
+          estado?: string;
+          fecha?: string;
+          id?: never;
+          moneda_id: number;
+          notas?: string | null;
+          tipo_cambio?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          cliente_id?: number;
+          confirmada_en?: string | null;
+          confirmada_por?: string | null;
+          created_at?: string;
+          estado?: string;
+          fecha?: string;
+          id?: never;
+          moneda_id?: number;
+          notas?: string | null;
+          tipo_cambio?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'venta_cliente_id_fkey';
+            columns: ['cliente_id'];
+            isOneToOne: false;
+            referencedRelation: 'cliente';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'venta_confirmada_por_fkey';
+            columns: ['confirmada_por'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'venta_moneda_id_fkey';
+            columns: ['moneda_id'];
+            isOneToOne: false;
+            referencedRelation: 'moneda';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      venta_detalle: {
+        Row: {
+          cajas: number;
+          created_at: string;
+          id: number;
+          precio_caja: number | null;
+          variante_id: number;
+          venta_id: number;
+          zona_id: number;
+        };
+        Insert: {
+          cajas: number;
+          created_at?: string;
+          id?: never;
+          precio_caja?: number | null;
+          variante_id: number;
+          venta_id: number;
+          zona_id: number;
+        };
+        Update: {
+          cajas?: number;
+          created_at?: string;
+          id?: never;
+          precio_caja?: number | null;
+          variante_id?: number;
+          venta_id?: number;
+          zona_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'venta_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'producto_variante';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'venta_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_stock_variante';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'venta_detalle_venta_id_fkey';
+            columns: ['venta_id'];
+            isOneToOne: false;
+            referencedRelation: 'venta';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'venta_detalle_zona_id_fkey';
+            columns: ['zona_id'];
+            isOneToOne: false;
+            referencedRelation: 'zona';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       zona: {
         Row: {
           activo: boolean;
@@ -971,6 +1189,7 @@ export type Database = {
         Args: { p_importacion_id: number };
         Returns: undefined;
       };
+      fn_confirmar_venta: { Args: { p_venta_id: number }; Returns: undefined };
       fn_traspasar: {
         Args: {
           p_cajas: number;

@@ -112,6 +112,17 @@ implementados en Sprint 1; este sprint se centra en compras/importaciones.
 - [x] ~~Tests de integración de la confirmación~~ (5 tests: permiso exigido, ingreso a stock con conversión, doble confirmación bloqueada, detalle y cabecera inmutables)
 - [x] ~~PR del Sprint 3 con CI verde y merge a `main`~~ (PR #4 mergeado el 2026-07-22)
 
+## Checklist Sprint 4 (detalle de trabajo)
+
+Ventas con el mismo patrón probado de compras: documento BORRADOR → CONFIRMADA sellado por la
+base de datos, y el stock solo se toca vía movimientos.
+
+- [x] ~~Migración `0009_ventas.sql`: permisos `venta.*`/`precio.editar`, listas de precios (VEN-04), `venta` + `venta_detalle` (VEN-01/02), `fn_confirmar_venta` (SALIDAS automáticas), RLS y bitácora~~ (aplicada a Supabase el 2026-07-22; tipos regenerados)
+- [x] ~~Página «Listas de precios» (VEN-04): crear lista por moneda, fijar precios por artículo y asignar lista al cliente~~ (`app/(app)/ventas/precios`)
+- [x] ~~Página «Notas de venta» (VEN-01/02): borrador por cliente, detalle con precio sugerido desde la lista del cliente, confirmar descuenta stock~~ (`app/(app)/ventas/notas` + sección «Ventas» en la navegación)
+- [x] ~~Tests de integración: la venta descuenta stock, el sobregiro falla completo (todo o nada), la doble confirmación y la edición post-confirmación se bloquean~~ (5 tests)
+- [ ] PR del Sprint 4 con CI verde y merge a `main`
+
 ## Registro de avance
 
 | Fecha      | Sprint   | Avance / notas                                                                                                                                                                                                                                                                           |
@@ -134,6 +145,7 @@ implementados en Sprint 1; este sprint se centra en compras/importaciones.
 | 2026-07-22 | Sprint 2 | GitHub CLI instalado y autenticado: push, PR y merge ahora los ejecuta Claude directamente. PR #2 (INV-01 a INV-03 + tests) mergeado a `main` con CI verde. Sprint 2 solo espera ADM-04 (decisión del cliente)                                                                           |
 | 2026-07-22 | Sprint 2 | Cliente decide **opción A** (manda 实存). Script de migración ADM-04 completo con simulación, barrera anti-doble-corrida, lotes y conciliación final; probado con planilla sintética + 8 tests del planificador. **Sprint 2 cerrado** — la corrida real espera el BODEGA.xls del cliente |
 | 2026-07-22 | Sprint 3 | Rama `feat/sprint-3-compras`. Migración 0008 (importación + detalle, estados, `fn_confirmar_importacion`), página «Importaciones» con flujo borrador → confirmar, y 5 tests de integración. REP-01 y REP-03 ya existían de Sprint 1                                                      |
+| 2026-07-22 | Sprint 4 | Rama `feat/sprint-4-ventas`. Migración 0009 (listas de precios, venta + detalle, `fn_confirmar_venta`), páginas «Notas de venta» y «Listas de precios», precio sugerido desde la lista del cliente, y 5 tests de integración (incluido sobregiro todo-o-nada)                            |
 
 ## Hallazgo abierto que requiere decisión del cliente
 
