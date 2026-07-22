@@ -85,20 +85,23 @@ Auditoría del código realizada el 2026-07-22. Se tacha cada tarea al completar
 - [x] ~~MAE-06 — Entrada «Clientes» en la navegación~~
 - [x] ~~MAE-06 — Migración aplicada al proyecto Supabase~~ (aplicada + seed el 2026-07-22)
 - [ ] Verificación completa: lint + typecheck + tests + build en verde (lint, typecheck y tests ya en verde el 2026-07-22; `build` pendiente — requiere detener el servidor dev)
+- [ ] Pull Request `feat/sprint-1-clientes → main` creado en GitHub y CI en verde
+- [ ] Pull Request revisado y mergeado a `main`
 
 ## Registro de avance
 
-| Fecha      | Sprint   | Avance / notas                                                                                                                                                                  |
-| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-07-13 | —        | Análisis de requerimientos, propuesta técnica y cotización Fase 1 elaborados                                                                                                    |
-| 2026-07-20 | —        | Repositorio creado; documentación base (PRD, TRD, BACKEND, FLUJO, UI_UX) redactada                                                                                              |
-| 2026-07-20 | Sprint 0 | Modelo de datos derivado del análisis real de BODEGA.xls, COTIZACION.xlsx y Galpón                                                                                              |
-| 2026-07-20 | Sprint 0 | Esqueleto Next.js + TS `strict` + Tailwind; ESLint, Prettier, Vitest y CI en GitHub Actions                                                                                     |
-| 2026-07-20 | Sprint 0 | Migraciones 0001–0005: utilidades, seguridad (rol/permiso/rol_permiso), catálogo, inventario y RLS                                                                              |
-| 2026-07-20 | Sprint 0 | Lector de BODEGA.xls + parser de zonas con 20 pruebas. Diagnóstico: totales cuadran, 0 descuadres, 95 % de zonas parseadas                                                      |
-| 2026-07-21 | Sprint 0 | Esquema aplicado al proyecto Supabase: 16 tablas, 31 políticas RLS, bitácora activa. **Sprint 0 cerrado**                                                                       |
-| 2026-07-21 | Sprint 1 | Login con Supabase Auth, middleware de sesión, navegación filtrada por permisos, resumen por categoría (REP-01), maestro de categorías (MAE-03) y consulta de bitácora (ADM-02) |
-| 2026-07-22 | Sprint 1 | Maestro de clientes (MAE-06): migración 0007 (tabla + RLS + bitácora + permisos), aplicada a Supabase con seed, tipos regenerados, página con CRUD validado con Zod y entrada en la navegación |
+| Fecha      | Sprint   | Avance / notas                                                                                                                                                                                        |
+| ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-13 | —        | Análisis de requerimientos, propuesta técnica y cotización Fase 1 elaborados                                                                                                                          |
+| 2026-07-20 | —        | Repositorio creado; documentación base (PRD, TRD, BACKEND, FLUJO, UI_UX) redactada                                                                                                                    |
+| 2026-07-20 | Sprint 0 | Modelo de datos derivado del análisis real de BODEGA.xls, COTIZACION.xlsx y Galpón                                                                                                                    |
+| 2026-07-20 | Sprint 0 | Esqueleto Next.js + TS `strict` + Tailwind; ESLint, Prettier, Vitest y CI en GitHub Actions                                                                                                           |
+| 2026-07-20 | Sprint 0 | Migraciones 0001–0005: utilidades, seguridad (rol/permiso/rol_permiso), catálogo, inventario y RLS                                                                                                    |
+| 2026-07-20 | Sprint 0 | Lector de BODEGA.xls + parser de zonas con 20 pruebas. Diagnóstico: totales cuadran, 0 descuadres, 95 % de zonas parseadas                                                                            |
+| 2026-07-21 | Sprint 0 | Esquema aplicado al proyecto Supabase: 16 tablas, 31 políticas RLS, bitácora activa. **Sprint 0 cerrado**                                                                                             |
+| 2026-07-21 | Sprint 1 | Login con Supabase Auth, middleware de sesión, navegación filtrada por permisos, resumen por categoría (REP-01), maestro de categorías (MAE-03) y consulta de bitácora (ADM-02)                       |
+| 2026-07-22 | Sprint 1 | Maestro de clientes (MAE-06): migración 0007 (tabla + RLS + bitácora + permisos), aplicada a Supabase con seed, tipos regenerados, página con CRUD validado con Zod y entrada en la navegación        |
+| 2026-07-22 | Sprint 1 | MAE-06 verificado en la UI por el equipo (pendiente ajuste visual, se hará más adelante). Rama `feat/sprint-1-clientes` subida a GitHub (commit 4e14d9b). Acceso de colaborador otorgado a Armand0777 |
 
 ## Hallazgo abierto que requiere decisión del cliente
 
