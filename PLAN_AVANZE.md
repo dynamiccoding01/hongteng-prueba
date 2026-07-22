@@ -103,22 +103,22 @@ la interfaz y ejecuta la migración de datos.
 
 ## Registro de avance
 
-| Fecha      | Sprint   | Avance / notas                                                                                                                                                                                        |
-| ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-07-13 | —        | Análisis de requerimientos, propuesta técnica y cotización Fase 1 elaborados                                                                                                                          |
-| 2026-07-20 | —        | Repositorio creado; documentación base (PRD, TRD, BACKEND, FLUJO, UI_UX) redactada                                                                                                                    |
-| 2026-07-20 | Sprint 0 | Modelo de datos derivado del análisis real de BODEGA.xls, COTIZACION.xlsx y Galpón                                                                                                                    |
-| 2026-07-20 | Sprint 0 | Esqueleto Next.js + TS `strict` + Tailwind; ESLint, Prettier, Vitest y CI en GitHub Actions                                                                                                           |
-| 2026-07-20 | Sprint 0 | Migraciones 0001–0005: utilidades, seguridad (rol/permiso/rol_permiso), catálogo, inventario y RLS                                                                                                    |
-| 2026-07-20 | Sprint 0 | Lector de BODEGA.xls + parser de zonas con 20 pruebas. Diagnóstico: totales cuadran, 0 descuadres, 95 % de zonas parseadas                                                                            |
-| 2026-07-21 | Sprint 0 | Esquema aplicado al proyecto Supabase: 16 tablas, 31 políticas RLS, bitácora activa. **Sprint 0 cerrado**                                                                                             |
-| 2026-07-21 | Sprint 1 | Login con Supabase Auth, middleware de sesión, navegación filtrada por permisos, resumen por categoría (REP-01), maestro de categorías (MAE-03) y consulta de bitácora (ADM-02)                       |
-| 2026-07-22 | Sprint 1 | Maestro de clientes (MAE-06): migración 0007 (tabla + RLS + bitácora + permisos), aplicada a Supabase con seed, tipos regenerados, página con CRUD validado con Zod y entrada en la navegación        |
-| 2026-07-22 | Sprint 1 | MAE-06 verificado en la UI por el equipo (pendiente ajuste visual, se hará más adelante). Rama `feat/sprint-1-clientes` subida a GitHub (commit 4e14d9b). Acceso de colaborador otorgado a Armand0777 |
-| 2026-07-22 | Sprint 1 | PR #1 creado. Primer CI falló por formato (database.types.ts sin pasar por prettier); corregido en 4f47958 y CI en verde: lint + typecheck + tests + build. Pendiente solo el merge a `main`          |
-| 2026-07-22 | Sprint 1 | PR #1 mergeado a `main`. **Sprint 1 cerrado.** Arranca Sprint 2 — Inventario: INV-01 a INV-04 (stock por zona, movimientos, kardex) y ADM-04 (migración de BODEGA.xls)                                |
-| 2026-07-22 | Sprint 2 | Rama `feat/sprint-2-inventario`. Vista «Stock por zona» (INV-01) verificada por el equipo. Página «Movimientos» (INV-02): alta de entradas/salidas/ajustes y anulación por movimiento inverso         |
-| 2026-07-22 | Sprint 2 | Kardex por artículo (INV-03): búsqueda por código, selector de empaque si hay varios, historial cronológico con saldo por zona y existencia actual en el encabezado                                   |
+| Fecha      | Sprint   | Avance / notas                                                                                                                                                                                           |
+| ---------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-13 | —        | Análisis de requerimientos, propuesta técnica y cotización Fase 1 elaborados                                                                                                                             |
+| 2026-07-20 | —        | Repositorio creado; documentación base (PRD, TRD, BACKEND, FLUJO, UI_UX) redactada                                                                                                                       |
+| 2026-07-20 | Sprint 0 | Modelo de datos derivado del análisis real de BODEGA.xls, COTIZACION.xlsx y Galpón                                                                                                                       |
+| 2026-07-20 | Sprint 0 | Esqueleto Next.js + TS `strict` + Tailwind; ESLint, Prettier, Vitest y CI en GitHub Actions                                                                                                              |
+| 2026-07-20 | Sprint 0 | Migraciones 0001–0005: utilidades, seguridad (rol/permiso/rol_permiso), catálogo, inventario y RLS                                                                                                       |
+| 2026-07-20 | Sprint 0 | Lector de BODEGA.xls + parser de zonas con 20 pruebas. Diagnóstico: totales cuadran, 0 descuadres, 95 % de zonas parseadas                                                                               |
+| 2026-07-21 | Sprint 0 | Esquema aplicado al proyecto Supabase: 16 tablas, 31 políticas RLS, bitácora activa. **Sprint 0 cerrado**                                                                                                |
+| 2026-07-21 | Sprint 1 | Login con Supabase Auth, middleware de sesión, navegación filtrada por permisos, resumen por categoría (REP-01), maestro de categorías (MAE-03) y consulta de bitácora (ADM-02)                          |
+| 2026-07-22 | Sprint 1 | Maestro de clientes (MAE-06): migración 0007 (tabla + RLS + bitácora + permisos), aplicada a Supabase con seed, tipos regenerados, página con CRUD validado con Zod y entrada en la navegación           |
+| 2026-07-22 | Sprint 1 | MAE-06 verificado en la UI por el equipo (pendiente ajuste visual, se hará más adelante). Rama `feat/sprint-1-clientes` subida a GitHub (commit 4e14d9b). Acceso de colaborador otorgado a Armand0777    |
+| 2026-07-22 | Sprint 1 | PR #1 creado. Primer CI falló por formato (database.types.ts sin pasar por prettier); corregido en 4f47958 y CI en verde: lint + typecheck + tests + build. Pendiente solo el merge a `main`             |
+| 2026-07-22 | Sprint 1 | PR #1 mergeado a `main`. **Sprint 1 cerrado.** Arranca Sprint 2 — Inventario: INV-01 a INV-04 (stock por zona, movimientos, kardex) y ADM-04 (migración de BODEGA.xls)                                   |
+| 2026-07-22 | Sprint 2 | Rama `feat/sprint-2-inventario`. Vista «Stock por zona» (INV-01) verificada por el equipo. Página «Movimientos» (INV-02): alta de entradas/salidas/ajustes y anulación por movimiento inverso            |
+| 2026-07-22 | Sprint 2 | Kardex por artículo (INV-03): búsqueda por código, selector de empaque si hay varios, historial cronológico con saldo por zona y existencia actual en el encabezado                                      |
 | 2026-07-22 | Sprint 2 | Tests de integración contra la base real (8): conversión caja⇄unidades, sobregiro bloqueado, kardex append-only, concurrencia, traspaso, anulación y conciliación kardex⇄stock. Se omiten sin .env.local |
 
 ## Hallazgo abierto que requiere decisión del cliente
