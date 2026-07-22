@@ -6,8 +6,8 @@ Plan de trabajo con metodología **SCRUM** (sprints de 2 semanas). La **Fase 1 (
 
 | Sprint   | Semanas | Requerimientos                  | Entregable                                                                                            | Estado       |
 | -------- | ------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------ |
-| Sprint 0 | 1–2     | (preparación)                   | Entorno Next.js + Supabase, repositorio, CI/CD, migraciones base, script de importación de BODEGA.xls | 🟡 En curso  |
-| Sprint 1 | 3–4     | MAE-01 a MAE-06, ADM-01, ADM-02 | Maestros (productos, categorías, zonas, proveedores, clientes) + login, roles (RLS) y auditoría       | ⬜ Pendiente |
+| Sprint 0 | 1–2     | (preparación)                   | Entorno Next.js + Supabase, repositorio, CI/CD, migraciones base, script de importación de BODEGA.xls | ✅ Terminado |
+| Sprint 1 | 3–4     | MAE-01 a MAE-06, ADM-01, ADM-02 | Maestros (productos, categorías, zonas, proveedores, clientes) + login, roles (RLS) y auditoría       | 🟡 En curso  |
 | Sprint 2 | 5–6     | INV-01 a INV-04, ADM-04         | Inventario: stock por zona (cajas + unidades), movimientos, kardex, triggers y migración del Excel    | ⬜ Pendiente |
 | Sprint 3 | 7–8     | COM-01 a COM-03, REP-01, REP-03 | Compras/importaciones con ingreso a stock, reportes básicos, despliegue final y capacitación          | ⬜ Pendiente |
 
@@ -69,14 +69,16 @@ Una historia **no está terminada** si no cumple todos estos puntos. No se negoc
 
 ## Registro de avance
 
-| Fecha      | Sprint   | Avance / notas                                                                                                             |
-| ---------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 2026-07-13 | —        | Análisis de requerimientos, propuesta técnica y cotización Fase 1 elaborados                                               |
-| 2026-07-20 | —        | Repositorio creado; documentación base (PRD, TRD, BACKEND, FLUJO, UI_UX) redactada                                         |
-| 2026-07-20 | Sprint 0 | Modelo de datos derivado del análisis real de BODEGA.xls, COTIZACION.xlsx y Galpón                                         |
-| 2026-07-20 | Sprint 0 | Esqueleto Next.js + TS `strict` + Tailwind; ESLint, Prettier, Vitest y CI en GitHub Actions                                |
-| 2026-07-20 | Sprint 0 | Migraciones 0001–0005: utilidades, seguridad (rol/permiso/rol_permiso), catálogo, inventario y RLS                         |
-| 2026-07-20 | Sprint 0 | Lector de BODEGA.xls + parser de zonas con 20 pruebas. Diagnóstico: totales cuadran, 0 descuadres, 95 % de zonas parseadas |
+| Fecha      | Sprint   | Avance / notas                                                                                                                                                                  |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-13 | —        | Análisis de requerimientos, propuesta técnica y cotización Fase 1 elaborados                                                                                                    |
+| 2026-07-20 | —        | Repositorio creado; documentación base (PRD, TRD, BACKEND, FLUJO, UI_UX) redactada                                                                                              |
+| 2026-07-20 | Sprint 0 | Modelo de datos derivado del análisis real de BODEGA.xls, COTIZACION.xlsx y Galpón                                                                                              |
+| 2026-07-20 | Sprint 0 | Esqueleto Next.js + TS `strict` + Tailwind; ESLint, Prettier, Vitest y CI en GitHub Actions                                                                                     |
+| 2026-07-20 | Sprint 0 | Migraciones 0001–0005: utilidades, seguridad (rol/permiso/rol_permiso), catálogo, inventario y RLS                                                                              |
+| 2026-07-20 | Sprint 0 | Lector de BODEGA.xls + parser de zonas con 20 pruebas. Diagnóstico: totales cuadran, 0 descuadres, 95 % de zonas parseadas                                                      |
+| 2026-07-21 | Sprint 0 | Esquema aplicado al proyecto Supabase: 16 tablas, 31 políticas RLS, bitácora activa. **Sprint 0 cerrado**                                                                       |
+| 2026-07-21 | Sprint 1 | Login con Supabase Auth, middleware de sesión, navegación filtrada por permisos, resumen por categoría (REP-01), maestro de categorías (MAE-03) y consulta de bitácora (ADM-02) |
 
 ## Hallazgo abierto que requiere decisión del cliente
 

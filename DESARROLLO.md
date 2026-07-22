@@ -32,8 +32,18 @@ npm run dev                    # http://localhost:3001
 | `npm run typecheck` | `tsc --noEmit`                                             |
 | `npm run format`    | Prettier sobre todo el repositorio                         |
 | `npm test`          | Pruebas con Vitest                                         |
-| `npm run db:reset`  | Recrea la base local desde las migraciones + seed          |
+| `npm run db:migrar` | Aplica las migraciones pendientes al proyecto en la nube   |
+| `npm run db:probar` | Verifica la conexión y qué tablas existen                  |
 | `npm run db:types`  | Regenera `lib/supabase/database.types.ts` desde el esquema |
+| `npm run db:sql`    | Genera el SQL consolidado para el editor del panel         |
+
+Scripts adicionales (`npx tsx scripts/<archivo>`):
+
+| Script                 | Qué hace                                                          |
+| ---------------------- | ----------------------------------------------------------------- |
+| `verificar-esquema.ts` | Comprueba que triggers, RLS, bitácora y reglas de stock funcionan |
+| `asignar-rol.ts`       | Lista usuarios y roles, o asigna un rol a un usuario              |
+| `analizar-bodega.ts`   | Diagnóstico de `BODEGA.xls` sin escribir en la base               |
 
 ## Estructura
 
@@ -65,6 +75,20 @@ npm run db:probar     # verifica la conexion y que tablas existen
 El archivo generado envuelve todo en `begin; … commit;`, así que si algo falla no queda el esquema a medias. Es un archivo **derivado**: no se versiona ni se edita a mano.
 
 > Esta vía es un puente. En cuanto haya CLI instalado, el flujo correcto es `supabase link` + `supabase db push`, que además lleva el registro de qué migraciones se aplicaron.
+
+## Crear el primer usuario
+
+Los usuarios se crean **desde el panel de Supabase**, no desde un script: las contraseñas las maneja el dueño de la cuenta.
+
+1. Panel de Supabase → **Authentication → Users → Add user**.
+2. Correo y contraseña; marcar **Auto Confirm User** para saltar la verificación por email.
+3. El trigger `tr_auth_user_creado` le crea el perfil con el rol **Consulta** (solo lectura).
+4. Promoverlo:
+
+```bash
+npx tsx scripts/asignar-rol.ts                          # lista usuarios y roles
+npx tsx scripts/asignar-rol.ts correo@ejemplo.com Administrador
+```
 
 ## Bitácora: obligatoria en cada tabla nueva
 

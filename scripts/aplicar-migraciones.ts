@@ -5,8 +5,7 @@
  *   npm run db:migrar           aplica las migraciones pendientes
  *   npm run db:migrar -- --seed aplica ademas supabase/seed.sql
  *
- * Requiere en .env.local:
- *   SUPABASE_ACCESS_TOKEN=sbp_...   (Personal Access Token del panel)
+ * Requiere SUPABASE_ACCESS_TOKEN en .env.local.
  *
  * Comportamiento:
  *  - Lleva registro en la tabla _migracion_aplicada: una migracion ya aplicada
@@ -18,72 +17,18 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { consultar, lit, ref } from './api-supabase';
 
-process.loadEnvFile('.env.local');
-
-const API = 'https://api.supabase.com';
 const DIR_MIGRACIONES = join('supabase', 'migrations');
 const SEED = join('supabase', 'seed.sql');
-
-const token = process.env.SUPABASE_ACCESS_TOKEN;
-const urlProyecto = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-if (!token) {
-  console.error(
-    '\nFalta SUPABASE_ACCESS_TOKEN en .env.local.\n' +
-      'Crealo en https://supabase.com/dashboard/account/tokens y pegalo ahi.\n',
-  );
-  process.exit(1);
-}
-if (!urlProyecto) {
-  console.error('\nFalta NEXT_PUBLIC_SUPABASE_URL en .env.local.\n');
-  process.exit(1);
-}
-
-/** El "ref" del proyecto es el subdominio: https://<ref>.supabase.co */
-const ref = new URL(urlProyecto).hostname.split('.')[0];
-if (!ref) {
-  console.error(`\nNo se pudo deducir el ref del proyecto desde '${urlProyecto}'.\n`);
-  process.exit(1);
-}
-
-/** Ejecuta SQL contra la base del proyecto. Devuelve las filas del resultado. */
-async function ejecutar(sql: string): Promise<unknown[]> {
-  const respuesta = await fetch(`${API}/v1/projects/${ref}/database/query`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ query: sql }),
-  });
-
-  const cuerpo = await respuesta.text();
-
-  if (!respuesta.ok) {
-    let detalle = cuerpo;
-    try {
-      const json: unknown = JSON.parse(cuerpo);
-      if (json && typeof json === 'object' && 'message' in json) {
-        detalle = String((json as { message: unknown }).message);
-      }
-    } catch {
-      // El cuerpo no era JSON; se muestra tal cual.
-    }
-    throw new Error(`HTTP ${respuesta.status} — ${detalle}`);
-  }
-
-  return cuerpo ? (JSON.parse(cuerpo) as unknown[]) : [];
-}
 
 async function main() {
   const conSeed = process.argv.includes('--seed');
 
-  console.log(`\nProyecto: ${ref}`);
-  console.log(`Token:    presente (${token!.length} caracteres, no se muestra)\n`);
+  console.log(`\nProyecto: ${ref}\n`);
 
   // Tabla de control: sabe que migraciones ya se aplicaron.
-  await ejecutar(`
+  await consultar(`
     create table if not exists _migracion_aplicada (
       nombre      text primary key,
       aplicada_en timestamptz not null default now()
@@ -91,9 +36,7 @@ async function main() {
   `);
 
   const aplicadas = new Set(
-    (await ejecutar('select nombre from _migracion_aplicada;')).map(
-      (f) => (f as { nombre: string }).nombre,
-    ),
+    (await consultar('select nombre from _migracion_aplicada;')).map((f) => f['nombre'] as string),
   );
 
   const migraciones = readdirSync(DIR_MIGRACIONES)
@@ -103,16 +46,16 @@ async function main() {
   let nuevas = 0;
   for (const archivo of migraciones) {
     if (aplicadas.has(archivo)) {
-      console.log(`  · ${archivo.padEnd(26)} ya aplicada`);
+      console.log(`  · ${archivo.padEnd(40)} ya aplicada`);
       continue;
     }
 
     const sql = readFileSync(join(DIR_MIGRACIONES, archivo), 'utf8');
-    process.stdout.write(`  → ${archivo.padEnd(26)} aplicando... `);
+    process.stdout.write(`  → ${archivo.padEnd(40)} aplicando... `);
 
     try {
-      await ejecutar(
-        `begin;\n${sql}\ninsert into _migracion_aplicada (nombre) values ('${archivo}');\ncommit;`,
+      await consultar(
+        `begin;\n${sql}\ninsert into _migracion_aplicada (nombre) values (${lit(archivo)});\ncommit;`,
       );
       console.log('OK');
       nuevas++;
@@ -125,9 +68,9 @@ async function main() {
   }
 
   if (conSeed) {
-    process.stdout.write(`\n  → seed.sql${' '.repeat(20)} aplicando... `);
+    process.stdout.write(`\n  → ${'seed.sql'.padEnd(40)} aplicando... `);
     try {
-      await ejecutar(`begin;\n${readFileSync(SEED, 'utf8')}\ncommit;`);
+      await consultar(`begin;\n${readFileSync(SEED, 'utf8')}\ncommit;`);
       console.log('OK');
     } catch (e) {
       console.log('FALLO');

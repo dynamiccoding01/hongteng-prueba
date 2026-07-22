@@ -13,7 +13,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:types": "supabase gen types typescript --local > lib/supabase/database.types.ts",
+    "db:types": "tsx scripts/generar-tipos.ts",
     "db:reset": "supabase db reset",
     "db:sql": "tsx scripts/generar-sql-completo.ts",
     "db:probar": "tsx scripts/probar-conexion.ts",

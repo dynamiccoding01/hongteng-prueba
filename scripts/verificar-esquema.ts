@@ -9,28 +9,7 @@
  * todas las pruebas corren dentro de una transaccion que se revierte.
  */
 
-process.loadEnvFile('.env.local');
-
-const token = process.env.SUPABASE_ACCESS_TOKEN;
-const urlProyecto = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-if (!token || !urlProyecto) {
-  console.error('Faltan SUPABASE_ACCESS_TOKEN o NEXT_PUBLIC_SUPABASE_URL en .env.local');
-  process.exit(1);
-}
-
-const ref = new URL(urlProyecto).hostname.split('.')[0]!;
-
-async function consultar(sql: string): Promise<Record<string, unknown>[]> {
-  const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: sql }),
-  });
-  const cuerpo = await r.text();
-  if (!r.ok) throw new Error(cuerpo);
-  return cuerpo ? (JSON.parse(cuerpo) as Record<string, unknown>[]) : [];
-}
+import { consultar, ref } from './api-supabase';
 
 let ok = 0;
 let fallos = 0;
