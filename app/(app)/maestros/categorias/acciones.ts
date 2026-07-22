@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
+import { mensajeError, type EstadoFormulario } from '@/lib/errores';
 
 /**
  * Validacion en el borde. La base de datos vuelve a validar con NOT NULL,
@@ -19,11 +20,6 @@ const esquemaCategoria = z.object({
   nombre_zh: z.string().trim().optional(),
   unidad_medida_default: z.enum(['PAR', 'PIEZA', 'JUEGO']),
 });
-
-export interface EstadoFormulario {
-  error?: string;
-  ok?: string;
-}
 
 export async function guardarCategoria(
   _previo: EstadoFormulario,
@@ -52,12 +48,7 @@ export async function guardarCategoria(
     ? await supabase.from('categoria').update(valores).eq('id', Number(id))
     : await supabase.from('categoria').insert(valores);
 
-  if (error) {
-    // 23505 = violacion de unicidad. 42501 = RLS lo rechazo.
-    if (error.code === '23505') return { error: `Ya existe una categoría con ese código` };
-    if (error.code === '42501') return { error: 'Su rol no tiene permiso para esta operación' };
-    return { error: error.message };
-  }
+  if (error) return { error: mensajeError(error, 'categoría') };
 
   revalidatePath('/maestros/categorias');
   return { ok: id ? 'Categoría actualizada' : 'Categoría creada' };

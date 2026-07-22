@@ -1,9 +1,42 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
-import { FormularioCategoria } from './formulario';
+import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { guardarCategoria } from './acciones';
 
 export const metadata = { title: 'Categorías · Inventario' };
+
+interface Categoria {
+  id: number;
+  codigo: string;
+  nombre_es: string;
+  nombre_zh: string | null;
+  unidad_medida_default: string;
+}
+
+const UNIDADES = [
+  { valor: 'PAR', texto: 'Par (双数) — calzado' },
+  { valor: 'PIEZA', texto: 'Pieza (件数) — ropa' },
+  { valor: 'JUEGO', texto: 'Juego' },
+];
+
+function Campos({ c }: { c?: Categoria }) {
+  return (
+    <>
+      {c ? <input type="hidden" name="id" value={c.id} /> : null}
+      <Campo etiqueta="Código" nombre="codigo" valor={c?.codigo} requerido ejemplo="NINO" />
+      <Campo etiqueta="Nombre" nombre="nombre_es" valor={c?.nombre_es} requerido ejemplo="Niño" />
+      <Campo etiqueta="Nombre en chino" nombre="nombre_zh" valor={c?.nombre_zh} ejemplo="童鞋" />
+      <Seleccion
+        etiqueta="Unidad de medida"
+        nombre="unidad_medida_default"
+        valor={c?.unidad_medida_default ?? 'PAR'}
+        opciones={UNIDADES}
+        requerido
+      />
+    </>
+  );
+}
 
 /** MAE-03: maestro de categorías (niño, juvenil, adulto, ropa), ampliable. */
 export default async function Categorias() {
@@ -16,14 +49,16 @@ export default async function Categorias() {
     .select('id, codigo, nombre_es, nombre_zh, unidad_medida_default, activo')
     .order('codigo');
 
-  if (error) {
-    return <Vacio>No se pudieron cargar las categorías: {error.message}</Vacio>;
-  }
+  if (error) return <Vacio>No se pudieron cargar las categorías: {error.message}</Vacio>;
 
   return (
     <>
       <Encabezado titulo="Categorías" descripcion="Agrupación de productos del catálogo (MAE-03)">
-        {puedeEditar ? <FormularioCategoria /> : null}
+        {puedeEditar ? (
+          <FormularioDesplegable accion={guardarCategoria} etiquetaNuevo="Nueva categoría">
+            <Campos />
+          </FormularioDesplegable>
+        ) : null}
       </Encabezado>
 
       {categorias.length === 0 ? (
@@ -56,15 +91,9 @@ export default async function Categorias() {
                 </Td>
                 {puedeEditar ? (
                   <Td>
-                    <FormularioCategoria
-                      categoria={{
-                        id: c.id,
-                        codigo: c.codigo,
-                        nombre_es: c.nombre_es,
-                        nombre_zh: c.nombre_zh,
-                        unidad_medida_default: c.unidad_medida_default,
-                      }}
-                    />
+                    <FormularioDesplegable accion={guardarCategoria} etiquetaNuevo="" esEdicion>
+                      <Campos c={c} />
+                    </FormularioDesplegable>
                   </Td>
                 ) : null}
               </tr>
