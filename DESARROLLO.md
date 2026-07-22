@@ -161,7 +161,26 @@ Filas que requieren revisión humana: 125
 
 Las planillas con datos del cliente **no se versionan** (`.gitignore` excluye `*.xls`).
 
+## Si la página aparece sin estilos
+
+Síntoma: la aplicación se ve como HTML plano, y en la consola del servidor aparece
+`__webpack_modules__[moduleId] is not a function` o errores del React Client Manifest.
+
+Causa: se ejecutó `npm run build` **con el servidor de desarrollo corriendo**. Ambos
+escriben en `.next` y se pisan entre sí, dejando el directorio inconsistente.
+
+```bash
+# detener el servidor de desarrollo (Ctrl+C), luego:
+rm -rf .next        # PowerShell: Remove-Item -Recurse -Force .next
+npm run dev
+```
+
+No es un error del código: `.next` es caché de compilación y se regenera solo.
+**Nunca correr `build` y `dev` a la vez.**
+
 ## Antes de abrir un Pull Request
+
+Con el servidor de desarrollo **detenido**:
 
 ```bash
 npm run format && npm run lint && npm run typecheck && npm test && npm run build
