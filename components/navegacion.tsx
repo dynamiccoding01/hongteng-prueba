@@ -31,6 +31,12 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
     ],
   },
   {
+    titulo: 'Compras',
+    enlaces: [
+      { href: '/compras/importaciones', texto: 'Importaciones', permiso: 'importacion.ver' },
+    ],
+  },
+  {
     titulo: 'Administración',
     enlaces: [
       { href: '/admin/usuarios', texto: 'Usuarios', permiso: 'usuario.ver' },
