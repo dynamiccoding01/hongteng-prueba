@@ -67,6 +67,25 @@ Una historia **no está terminada** si no cumple todos estos puntos. No se negoc
 - [ ] Confirmar la clasificación de códigos repetidos: variante de empaque vs. duplicado de digitación (ver [BACKEND.md](BACKEND.md#2-hallazgos-del-análisis-de-datos-del-cliente)).
 - [ ] Definir si el sistema se integra con Galpón o lo reemplaza.
 
+## Checklist Sprint 1 (detalle de trabajo)
+
+Auditoría del código realizada el 2026-07-22. Se tacha cada tarea al completarla.
+
+- [x] ~~Login con Supabase Auth y middleware de sesión~~
+- [x] ~~Navegación filtrada por permisos~~
+- [x] ~~MAE-01/02 — Maestro de productos y variantes de empaque~~ (`app/(app)/maestros/productos`)
+- [x] ~~MAE-03 — Maestro de categorías~~ (`app/(app)/maestros/categorias`)
+- [x] ~~MAE-04 — Bodegas y zonas~~ (`app/(app)/maestros/zonas`)
+- [x] ~~MAE-05 — Maestro de proveedores~~ (`app/(app)/maestros/proveedores`)
+- [x] ~~ADM-01 — Usuarios y asignación de rol~~ (`app/(app)/admin/usuarios`, `admin/roles`)
+- [x] ~~ADM-02 — Consulta de bitácora~~ (`app/(app)/bitacora`)
+- [x] ~~MAE-06 — Maestro de clientes: migración `0007_clientes.sql` (tabla + RLS + trigger de bitácora + permisos `cliente.ver`/`cliente.editar`)~~
+- [x] ~~MAE-06 — Tipos de base de datos regenerados (`lib/supabase/database.types.ts`)~~
+- [x] ~~MAE-06 — Página `app/(app)/maestros/clientes` con acciones validadas con Zod~~
+- [x] ~~MAE-06 — Entrada «Clientes» en la navegación~~
+- [x] ~~MAE-06 — Migración aplicada al proyecto Supabase~~ (aplicada + seed el 2026-07-22)
+- [ ] Verificación completa: lint + typecheck + tests + build en verde (lint, typecheck y tests ya en verde el 2026-07-22; `build` pendiente — requiere detener el servidor dev)
+
 ## Registro de avance
 
 | Fecha      | Sprint   | Avance / notas                                                                                                                                                                  |
@@ -79,6 +98,7 @@ Una historia **no está terminada** si no cumple todos estos puntos. No se negoc
 | 2026-07-20 | Sprint 0 | Lector de BODEGA.xls + parser de zonas con 20 pruebas. Diagnóstico: totales cuadran, 0 descuadres, 95 % de zonas parseadas                                                      |
 | 2026-07-21 | Sprint 0 | Esquema aplicado al proyecto Supabase: 16 tablas, 31 políticas RLS, bitácora activa. **Sprint 0 cerrado**                                                                       |
 | 2026-07-21 | Sprint 1 | Login con Supabase Auth, middleware de sesión, navegación filtrada por permisos, resumen por categoría (REP-01), maestro de categorías (MAE-03) y consulta de bitácora (ADM-02) |
+| 2026-07-22 | Sprint 1 | Maestro de clientes (MAE-06): migración 0007 (tabla + RLS + bitácora + permisos), aplicada a Supabase con seed, tipos regenerados, página con CRUD validado con Zod y entrada en la navegación |
 
 ## Hallazgo abierto que requiere decisión del cliente
 
