@@ -1,7 +1,8 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
-import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { Campo, FormularioDesplegable } from '@/components/formulario';
+import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { fijarStockMinimo } from './acciones';
 
 export const metadata = { title: 'Alertas de stock · Inventario' };
@@ -42,7 +43,7 @@ export default async function AlertasDeStock() {
       >
         {puedeEditar ? (
           <FormularioDesplegable accion={fijarStockMinimo} etiquetaNuevo="Definir mínimo">
-            <Seleccion
+            <SeleccionBuscable
               etiqueta="Artículo"
               nombre="variante_id"
               opciones={opcionesVariante}

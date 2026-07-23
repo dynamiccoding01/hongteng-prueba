@@ -2,6 +2,7 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { agregarDetalleVenta, confirmarVenta, crearVenta } from './acciones';
 
 export const metadata = { title: 'Notas de venta · Inventario' };
@@ -80,7 +81,7 @@ export default async function NotasDeVenta() {
       >
         {puedeCrear ? (
           <FormularioDesplegable accion={crearVenta} etiquetaNuevo="Nueva venta">
-            <Seleccion
+            <SeleccionBuscable
               etiqueta="Cliente"
               nombre="cliente_id"
               opciones={opcionesCliente}
@@ -185,13 +186,13 @@ export default async function NotasDeVenta() {
                       etiquetaNuevo="Agregar detalle"
                     >
                       <input type="hidden" name="venta_id" value={venta.id} />
-                      <Seleccion
+                      <SeleccionBuscable
                         etiqueta="Artículo"
                         nombre="variante_id"
                         opciones={opcionesVariante}
                         requerido
                       />
-                      <Seleccion
+                      <SeleccionBuscable
                         etiqueta="Zona de origen"
                         nombre="zona_id"
                         opciones={opcionesZona}

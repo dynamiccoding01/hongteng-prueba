@@ -2,6 +2,7 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { agregarDetalle, confirmarImportacion, crearImportacion } from './acciones';
 
 export const metadata = { title: 'Importaciones · Inventario' };
@@ -70,7 +71,7 @@ export default async function Importaciones() {
       >
         {puedeCrear ? (
           <FormularioDesplegable accion={crearImportacion} etiquetaNuevo="Nueva importación">
-            <Seleccion
+            <SeleccionBuscable
               etiqueta="Proveedor"
               nombre="proveedor_id"
               opciones={opcionesProveedor}
@@ -155,13 +156,13 @@ export default async function Importaciones() {
                   <div className="mt-4 flex flex-wrap items-start gap-4">
                     <FormularioDesplegable accion={agregarDetalle} etiquetaNuevo="Agregar detalle">
                       <input type="hidden" name="importacion_id" value={imp.id} />
-                      <Seleccion
+                      <SeleccionBuscable
                         etiqueta="Artículo"
                         nombre="variante_id"
                         opciones={opcionesVariante}
                         requerido
                       />
-                      <Seleccion
+                      <SeleccionBuscable
                         etiqueta="Zona destino"
                         nombre="zona_id"
                         opciones={opcionesZona}

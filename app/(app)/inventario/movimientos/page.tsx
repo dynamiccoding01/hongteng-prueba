@@ -2,6 +2,7 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { anularMovimiento, registrarMovimiento } from './acciones';
 
 export const metadata = { title: 'Movimientos · Inventario' };
@@ -70,13 +71,13 @@ export default async function Movimientos() {
       >
         {puedeCrear ? (
           <FormularioDesplegable accion={registrarMovimiento} etiquetaNuevo="Nuevo movimiento">
-            <Seleccion
+            <SeleccionBuscable
               etiqueta="Artículo"
               nombre="variante_id"
               opciones={opcionesVariante}
               requerido
             />
-            <Seleccion etiqueta="Zona" nombre="zona_id" opciones={opcionesZona} requerido />
+            <SeleccionBuscable etiqueta="Zona" nombre="zona_id" opciones={opcionesZona} requerido />
             <Seleccion
               etiqueta="Tipo"
               nombre="tipo"
