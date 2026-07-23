@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
+import { Encabezado, Etiqueta, Tabla, Tarjeta, Td, Th, Vacio } from '@/components/ui';
 import { FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { actualizarUsuario } from './acciones';
 
@@ -36,11 +36,11 @@ export default async function Usuarios() {
     <>
       <Encabezado titulo="Usuarios" descripcion="Acceso al sistema y rol asignado (ADM-01)" />
 
-      <div className="mb-4 rounded-lg border border-zinc-200 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+      <Tarjeta className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
         Las cuentas se crean desde el panel de Supabase (<em>Authentication → Users</em>). Este
         sistema no maneja contraseñas: solo asigna el rol. Un usuario nuevo entra con el rol{' '}
         <strong>Consulta</strong> hasta que un administrador lo cambie.
-      </div>
+      </Tarjeta>
 
       {(usuarios ?? []).length === 0 ? (
         <Vacio>No hay usuarios registrados.</Vacio>

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, Tabla, Tarjeta, Td, Th, Vacio, numero } from '@/components/ui';
 import { BuscadorCodigo } from '@/components/buscador-codigo';
 
 export const metadata = { title: 'Buscar por código · Inventario' };
@@ -131,7 +131,7 @@ export default async function BuscarCodigo({
         <BuscadorCodigo />
       </Encabezado>
 
-      <div className="mb-6 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <Tarjeta className="mb-6">
         <p className="text-lg font-semibold">
           <code>{v.producto.codigo}</code>
         </p>
@@ -153,7 +153,7 @@ export default async function BuscarCodigo({
             Registrar movimiento
           </Link>
         </div>
-      </div>
+      </Tarjeta>
 
       {(stock ?? []).length === 0 ? (
         <Vacio>Este artículo no tiene existencia en ninguna zona.</Vacio>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Tarjeta } from '@/components/ui';
 import { FormularioLogin } from './formulario-login';
 
 export const metadata: Metadata = { title: 'Ingresar · Sistema de Inventario' };
@@ -19,9 +20,9 @@ export default async function PaginaLogin({
           <p className="mt-1 text-sm text-zinc-500">Zona Franca de Iquique</p>
         </div>
 
-        <div className="rounded-lg border border-zinc-200 p-6 dark:border-zinc-800">
+        <Tarjeta className="p-6">
           <FormularioLogin destino={destino} />
-        </div>
+        </Tarjeta>
 
         <p className="mt-6 text-center text-xs text-zinc-500">
           ¿No tiene acceso? Solicítelo al administrador del sistema.

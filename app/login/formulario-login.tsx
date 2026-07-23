@@ -10,7 +10,7 @@ function BotonEntrar() {
     <button
       type="submit"
       disabled={pending}
-      className="mt-2 w-full rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+      className="mt-2 w-full rounded-md bg-acento px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
     >
       {pending ? 'Entrando…' : 'Entrar'}
     </button>
@@ -32,7 +32,7 @@ export function FormularioLogin({ destino }: { destino?: string }) {
           autoComplete="username"
           required
           autoFocus
-          className="rounded-md border border-zinc-300 px-3 py-2 outline-none focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-300"
+          className="rounded-md border border-zinc-300 px-3 py-2 outline-none focus-visible:border-acento focus-visible:ring-2 focus-visible:ring-acento/30 dark:border-zinc-700 dark:bg-zinc-900"
         />
       </label>
 
@@ -43,7 +43,7 @@ export function FormularioLogin({ destino }: { destino?: string }) {
           type="password"
           autoComplete="current-password"
           required
-          className="rounded-md border border-zinc-300 px-3 py-2 outline-none focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-300"
+          className="rounded-md border border-zinc-300 px-3 py-2 outline-none focus-visible:border-acento focus-visible:ring-2 focus-visible:ring-acento/30 dark:border-zinc-700 dark:bg-zinc-900"
         />
       </label>
 
