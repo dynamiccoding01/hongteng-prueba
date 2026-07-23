@@ -26,6 +26,7 @@ let varianteId: number;
 let bodegaId: number;
 let zonaId: number;
 let zonaId2: number;
+let adminId: string;
 
 const n = (fila: Fila | undefined, campo: string): number => Number(fila?.[campo]);
 
@@ -36,12 +37,26 @@ async function stockActual(zona: number): Promise<{ cajas: number; unidades: num
   return { cajas: n(filas[0], 'cajas'), unidades: n(filas[0], 'unidades') };
 }
 
+/** fn_traspasar exige permiso desde el Sprint 6 (INV-07): se prueba con sesión de admin. */
+async function comoAdmin(sql: string): Promise<Fila[]> {
+  return consultar(
+    `select set_config('request.jwt.claims', '{"sub":"${adminId}","role":"authenticated"}', false); ${sql}`,
+  );
+}
+
 describe.runIf(hayCredenciales)(
   'inventario: movimientos y stock (integración)',
   { timeout: 30_000 },
   () => {
     beforeAll(async () => {
       ({ consultar } = await import('../../scripts/api-supabase'));
+
+      const [admin] = await consultar(
+        `select u.id from usuario u join rol r on r.id = u.rol_id
+        where r.nombre = 'Administrador' and u.activo limit 1`,
+      );
+      if (!admin) throw new Error('No hay un usuario Administrador activo para probar');
+      adminId = String(admin.id);
 
       const [cat] = await consultar(
         `insert into categoria (codigo, nombre_es) values ('${CODIGO}', 'Categoría de test') returning id`,
@@ -153,7 +168,7 @@ describe.runIf(hayCredenciales)(
     });
 
     it('fn_traspasar mueve stock entre zonas sin alterar el total', async () => {
-      await consultar(
+      await comoAdmin(
         `select fn_traspasar(${varianteId}, ${zonaId}, ${zonaId2}, 1, 'test de traspaso')`,
       );
 

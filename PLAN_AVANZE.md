@@ -26,7 +26,7 @@ Plan de trabajo con metodología **SCRUM** (sprints de 2 semanas). La **Fase 1 (
 
 | Sprint   | Requerimientos                 | Entregable                                                                                 | Estado       |
 | -------- | ------------------------------ | ------------------------------------------------------------------------------------------ | ------------ |
-| Sprint 6 | VEN-03, ADM-03, INV-06, INV-07 | Documentos de traspaso/Aduanas, correlativos, toma de inventario y traspasos entre bodegas | ⬜ Pendiente |
+| Sprint 6 | VEN-03, ADM-03, INV-06, INV-07 | Documentos de traspaso/Aduanas, correlativos, toma de inventario y traspasos entre bodegas | ✅ Terminado |
 | Sprint 7 | INV-08, VEN-05                 | Código de barras/QR, comisiones, dashboards y afinamientos                                 | ⬜ Pendiente |
 
 **🏁 Hito: Release 3 — Zona franca y valor agregado.**
@@ -134,6 +134,16 @@ base de datos, y el stock solo se toca vía movimientos.
 - [x] ~~Tests de integración de las vistas de reportes~~ (4 tests: salidas del mes, valorización a CLP, monto de venta, alerta bajo mínimo)
 - [x] ~~PR del Sprint 5 con CI verde y merge a `main`~~ (PR #6 mergeado el 2026-07-22 — **Sprint 5 cerrado, Release 2 completa en desarrollo**)
 
+## Checklist Sprint 6 (detalle de trabajo)
+
+- [x] ~~Migración `0011_zona_franca.sql`: datos de empresa + correlativos con `fn_siguiente_correlativo` (ADM-03), `documento_traspaso` numerado desde venta confirmada (VEN-03), `toma_inventario` + `fn_aplicar_toma_inventario` con ajustes por diferencia (INV-06), y permiso reforzado en `fn_traspasar` (INV-07)~~ (aplicada el 2026-07-22; tipos regenerados)
+- [x] ~~Página «Traspasos» (INV-07): mover cajas entre zonas/bodegas con motivo~~ (`app/(app)/inventario/traspasos`)
+- [x] ~~Página «Toma de inventario» (INV-06): conteo por zona en borrador, comparación contra el sistema, y aplicación de diferencias como ajustes~~ (`app/(app)/inventario/toma`)
+- [x] ~~Página «Traspasos ante Aduanas» (VEN-03): emitir documento 203 numerado desde una venta confirmada, y anularlo~~ (`app/(app)/ventas/traspasos-aduana`)
+- [x] ~~Página «Empresa» (ADM-03): datos fiscales editables, con aviso mientras el RUT no esté confirmado por el cliente~~ (`app/(app)/admin/empresa`)
+- [x] ~~Tests de integración: correlativo secuencial, permiso en `fn_traspasar`, toma con ajuste de solo la diferencia, emisión/anulación del documento~~ (8 tests nuevos; se corrigió también `fn_traspasar` en el test del Sprint 2, que quedó exigiendo el permiso nuevo)
+- [ ] PR del Sprint 6 con CI verde y merge a `main`
+
 ## Registro de avance
 
 | Fecha      | Sprint   | Avance / notas                                                                                                                                                                                                                                                                           |
@@ -158,6 +168,8 @@ base de datos, y el stock solo se toca vía movimientos.
 | 2026-07-22 | Sprint 3 | Rama `feat/sprint-3-compras`. Migración 0008 (importación + detalle, estados, `fn_confirmar_importacion`), página «Importaciones» con flujo borrador → confirmar, y 5 tests de integración. REP-01 y REP-03 ya existían de Sprint 1                                                      |
 | 2026-07-22 | Sprint 4 | Rama `feat/sprint-4-ventas`. Migración 0009 (listas de precios, venta + detalle, `fn_confirmar_venta`), páginas «Notas de venta» y «Listas de precios», precio sugerido desde la lista del cliente, y 5 tests de integración (incluido sobregiro todo-o-nada)                            |
 | 2026-07-22 | Sprint 5 | Rama `feat/sprint-5-reportes`. Migración 0010 (4 vistas de reportes), páginas Estadística mensual, Valorización, Ventas por período y Alertas de stock, exportación a Excel con bitácora, y 4 tests de integración                                                                       |
+| 2026-07-23 | Sprint 6 | Rama `feat/sprint-6-zona-franca`. Migración 0011: empresa + correlativos (ADM-03), toma de inventario con ajuste automático de diferencias (INV-06), documento de traspaso 203 numerado desde venta confirmada (VEN-03), y `fn_traspasar` reforzada con permiso (INV-07)                 |
+| 2026-07-23 | Sprint 6 | Páginas Empresa, Traspasos, Toma de inventario y Traspasos ante Aduanas. 8 tests de integración nuevos; se corrigió el test de traspaso del Sprint 2 para autenticarse (dejó de pasar al exigirse el permiso). `vitest.config.ts`: tests de integración en serie (evita 429 de la API)   |
 
 ## Hallazgo abierto que requiere decisión del cliente
 
