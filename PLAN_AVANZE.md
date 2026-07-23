@@ -156,6 +156,7 @@ base de datos, y el stock solo se toca vía movimientos.
 - [x] ~~Tests de integración: comisión calculada y congelada al confirmar~~ (3 tests: cálculo, vista `v_comisiones`, inmutabilidad ante cambio posterior del %)
 
 > **Nota de alcance — INV-08:** se implementó la asignación de código de barras/SKU por empaque y la lectura rápida (compatible con lector USB/Bluetooth, que escribe como si fuera un teclado). **No** se generó una imagen de código de barras/QR para imprimir etiquetas: es prioridad Baja en el PRD, y un generador mal implementado podría producir etiquetas que no escanean sin forma de detectarlo sin un lector físico a mano. Si se necesita, mejor evaluarlo con una librería probada cuando haya cómo verificarlo contra un lector real.
+
 - [ ] PR del Sprint 7 con CI verde y merge a `main`
 
 ## Registro de avance
