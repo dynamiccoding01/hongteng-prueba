@@ -18,7 +18,7 @@ Plan de trabajo con metodología **SCRUM** (sprints de 2 semanas). La **Fase 1 (
 | Sprint   | Requerimientos                  | Entregable                                                                 | Estado       |
 | -------- | ------------------------------- | -------------------------------------------------------------------------- | ------------ |
 | Sprint 4 | VEN-01, VEN-02, VEN-04          | Ventas con descuento automático de stock y listas de precios               | ✅ Terminado |
-| Sprint 5 | REP-02, REP-04 a REP-06, INV-05 | Estadística mensual, valorización, alertas de stock, exportación Excel/PDF | ⬜ Pendiente |
+| Sprint 5 | REP-02, REP-04 a REP-06, INV-05 | Estadística mensual, valorización, alertas de stock, exportación Excel/PDF | ✅ Terminado |
 
 **🏁 Hito: Release 2 — Ventas y reportes.**
 
@@ -132,7 +132,7 @@ base de datos, y el stock solo se toca vía movimientos.
 - [x] ~~Alertas de stock mínimo (INV-05): página con artículos en o bajo mínimo y definición del mínimo por variante~~ (`app/(app)/inventario/alertas`)
 - [x] ~~Exportación a Excel (REP-06): descarga .xlsx de los tres reportes, con permiso `reporte.exportar` y rastro EXPORTAR en bitácora~~ (`app/api/exportar`)
 - [x] ~~Tests de integración de las vistas de reportes~~ (4 tests: salidas del mes, valorización a CLP, monto de venta, alerta bajo mínimo)
-- [ ] PR del Sprint 5 con CI verde y merge a `main`
+- [x] ~~PR del Sprint 5 con CI verde y merge a `main`~~ (PR #6 mergeado el 2026-07-22 — **Sprint 5 cerrado, Release 2 completa en desarrollo**)
 
 ## Registro de avance
 
