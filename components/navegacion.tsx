@@ -19,6 +19,8 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
       { href: '/inventario/movimientos', texto: 'Movimientos', permiso: 'movimiento.ver' },
       { href: '/inventario/kardex', texto: 'Kardex', permiso: 'movimiento.ver' },
       { href: '/inventario/alertas', texto: 'Alertas de stock', permiso: 'stock.ver' },
+      { href: '/inventario/traspasos', texto: 'Traspasos', permiso: 'movimiento.ver' },
+      { href: '/inventario/toma', texto: 'Toma de inventario', permiso: 'toma.ver' },
     ],
   },
   {
@@ -42,6 +44,11 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
     enlaces: [
       { href: '/ventas/notas', texto: 'Notas de venta', permiso: 'venta.ver' },
       { href: '/ventas/precios', texto: 'Listas de precios', permiso: 'venta.ver' },
+      {
+        href: '/ventas/traspasos-aduana',
+        texto: 'Traspasos ante Aduanas',
+        permiso: 'documento_traspaso.ver',
+      },
     ],
   },
   {
@@ -57,6 +64,7 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
     enlaces: [
       { href: '/admin/usuarios', texto: 'Usuarios', permiso: 'usuario.ver' },
       { href: '/admin/roles', texto: 'Roles y permisos', permiso: 'rol.editar' },
+      { href: '/admin/empresa', texto: 'Empresa', permiso: 'empresa.ver' },
       { href: '/bitacora', texto: 'Bitácora' },
     ],
   },

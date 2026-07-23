@@ -6,6 +6,9 @@ export default defineConfig({
     environment: 'node',
     include: ['**/*.test.ts'],
     exclude: ['node_modules/**', '.next/**'],
+    // Los tests de integracion comparten la Management API de Supabase, que
+    // tiene rate limit: correrlos en paralelo dispara 429 (Too Many Requests).
+    fileParallelism: false,
   },
   resolve: {
     alias: {

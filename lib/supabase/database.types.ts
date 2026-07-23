@@ -210,6 +210,143 @@ export type Database = {
           },
         ];
       };
+      correlativo: {
+        Row: {
+          anio: number;
+          id: number;
+          tipo_documento: string;
+          ultimo_numero: number;
+        };
+        Insert: {
+          anio: number;
+          id?: never;
+          tipo_documento: string;
+          ultimo_numero?: number;
+        };
+        Update: {
+          anio?: number;
+          id?: never;
+          tipo_documento?: string;
+          ultimo_numero?: number;
+        };
+        Relationships: [];
+      };
+      documento_traspaso: {
+        Row: {
+          adquiriente_nombre: string;
+          adquiriente_rut: string | null;
+          anulado_en: string | null;
+          anulado_por: string | null;
+          created_at: string;
+          destino: string | null;
+          emitido_por: string | null;
+          estado: string;
+          fecha: string;
+          folio: string;
+          id: number;
+          observaciones: string | null;
+          procedencia: string;
+          venta_id: number;
+        };
+        Insert: {
+          adquiriente_nombre: string;
+          adquiriente_rut?: string | null;
+          anulado_en?: string | null;
+          anulado_por?: string | null;
+          created_at?: string;
+          destino?: string | null;
+          emitido_por?: string | null;
+          estado?: string;
+          fecha?: string;
+          folio: string;
+          id?: never;
+          observaciones?: string | null;
+          procedencia?: string;
+          venta_id: number;
+        };
+        Update: {
+          adquiriente_nombre?: string;
+          adquiriente_rut?: string | null;
+          anulado_en?: string | null;
+          anulado_por?: string | null;
+          created_at?: string;
+          destino?: string | null;
+          emitido_por?: string | null;
+          estado?: string;
+          fecha?: string;
+          folio?: string;
+          id?: never;
+          observaciones?: string | null;
+          procedencia?: string;
+          venta_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'documento_traspaso_anulado_por_fkey';
+            columns: ['anulado_por'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'documento_traspaso_emitido_por_fkey';
+            columns: ['emitido_por'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'documento_traspaso_venta_id_fkey';
+            columns: ['venta_id'];
+            isOneToOne: true;
+            referencedRelation: 'v_ventas_detalle';
+            referencedColumns: ['venta_id'];
+          },
+          {
+            foreignKeyName: 'documento_traspaso_venta_id_fkey';
+            columns: ['venta_id'];
+            isOneToOne: true;
+            referencedRelation: 'venta';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      empresa: {
+        Row: {
+          ciudad: string | null;
+          direccion: string | null;
+          email: string | null;
+          giro: string | null;
+          id: number;
+          razon_social: string;
+          rut: string | null;
+          telefono: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          ciudad?: string | null;
+          direccion?: string | null;
+          email?: string | null;
+          giro?: string | null;
+          id?: number;
+          razon_social: string;
+          rut?: string | null;
+          telefono?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          ciudad?: string | null;
+          direccion?: string | null;
+          email?: string | null;
+          giro?: string | null;
+          id?: number;
+          razon_social?: string;
+          rut?: string | null;
+          telefono?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       importacion: {
         Row: {
           confirmada_en: string | null;
@@ -987,6 +1124,134 @@ export type Database = {
           },
         ];
       };
+      toma_inventario: {
+        Row: {
+          aplicada_en: string | null;
+          aplicada_por: string | null;
+          bodega_id: number;
+          created_at: string;
+          estado: string;
+          fecha: string;
+          id: number;
+          notas: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          aplicada_en?: string | null;
+          aplicada_por?: string | null;
+          bodega_id: number;
+          created_at?: string;
+          estado?: string;
+          fecha?: string;
+          id?: never;
+          notas?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          aplicada_en?: string | null;
+          aplicada_por?: string | null;
+          bodega_id?: number;
+          created_at?: string;
+          estado?: string;
+          fecha?: string;
+          id?: never;
+          notas?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'toma_inventario_aplicada_por_fkey';
+            columns: ['aplicada_por'];
+            isOneToOne: false;
+            referencedRelation: 'usuario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'toma_inventario_bodega_id_fkey';
+            columns: ['bodega_id'];
+            isOneToOne: false;
+            referencedRelation: 'bodega';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      toma_inventario_detalle: {
+        Row: {
+          cajas_contadas: number;
+          created_at: string;
+          id: number;
+          toma_id: number;
+          variante_id: number;
+          zona_id: number;
+        };
+        Insert: {
+          cajas_contadas: number;
+          created_at?: string;
+          id?: never;
+          toma_id: number;
+          variante_id: number;
+          zona_id: number;
+        };
+        Update: {
+          cajas_contadas?: number;
+          created_at?: string;
+          id?: never;
+          toma_id?: number;
+          variante_id?: number;
+          zona_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'toma_inventario_detalle_toma_id_fkey';
+            columns: ['toma_id'];
+            isOneToOne: false;
+            referencedRelation: 'toma_inventario';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'toma_inventario_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'producto_variante';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'toma_inventario_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_alertas_stock';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'toma_inventario_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_salidas_mensuales';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'toma_inventario_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_stock_variante';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'toma_inventario_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_valorizacion';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'toma_inventario_detalle_zona_id_fkey';
+            columns: ['zona_id'];
+            isOneToOne: false;
+            referencedRelation: 'zona';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       ubicacion_zeta: {
         Row: {
           activo: boolean;
@@ -1355,15 +1620,37 @@ export type Database = {
       };
     };
     Functions: {
+      fn_anular_documento_traspaso: {
+        Args: { p_documento_id: number; p_motivo: string };
+        Returns: undefined;
+      };
       fn_anular_movimiento: {
         Args: { p_motivo: string; p_movimiento_id: number };
         Returns: number;
+      };
+      fn_aplicar_toma_inventario: {
+        Args: { p_toma_id: number };
+        Returns: undefined;
       };
       fn_confirmar_importacion: {
         Args: { p_importacion_id: number };
         Returns: undefined;
       };
       fn_confirmar_venta: { Args: { p_venta_id: number }; Returns: undefined };
+      fn_emitir_documento_traspaso: {
+        Args: {
+          p_adquiriente_nombre: string;
+          p_adquiriente_rut?: string;
+          p_destino?: string;
+          p_observaciones?: string;
+          p_venta_id: number;
+        };
+        Returns: number;
+      };
+      fn_siguiente_correlativo: {
+        Args: { p_tipo_documento: string };
+        Returns: string;
+      };
       fn_traspasar: {
         Args: {
           p_cajas: number;
