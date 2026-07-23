@@ -8,6 +8,7 @@ import { mensajeError, type EstadoFormulario } from '@/lib/errores';
 const esquemaCabecera = z.object({
   cliente_id: z.coerce.number().int().positive('Seleccione el cliente'),
   moneda_id: z.coerce.number().int().positive('Seleccione la moneda'),
+  vendedor_id: z.coerce.number().int().positive().optional(),
   tipo_cambio: z.coerce.number().positive('Tipo de cambio no válido').optional(),
   fecha: z.string().trim().optional(),
   notas: z.string().trim().optional(),
@@ -21,6 +22,7 @@ export async function crearVenta(
   const analisis = esquemaCabecera.safeParse({
     cliente_id: datos.get('cliente_id'),
     moneda_id: datos.get('moneda_id'),
+    vendedor_id: datos.get('vendedor_id') || undefined,
     tipo_cambio: datos.get('tipo_cambio') || undefined,
     fecha: datos.get('fecha') || undefined,
     notas: datos.get('notas') || undefined,
@@ -34,6 +36,7 @@ export async function crearVenta(
   const { error } = await supabase.from('venta').insert({
     cliente_id: analisis.data.cliente_id,
     moneda_id: analisis.data.moneda_id,
+    vendedor_id: analisis.data.vendedor_id ?? null,
     tipo_cambio: analisis.data.tipo_cambio ?? null,
     fecha: analisis.data.fecha || undefined,
     notas: analisis.data.notas ?? null,

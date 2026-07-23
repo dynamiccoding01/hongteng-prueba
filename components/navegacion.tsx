@@ -21,6 +21,7 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
       { href: '/inventario/alertas', texto: 'Alertas de stock', permiso: 'stock.ver' },
       { href: '/inventario/traspasos', texto: 'Traspasos', permiso: 'movimiento.ver' },
       { href: '/inventario/toma', texto: 'Toma de inventario', permiso: 'toma.ver' },
+      { href: '/inventario/buscar-codigo', texto: 'Buscar por código', permiso: 'stock.ver' },
     ],
   },
   {
@@ -31,6 +32,7 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
       { href: '/maestros/zonas', texto: 'Bodegas y zonas', permiso: 'zona.ver' },
       { href: '/maestros/proveedores', texto: 'Proveedores', permiso: 'proveedor.ver' },
       { href: '/maestros/clientes', texto: 'Clientes', permiso: 'cliente.ver' },
+      { href: '/maestros/codigos', texto: 'Códigos de barras', permiso: 'producto.ver' },
     ],
   },
   {
@@ -49,6 +51,7 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
         texto: 'Traspasos ante Aduanas',
         permiso: 'documento_traspaso.ver',
       },
+      { href: '/ventas/vendedores', texto: 'Vendedores', permiso: 'vendedor.ver' },
     ],
   },
   {
@@ -57,6 +60,7 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
       { href: '/reportes/estadistica', texto: 'Estadística mensual', permiso: 'reporte.ver' },
       { href: '/reportes/valorizacion', texto: 'Valorización', permiso: 'reporte.ver' },
       { href: '/reportes/ventas', texto: 'Ventas por período', permiso: 'reporte.ver' },
+      { href: '/reportes/comisiones', texto: 'Comisiones', permiso: 'comision.ver' },
     ],
   },
   {

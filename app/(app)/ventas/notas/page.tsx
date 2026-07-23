@@ -25,11 +25,12 @@ export default async function NotasDeVenta() {
     { data: monedas },
     { data: variantes },
     { data: zonas },
+    { data: vendedores },
   ] = await Promise.all([
     supabase
       .from('venta')
       .select(
-        'id, fecha, tipo_cambio, estado, notas, cliente:cliente_id(nombre, lista:lista_precio_id(nombre)), moneda:moneda_id(codigo, simbolo), detalle:venta_detalle(id, cajas, precio_caja, zona:zona_id(codigo), variante:variante_id(unidades_por_caja, producto:producto_id(codigo)))',
+        'id, fecha, tipo_cambio, estado, notas, comision_clp, comision_porcentaje, cliente:cliente_id(nombre, lista:lista_precio_id(nombre)), moneda:moneda_id(codigo, simbolo), vendedor:vendedor_id(usuario:usuario_id(nombre)), detalle:venta_detalle(id, cajas, precio_caja, zona:zona_id(codigo), variante:variante_id(unidades_por_caja, producto:producto_id(codigo)))',
       )
       .order('id', { ascending: false })
       .limit(50),
@@ -42,6 +43,11 @@ export default async function NotasDeVenta() {
       .eq('producto.activo', true)
       .limit(1000),
     supabase.from('zona').select('id, codigo').eq('activo', true).order('codigo'),
+    supabase
+      .from('vendedor')
+      .select('id, usuario:usuario_id(nombre)')
+      .eq('activo', true)
+      .order('id'),
   ]);
 
   if (error) return <Vacio>No se pudieron cargar las ventas: {error.message}</Vacio>;
@@ -61,6 +67,10 @@ export default async function NotasDeVenta() {
       texto: `${v.producto.codigo} — ${numero(v.unidades_por_caja)} u/caja`,
     }));
   const opcionesZona = (zonas ?? []).map((z) => ({ valor: z.id, texto: z.codigo }));
+  const opcionesVendedor = (vendedores ?? []).map((v) => ({
+    valor: v.id,
+    texto: v.usuario.nombre,
+  }));
 
   return (
     <>
@@ -77,6 +87,13 @@ export default async function NotasDeVenta() {
               requerido
             />
             <Seleccion etiqueta="Moneda" nombre="moneda_id" opciones={opcionesMoneda} requerido />
+            {opcionesVendedor.length > 0 ? (
+              <Seleccion
+                etiqueta="Vendedor (opcional)"
+                nombre="vendedor_id"
+                opciones={opcionesVendedor}
+              />
+            ) : null}
             <Campo etiqueta="Tipo de cambio a CLP" nombre="tipo_cambio" tipo="number" />
             <Campo etiqueta="Fecha" nombre="fecha" tipo="date" />
             <Campo etiqueta="Notas" nombre="notas" ancho="completo" />
@@ -113,6 +130,10 @@ export default async function NotasDeVenta() {
                     {venta.cliente.lista ? ` (lista ${venta.cliente.lista.nombre})` : ''} ·{' '}
                     {venta.moneda.codigo}
                     {venta.tipo_cambio ? ` (TC ${numero(venta.tipo_cambio)})` : ''}
+                    {venta.vendedor ? ` · vendedor: ${venta.vendedor.usuario.nombre}` : ''}
+                    {venta.comision_clp !== null
+                      ? ` (comisión ${numero(venta.comision_porcentaje)} % = $ ${numero(venta.comision_clp)})`
+                      : ''}
                   </span>
                   <span className="ml-auto text-sm text-zinc-500">
                     {numero(totalCajas)} cajas · {venta.moneda.simbolo ?? ''} {numero(totalMonto)}
