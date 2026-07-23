@@ -27,7 +27,7 @@ Plan de trabajo con metodología **SCRUM** (sprints de 2 semanas). La **Fase 1 (
 | Sprint   | Requerimientos                 | Entregable                                                                                 | Estado       |
 | -------- | ------------------------------ | ------------------------------------------------------------------------------------------ | ------------ |
 | Sprint 6 | VEN-03, ADM-03, INV-06, INV-07 | Documentos de traspaso/Aduanas, correlativos, toma de inventario y traspasos entre bodegas | ✅ Terminado |
-| Sprint 7 | INV-08, VEN-05                 | Código de barras/QR, comisiones, dashboards y afinamientos                                 | ⬜ Pendiente |
+| Sprint 7 | INV-08, VEN-05                 | Código de barras/QR, comisiones, dashboards y afinamientos                                 | ✅ Terminado |
 
 **🏁 Hito: Release 3 — Zona franca y valor agregado.**
 
@@ -157,7 +157,7 @@ base de datos, y el stock solo se toca vía movimientos.
 
 > **Nota de alcance — INV-08:** se implementó la asignación de código de barras/SKU por empaque y la lectura rápida (compatible con lector USB/Bluetooth, que escribe como si fuera un teclado). **No** se generó una imagen de código de barras/QR para imprimir etiquetas: es prioridad Baja en el PRD, y un generador mal implementado podría producir etiquetas que no escanean sin forma de detectarlo sin un lector físico a mano. Si se necesita, mejor evaluarlo con una librería probada cuando haya cómo verificarlo contra un lector real.
 
-- [ ] PR del Sprint 7 con CI verde y merge a `main`
+- [x] ~~PR del Sprint 7 con CI verde y merge a `main`~~ (PR #8 mergeado el 2026-07-23 — **Sprint 7 cerrado. PRD completo en desarrollo: Fases 1, 2 y 3 terminadas**)
 
 ## Registro de avance
 
@@ -185,6 +185,8 @@ base de datos, y el stock solo se toca vía movimientos.
 | 2026-07-22 | Sprint 5 | Rama `feat/sprint-5-reportes`. Migración 0010 (4 vistas de reportes), páginas Estadística mensual, Valorización, Ventas por período y Alertas de stock, exportación a Excel con bitácora, y 4 tests de integración                                                                       |
 | 2026-07-23 | Sprint 6 | Rama `feat/sprint-6-zona-franca`. Migración 0011: empresa + correlativos (ADM-03), toma de inventario con ajuste automático de diferencias (INV-06), documento de traspaso 203 numerado desde venta confirmada (VEN-03), y `fn_traspasar` reforzada con permiso (INV-07)                 |
 | 2026-07-23 | Sprint 6 | Páginas Empresa, Traspasos, Toma de inventario y Traspasos ante Aduanas. 8 tests de integración nuevos; se corrigió el test de traspaso del Sprint 2 para autenticarse (dejó de pasar al exigirse el permiso). `vitest.config.ts`: tests de integración en serie (evita 429 de la API)   |
+| 2026-07-23 | Sprint 7 | Rama `feat/sprint-7-comisiones-codigos`. Migración 0012: tabla `vendedor`, `fn_confirmar_venta` congela % y calcula `comision_clp`, vista `v_comisiones` (VEN-05). Páginas Vendedores, Comisiones y campo vendedor en Notas de venta                                                     |
+| 2026-07-23 | Sprint 7 | Páginas Códigos de barras y Buscar por código (INV-08, sin generación de imagen de etiqueta — ver nota de alcance arriba). Dashboard con tarjetas en el Resumen. 3 tests de integración. PR #8 mergeado. **Sprint 7 cerrado — PRD completo en desarrollo (Fases 1, 2 y 3)**              |
 
 ## Hallazgo abierto que requiere decisión del cliente
 
