@@ -2,6 +2,7 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { agregarConteo, aplicarToma, crearToma } from './acciones';
 
 export const metadata = { title: 'Toma de inventario · Inventario' };
@@ -151,13 +152,13 @@ export default async function TomaDeInventario() {
                   <div className="mt-4 flex flex-wrap items-start gap-4">
                     <FormularioDesplegable accion={agregarConteo} etiquetaNuevo="Registrar conteo">
                       <input type="hidden" name="toma_id" value={toma.id} />
-                      <Seleccion
+                      <SeleccionBuscable
                         etiqueta="Artículo"
                         nombre="variante_id"
                         opciones={opcionesVariante}
                         requerido
                       />
-                      <Seleccion
+                      <SeleccionBuscable
                         etiqueta="Zona"
                         nombre="zona_id"
                         opciones={opcionesZona}

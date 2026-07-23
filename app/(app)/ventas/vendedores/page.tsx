@@ -1,7 +1,8 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
-import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { Campo, FormularioDesplegable } from '@/components/formulario';
+import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { guardarVendedor } from './acciones';
 
 export const metadata = { title: 'Vendedores · Inventario' };
@@ -32,7 +33,7 @@ export default async function Vendedores() {
       <Encabezado titulo="Vendedores" descripcion="Porcentaje de comisión por usuario (VEN-05)">
         {puedeEditar && opcionesUsuario.length > 0 ? (
           <FormularioDesplegable accion={guardarVendedor} etiquetaNuevo="Nuevo vendedor">
-            <Seleccion
+            <SeleccionBuscable
               etiqueta="Usuario"
               nombre="usuario_id"
               opciones={opcionesUsuario}

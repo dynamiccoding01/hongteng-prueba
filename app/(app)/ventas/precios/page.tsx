@@ -2,6 +2,7 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { asignarListaACliente, crearLista, fijarPrecio } from './acciones';
 
 export const metadata = { title: 'Listas de precios · Inventario' };
@@ -85,7 +86,7 @@ export default async function ListasDePrecios() {
                   <div className="ml-auto">
                     <FormularioDesplegable accion={fijarPrecio} etiquetaNuevo="Fijar precio">
                       <input type="hidden" name="lista_id" value={lista.id} />
-                      <Seleccion
+                      <SeleccionBuscable
                         etiqueta="Artículo"
                         nombre="variante_id"
                         opciones={opcionesVariante}

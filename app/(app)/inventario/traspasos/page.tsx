@@ -1,7 +1,8 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
-import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { Campo, FormularioDesplegable } from '@/components/formulario';
+import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { traspasarStock } from './acciones';
 
 export const metadata = { title: 'Traspasos · Inventario' };
@@ -64,20 +65,20 @@ export default async function Traspasos() {
       >
         {puedeCrear ? (
           <FormularioDesplegable accion={traspasarStock} etiquetaNuevo="Nuevo traspaso">
-            <Seleccion
+            <SeleccionBuscable
               etiqueta="Artículo"
               nombre="variante_id"
               opciones={opcionesVariante}
               requerido
             />
             <Campo etiqueta="Cajas" nombre="cajas" tipo="number" requerido ejemplo="10" />
-            <Seleccion
+            <SeleccionBuscable
               etiqueta="Zona de origen"
               nombre="zona_origen"
               opciones={opcionesZona}
               requerido
             />
-            <Seleccion
+            <SeleccionBuscable
               etiqueta="Zona de destino"
               nombre="zona_destino"
               opciones={opcionesZona}

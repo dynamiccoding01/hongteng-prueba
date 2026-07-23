@@ -33,9 +33,10 @@ Plan de trabajo con metodología **SCRUM** (sprints de 2 semanas). La **Fase 1 (
 
 ## Fase 4 — Diseño (fuera del PRD original)
 
-| Sprint   | Requerimientos     | Entregable                                                                    | Estado       |
-| -------- | ------------------ | ----------------------------------------------------------------------------- | ------------ |
-| Sprint 8 | (pedido del dueño) | Rediseño visual, tema claro/oscuro seleccionable y selector de idioma (es/zh) | ✅ Terminado |
+| Sprint   | Requerimientos     | Entregable                                                                                  | Estado       |
+| -------- | ------------------ | ------------------------------------------------------------------------------------------- | ------------ |
+| Sprint 8 | (pedido del dueño) | Rediseño visual, tema claro/oscuro seleccionable y selector de idioma (es/zh)               | ✅ Terminado |
+| Sprint 9 | (pedido del dueño) | UX más intuitiva: sidebar con iconos, buscador en selectores, Resumen como centro de acción | 🟡 En curso  |
 
 **🏁 Hito: interfaz más simple, con tema y selector de idioma de interfaz.** Con el PRD completo
 (Sprints 0–7), este sprint es una pasada de diseño pedida directamente por el dueño del proyecto,
@@ -188,6 +189,22 @@ ahora; se puede ampliar página por página más adelante.
 - [x] ~~Verificación completa: format + lint + typecheck + test + build en verde, sin cambios en `supabase/migrations/*`~~
 - [x] ~~PR del Sprint 8 con CI verde y merge a `main`~~ (PR #9 mergeado el 2026-07-23 — **Sprint 8 cerrado**)
 
+## Checklist Sprint 9 (detalle de trabajo)
+
+Segunda pasada de diseño pedida por el dueño: hacer la interfaz **más intuitiva** para las tareas
+diarias. Se conversaron mejoras en 3 niveles; este sprint entrega el **Nivel 1** (lo de mayor
+impacto en el día a día). Todo capa de presentación: cero cambios en `supabase/migrations/*`, cero
+cambios en Server Actions ni consultas de negocio.
+
+- [x] ~~Sidebar estilo Supabase con iconos por enlace (`lucide-react`), manteniendo la agrupación por módulo~~ (PR #11/#12 — ya mergeado antes de este checklist)
+- [x] ~~#1 Buscador con autocompletado en los selectores de listas largas: nuevo `components/seleccion-buscable.tsx` (escribe y filtra, con `input hidden` para conservar el envío por formulario). Reemplaza `<Seleccion>` en artículo, cliente, zona, proveedor y usuario en 8 páginas~~
+- [x] ~~#2 Resumen como centro de acción: botones de acceso rápido según el rol (registrar movimiento, nueva venta, importación, toma, buscar por código) + panel «Requiere atención» (alertas de stock, ventas/importaciones en borrador)~~ (`app/(app)/page.tsx`)
+- [ ] #3 Notificaciones tipo «toast» para el resultado de cada acción — **siguiente paso**, se deja fuera de este PR para mantenerlo enfocado (cambia el componente de formulario compartido)
+- [ ] Nivel 2 (media prioridad, aún no): panel lateral deslizante para formularios largos, estados con icono consistentes, tablas con encabezado fijo/hover
+- [ ] Nivel 3 (pulido, aún no): responsive tablet/celular con menú colapsable, mostrar nombre en chino junto al español en el contenido, estados vacíos que guían
+- [ ] Verificación completa: format + lint + typecheck + test + build en verde
+- [ ] PR del Sprint 9 (Nivel 1) con CI verde y merge a `main`
+
 ## Registro de avance
 
 | Fecha      | Sprint   | Avance / notas                                                                                                                                                                                                                                                                            |
@@ -220,6 +237,8 @@ ahora; se puede ampliar página por página más adelante.
 | 2026-07-23 | Sprint 8 | Tema claro/oscuro seleccionable (cookie, sin tocar la base de datos) y selector de idioma es/zh vía `Context` sembrado desde el servidor (evita parpadeo de texto al hidratar). Página «Ajustes» nueva. Refresco visual centralizado: cero cambios de props, cero migraciones. Todo verde |
 | 2026-07-23 | Sprint 8 | Corrección: error de hidratación reportado por el usuario en consola (`data-theme` en `<html>`) — `suppressHydrationWarning`, mismo patrón que usa `next-themes`. PR #10 mergeado                                                                                                         |
 | 2026-07-23 | Sprint 8 | Sidebar rediseñado estilo Supabase: panel con fondo propio, un icono de `lucide-react` (misma librería que usa Supabase) por cada uno de los 26 enlaces, manteniendo la agrupación por módulo existente. Nueva dependencia: `lucide-react` (sin dependencias propias)                     |
+| 2026-07-23 | Sprint 8 | Corrección reportada por el usuario: los iconos rompían las páginas (un Server Component pasaba el componente de icono como prop a un Client Component). Se pasa el nombre del icono como texto y el cliente lo resuelve. El CI no lo detectó porque las páginas son dinámicas. PR #12    |
+| 2026-07-23 | Sprint 9 | Nivel 1 de UX (conversado con el dueño). #1 Buscador con autocompletado (`seleccion-buscable.tsx`) reemplaza los `<select>` de listas largas en 8 páginas. #2 Resumen como centro de acción: accesos rápidos por rol + panel «Requiere atención». Rama `feat/nivel1-buscador-resumen`     |
 
 ## Hallazgo abierto que requiere decisión del cliente
 
