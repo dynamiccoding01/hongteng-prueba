@@ -26,7 +26,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const temaExplicito = tema === 'sistema' ? undefined : tema;
 
   return (
-    <html lang={idioma === 'zh' ? 'zh' : 'es'} data-theme={temaExplicito}>
+    // suppressHydrationWarning: el script de abajo (o una extension del
+    // navegador, p. ej. un "modo oscuro forzado") puede escribir data-theme
+    // en <html> antes de que React hidrate. Sin esto, React lo marca como
+    // un error de hidratacion aunque el resultado visual sea correcto.
+    <html lang={idioma === 'zh' ? 'zh' : 'es'} data-theme={temaExplicito} suppressHydrationWarning>
       <head>
         {temaExplicito ? null : <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />}
       </head>
