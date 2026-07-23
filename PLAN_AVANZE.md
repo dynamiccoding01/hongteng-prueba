@@ -202,8 +202,8 @@ cambios en Server Actions ni consultas de negocio.
 - [ ] #3 Notificaciones tipo «toast» para el resultado de cada acción — **siguiente paso**, se deja fuera de este PR para mantenerlo enfocado (cambia el componente de formulario compartido)
 - [ ] Nivel 2 (media prioridad, aún no): panel lateral deslizante para formularios largos, estados con icono consistentes, tablas con encabezado fijo/hover
 - [ ] Nivel 3 (pulido, aún no): responsive tablet/celular con menú colapsable, mostrar nombre en chino junto al español en el contenido, estados vacíos que guían
-- [ ] Verificación completa: format + lint + typecheck + test + build en verde
-- [ ] PR del Sprint 9 (Nivel 1) con CI verde y merge a `main`
+- [x] ~~Verificación completa: format + lint + typecheck + test + build en verde~~ (build validado por el CI)
+- [x] ~~PR del Sprint 9 (Nivel 1) con CI verde y merge a `main`~~ (PR #13 mergeado el 2026-07-23 — **Nivel 1 entregado; el Nivel 2/3 y los toasts quedan pendientes cuando se retome**)
 
 ## Registro de avance
 
