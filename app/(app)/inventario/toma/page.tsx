@@ -84,7 +84,7 @@ export default async function TomaDeInventario() {
             return (
               <section
                 key={toma.id}
-                className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+                className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
               >
                 <div className="mb-3 flex flex-wrap items-center gap-3">
                   <h2 className="text-sm font-semibold">Toma #{toma.id}</h2>

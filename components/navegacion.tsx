@@ -1,85 +1,98 @@
-import Link from 'next/link';
 import type { UsuarioSesion } from '@/lib/auth';
+import type { Idioma } from '@/lib/i18n';
+import { t } from '@/lib/i18n';
+import type { Tema } from '@/lib/preferencias';
 import { cerrarSesion } from '@/app/login/acciones';
+import { EnlaceNav } from './enlace-nav';
+import { SelectorTema } from './selector-tema';
 
 interface Enlace {
   href: string;
-  texto: string;
+  clave: Parameters<typeof t>[1];
   /** Permiso necesario para ver el enlace. Sin permiso, no se muestra. */
   permiso?: string;
 }
 
-const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
+const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] = [
   {
-    titulo: 'Inventario',
+    claveTitulo: 'seccionInventario',
     enlaces: [
-      { href: '/', texto: 'Resumen' },
-      { href: '/articulos', texto: 'Buscar artículos', permiso: 'stock.ver' },
-      { href: '/inventario/stock', texto: 'Stock por zona', permiso: 'stock.ver' },
-      { href: '/inventario/movimientos', texto: 'Movimientos', permiso: 'movimiento.ver' },
-      { href: '/inventario/kardex', texto: 'Kardex', permiso: 'movimiento.ver' },
-      { href: '/inventario/alertas', texto: 'Alertas de stock', permiso: 'stock.ver' },
-      { href: '/inventario/traspasos', texto: 'Traspasos', permiso: 'movimiento.ver' },
-      { href: '/inventario/toma', texto: 'Toma de inventario', permiso: 'toma.ver' },
-      { href: '/inventario/buscar-codigo', texto: 'Buscar por código', permiso: 'stock.ver' },
+      { href: '/', clave: 'navResumen' },
+      { href: '/articulos', clave: 'navBuscarArticulos', permiso: 'stock.ver' },
+      { href: '/inventario/stock', clave: 'navStockPorZona', permiso: 'stock.ver' },
+      { href: '/inventario/movimientos', clave: 'navMovimientos', permiso: 'movimiento.ver' },
+      { href: '/inventario/kardex', clave: 'navKardex', permiso: 'movimiento.ver' },
+      { href: '/inventario/alertas', clave: 'navAlertasStock', permiso: 'stock.ver' },
+      { href: '/inventario/traspasos', clave: 'navTraspasos', permiso: 'movimiento.ver' },
+      { href: '/inventario/toma', clave: 'navTomaInventario', permiso: 'toma.ver' },
+      { href: '/inventario/buscar-codigo', clave: 'navBuscarCodigo', permiso: 'stock.ver' },
     ],
   },
   {
-    titulo: 'Maestros',
+    claveTitulo: 'seccionMaestros',
     enlaces: [
-      { href: '/maestros/productos', texto: 'Productos', permiso: 'producto.ver' },
-      { href: '/maestros/categorias', texto: 'Categorías', permiso: 'categoria.ver' },
-      { href: '/maestros/zonas', texto: 'Bodegas y zonas', permiso: 'zona.ver' },
-      { href: '/maestros/proveedores', texto: 'Proveedores', permiso: 'proveedor.ver' },
-      { href: '/maestros/clientes', texto: 'Clientes', permiso: 'cliente.ver' },
-      { href: '/maestros/codigos', texto: 'Códigos de barras', permiso: 'producto.ver' },
+      { href: '/maestros/productos', clave: 'navProductos', permiso: 'producto.ver' },
+      { href: '/maestros/categorias', clave: 'navCategorias', permiso: 'categoria.ver' },
+      { href: '/maestros/zonas', clave: 'navBodegasZonas', permiso: 'zona.ver' },
+      { href: '/maestros/proveedores', clave: 'navProveedores', permiso: 'proveedor.ver' },
+      { href: '/maestros/clientes', clave: 'navClientes', permiso: 'cliente.ver' },
+      { href: '/maestros/codigos', clave: 'navCodigosBarras', permiso: 'producto.ver' },
     ],
   },
   {
-    titulo: 'Compras',
+    claveTitulo: 'seccionCompras',
     enlaces: [
-      { href: '/compras/importaciones', texto: 'Importaciones', permiso: 'importacion.ver' },
+      { href: '/compras/importaciones', clave: 'navImportaciones', permiso: 'importacion.ver' },
     ],
   },
   {
-    titulo: 'Ventas',
+    claveTitulo: 'seccionVentas',
     enlaces: [
-      { href: '/ventas/notas', texto: 'Notas de venta', permiso: 'venta.ver' },
-      { href: '/ventas/precios', texto: 'Listas de precios', permiso: 'venta.ver' },
+      { href: '/ventas/notas', clave: 'navNotasVenta', permiso: 'venta.ver' },
+      { href: '/ventas/precios', clave: 'navListasPrecios', permiso: 'venta.ver' },
       {
         href: '/ventas/traspasos-aduana',
-        texto: 'Traspasos ante Aduanas',
+        clave: 'navTraspasosAduana',
         permiso: 'documento_traspaso.ver',
       },
-      { href: '/ventas/vendedores', texto: 'Vendedores', permiso: 'vendedor.ver' },
+      { href: '/ventas/vendedores', clave: 'navVendedores', permiso: 'vendedor.ver' },
     ],
   },
   {
-    titulo: 'Reportes',
+    claveTitulo: 'seccionReportes',
     enlaces: [
-      { href: '/reportes/estadistica', texto: 'Estadística mensual', permiso: 'reporte.ver' },
-      { href: '/reportes/valorizacion', texto: 'Valorización', permiso: 'reporte.ver' },
-      { href: '/reportes/ventas', texto: 'Ventas por período', permiso: 'reporte.ver' },
-      { href: '/reportes/comisiones', texto: 'Comisiones', permiso: 'comision.ver' },
+      { href: '/reportes/estadistica', clave: 'navEstadisticaMensual', permiso: 'reporte.ver' },
+      { href: '/reportes/valorizacion', clave: 'navValorizacion', permiso: 'reporte.ver' },
+      { href: '/reportes/ventas', clave: 'navVentasPorPeriodo', permiso: 'reporte.ver' },
+      { href: '/reportes/comisiones', clave: 'navComisiones', permiso: 'comision.ver' },
     ],
   },
   {
-    titulo: 'Administración',
+    claveTitulo: 'seccionAdministracion',
     enlaces: [
-      { href: '/admin/usuarios', texto: 'Usuarios', permiso: 'usuario.ver' },
-      { href: '/admin/roles', texto: 'Roles y permisos', permiso: 'rol.editar' },
-      { href: '/admin/empresa', texto: 'Empresa', permiso: 'empresa.ver' },
-      { href: '/bitacora', texto: 'Bitácora' },
+      { href: '/admin/usuarios', clave: 'navUsuarios', permiso: 'usuario.ver' },
+      { href: '/admin/roles', clave: 'navRolesPermisos', permiso: 'rol.editar' },
+      { href: '/admin/empresa', clave: 'navEmpresa', permiso: 'empresa.ver' },
+      { href: '/ajustes', clave: 'navAjustes' },
+      { href: '/bitacora', clave: 'navBitacora' },
     ],
   },
 ];
 
-export function Navegacion({ usuario }: { usuario: UsuarioSesion }) {
+export function Navegacion({
+  usuario,
+  idioma,
+  tema,
+}: {
+  usuario: UsuarioSesion;
+  idioma: Idioma;
+  tema: Tema;
+}) {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-200 dark:border-zinc-800">
       <div className="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
         <p className="text-[10px] tracking-widest text-zinc-500 uppercase">HONG TENG LTDA</p>
-        <p className="mt-0.5 text-sm font-semibold">Inventario</p>
+        <p className="mt-0.5 text-sm font-semibold">{t(idioma, 'subtituloMenu')}</p>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
@@ -90,19 +103,14 @@ export function Navegacion({ usuario }: { usuario: UsuarioSesion }) {
           if (visibles.length === 0) return null;
 
           return (
-            <div key={seccion.titulo} className="mb-5">
+            <div key={seccion.claveTitulo} className="mb-5">
               <p className="px-2 pb-1 text-[10px] font-medium tracking-wider text-zinc-500 uppercase">
-                {seccion.titulo}
+                {t(idioma, seccion.claveTitulo)}
               </p>
               <ul>
                 {visibles.map((enlace) => (
                   <li key={enlace.href}>
-                    <Link
-                      href={enlace.href}
-                      className="block rounded-md px-2 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                    >
-                      {enlace.texto}
-                    </Link>
+                    <EnlaceNav href={enlace.href}>{t(idioma, enlace.clave)}</EnlaceNav>
                   </li>
                 ))}
               </ul>
@@ -112,14 +120,15 @@ export function Navegacion({ usuario }: { usuario: UsuarioSesion }) {
       </nav>
 
       <div className="border-t border-zinc-200 px-5 py-4 dark:border-zinc-800">
-        <p className="truncate text-sm font-medium">{usuario.nombre}</p>
+        <SelectorTema temaActual={tema} idioma={idioma} />
+        <p className="mt-3 truncate text-sm font-medium">{usuario.nombre}</p>
         <p className="truncate text-xs text-zinc-500">{usuario.rol}</p>
         <form action={cerrarSesion}>
           <button
             type="submit"
             className="mt-2 text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
-            Cerrar sesión
+            {t(idioma, 'cerrarSesion')}
           </button>
         </form>
       </div>

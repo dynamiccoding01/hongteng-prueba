@@ -1,15 +1,67 @@
 @import 'tailwindcss';
 
-:root {
-  --fondo: #ffffff;
-  --texto: #18181b;
+/*
+ * Las clases dark: de Tailwind responden al atributo [data-theme="oscuro"]
+ * en <html> en vez de solo a la preferencia del sistema. El caso "sistema"
+ * se resuelve por separado más abajo (bloque de @media) y con el script
+ * inline en app/layout.tsx que fija data-theme antes del primer pintado.
+ */
+@custom-variant dark (&:where([data-theme='oscuro'], [data-theme='oscuro'] *));
+
+/*
+ * Tokens de color como variables de tema de Tailwind v4: generan las clases
+ * bg-fondo, bg-superficie, text-texto, text-tenue, border-borde, bg-acento,
+ * text-acento, border-acento, etc. Los valores reales se fijan más abajo
+ * (siguen siendo variables CSS normales en tiempo de ejecución, por eso se
+ * pueden sobrescribir según el tema sin tocar estas clases).
+ */
+@theme {
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-borde: var(--borde);
+  --color-texto: var(--texto);
+  --color-tenue: var(--texto-tenue);
+  --color-acento: var(--acento);
 }
 
+:root {
+  --fondo: #ffffff;
+  --superficie: #fafafa;
+  --borde: #e4e4e7;
+  --texto: #18181b;
+  --texto-tenue: #71717a;
+  --acento: #4f46e5;
+}
+
+/* Sin elección explícita: sigue la preferencia del sistema operativo. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --fondo: #0a0a0a;
+    --superficie: #18181b;
+    --borde: #27272a;
     --texto: #ededed;
+    --texto-tenue: #a1a1aa;
+    --acento: #818cf8;
   }
+}
+
+/* Elección explícita del usuario: siempre gana, sin importar el sistema. */
+:root[data-theme='oscuro'] {
+  --fondo: #0a0a0a;
+  --superficie: #18181b;
+  --borde: #27272a;
+  --texto: #ededed;
+  --texto-tenue: #a1a1aa;
+  --acento: #818cf8;
+}
+
+:root[data-theme='claro'] {
+  --fondo: #ffffff;
+  --superficie: #fafafa;
+  --borde: #e4e4e7;
+  --texto: #18181b;
+  --texto-tenue: #71717a;
+  --acento: #4f46e5;
 }
 
 body {

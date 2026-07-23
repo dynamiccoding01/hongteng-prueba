@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Vacio } from '@/components/ui';
+import { Encabezado, Etiqueta, Tarjeta, Vacio } from '@/components/ui';
 
 export const metadata = { title: 'Roles y permisos · Inventario' };
 
@@ -38,12 +38,12 @@ export default async function Roles() {
         descripcion="Un usuario tiene un rol; cada rol agrupa muchos permisos (ADM-01)"
       />
 
-      <div className="mb-6 rounded-lg border border-zinc-200 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+      <Tarjeta className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
         Los permisos se verifican en la base de datos con políticas RLS, no solo en la interfaz.
         Cambiar lo que puede hacer un rol afecta de inmediato a todos sus usuarios.
-      </div>
+      </Tarjeta>
 
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
         <table className="w-full text-sm">
           <thead>
             <tr>
@@ -103,15 +103,12 @@ export default async function Roles() {
 
       <div className="mt-6 flex flex-wrap gap-3">
         {(roles ?? []).map((r) => (
-          <div
-            key={r.id}
-            className="rounded-lg border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-800"
-          >
+          <Tarjeta key={r.id} className="text-sm">
             <p className="font-medium">
               {r.nombre} <Etiqueta tono="neutro">{porRol.get(r.id)?.size ?? 0} permisos</Etiqueta>
             </p>
             <p className="mt-1 text-xs text-zinc-500">{r.descripcion}</p>
-          </div>
+          </Tarjeta>
         ))}
       </div>
     </>

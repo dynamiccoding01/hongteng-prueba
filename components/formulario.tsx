@@ -2,6 +2,8 @@
 
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { t, type Idioma } from '@/lib/i18n';
+import { useIdioma } from './proveedor-idioma';
 
 export interface EstadoFormulario {
   error?: string;
@@ -13,15 +15,15 @@ export type AccionFormulario = (
   datos: FormData,
 ) => Promise<EstadoFormulario>;
 
-function BotonGuardar() {
+function BotonGuardar({ idioma }: { idioma: Idioma }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+      className="rounded-md bg-acento px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
     >
-      {pending ? 'Guardando…' : 'Guardar'}
+      {pending ? t(idioma, 'accGuardando') : t(idioma, 'accGuardar')}
     </button>
   );
 }
@@ -42,6 +44,7 @@ export function FormularioDesplegable({
   esEdicion?: boolean;
   children: React.ReactNode;
 }) {
+  const idioma = useIdioma();
   const [abierto, setAbierto] = useState(false);
   const [estado, enviar] = useActionState<EstadoFormulario, FormData>(accion, {});
 
@@ -52,16 +55,16 @@ export function FormularioDesplegable({
         className={
           esEdicion
             ? 'text-sm text-zinc-500 underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-100'
-            : 'rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900'
+            : 'rounded-md bg-acento px-4 py-2 text-sm font-medium text-white hover:opacity-90'
         }
       >
-        {esEdicion ? 'Editar' : etiquetaNuevo}
+        {esEdicion ? t(idioma, 'accEditar') : etiquetaNuevo}
       </button>
     );
   }
 
   return (
-    <form action={enviar} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+    <form action={enviar} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
       <div className="grid gap-3 sm:grid-cols-2">{children}</div>
 
       {estado.error ? (
@@ -74,13 +77,13 @@ export function FormularioDesplegable({
       ) : null}
 
       <div className="mt-4 flex gap-2">
-        <BotonGuardar />
+        <BotonGuardar idioma={idioma} />
         <button
           type="button"
           onClick={() => setAbierto(false)}
           className="rounded-md border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
         >
-          Cerrar
+          {t(idioma, 'accCerrar')}
         </button>
       </div>
     </form>
@@ -104,11 +107,14 @@ export function Campo({
   tipo?: string;
   ancho?: 'completo';
 }) {
+  const idioma = useIdioma();
   return (
     <label className={`flex flex-col gap-1 text-sm ${ancho === 'completo' ? 'sm:col-span-2' : ''}`}>
       <span className="font-medium">
         {etiqueta}
-        {requerido ? null : <span className="ml-1 text-zinc-400">(opcional)</span>}
+        {requerido ? null : (
+          <span className="ml-1 text-zinc-400">{t(idioma, 'campoOpcional')}</span>
+        )}
       </span>
       <input
         name={nombre}
@@ -116,7 +122,7 @@ export function Campo({
         defaultValue={valor ?? ''}
         required={requerido}
         placeholder={ejemplo}
-        className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        className="rounded-md border border-zinc-300 px-3 py-2 outline-none focus-visible:border-acento focus-visible:ring-2 focus-visible:ring-acento/30 dark:border-zinc-700 dark:bg-zinc-900"
       />
     </label>
   );
@@ -142,7 +148,7 @@ export function Seleccion({
         name={nombre}
         defaultValue={valor ?? ''}
         required={requerido}
-        className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        className="rounded-md border border-zinc-300 px-3 py-2 outline-none focus-visible:border-acento focus-visible:ring-2 focus-visible:ring-acento/30 dark:border-zinc-700 dark:bg-zinc-900"
       >
         <option value="">—</option>
         {opciones.map((o) => (

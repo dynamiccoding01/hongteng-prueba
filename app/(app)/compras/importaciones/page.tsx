@@ -102,7 +102,7 @@ export default async function Importaciones() {
             return (
               <section
                 key={imp.id}
-                className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+                className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
               >
                 <div className="mb-3 flex flex-wrap items-center gap-3">
                   <h2 className="text-sm font-semibold">Importación #{imp.id}</h2>

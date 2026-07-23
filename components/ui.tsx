@@ -15,17 +15,32 @@ export function Encabezado({
   return (
     <div className="mb-6 flex items-end justify-between gap-4">
       <div>
-        <h1 className="text-xl font-semibold">{titulo}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{titulo}</h1>
         {descripcion ? <p className="mt-1 text-sm text-zinc-500">{descripcion}</p> : null}
       </div>
-      {children ? <div className="flex shrink-0 gap-2">{children}</div> : null}
+      {children ? <div className="flex shrink-0 flex-wrap gap-2">{children}</div> : null}
+    </div>
+  );
+}
+
+/** Contenedor de tarjeta reutilizable, para las secciones que antes armaban el borde a mano. */
+export function Tarjeta({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-xl border border-zinc-200 p-4 dark:border-zinc-800 ${className}`}>
+      {children}
     </div>
   );
 }
 
 export function Tabla({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+    <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
       <table className="w-full text-sm">{children}</table>
     </div>
   );
@@ -34,7 +49,7 @@ export function Tabla({ children }: { children: React.ReactNode }) {
 export function Th({ children, numerico }: { children: React.ReactNode; numerico?: boolean }) {
   return (
     <th
-      className={`border-b border-zinc-200 px-3 py-2 font-medium text-zinc-500 dark:border-zinc-800 ${
+      className={`border-b border-zinc-200 bg-zinc-50 px-3 py-2 font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/40 ${
         numerico ? 'text-right' : 'text-left'
       }`}
     >
@@ -78,7 +93,7 @@ export function Etiqueta({
   } as const;
 
   return (
-    <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${tonos[tono]}`}>
+    <span className={`inline-block rounded-md px-1.5 py-0.5 text-xs font-medium ${tonos[tono]}`}>
       {children}
     </span>
   );
@@ -86,7 +101,7 @@ export function Etiqueta({
 
 export function Vacio({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-zinc-300 px-6 py-12 text-center text-sm text-zinc-500 dark:border-zinc-700">
+    <div className="rounded-xl border border-dashed border-zinc-300 px-6 py-12 text-center text-sm text-zinc-500 dark:border-zinc-700">
       {children}
     </div>
   );
