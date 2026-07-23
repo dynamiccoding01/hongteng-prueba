@@ -18,6 +18,7 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
       { href: '/inventario/stock', texto: 'Stock por zona', permiso: 'stock.ver' },
       { href: '/inventario/movimientos', texto: 'Movimientos', permiso: 'movimiento.ver' },
       { href: '/inventario/kardex', texto: 'Kardex', permiso: 'movimiento.ver' },
+      { href: '/inventario/alertas', texto: 'Alertas de stock', permiso: 'stock.ver' },
     ],
   },
   {
@@ -41,6 +42,14 @@ const SECCIONES: { titulo: string; enlaces: Enlace[] }[] = [
     enlaces: [
       { href: '/ventas/notas', texto: 'Notas de venta', permiso: 'venta.ver' },
       { href: '/ventas/precios', texto: 'Listas de precios', permiso: 'venta.ver' },
+    ],
+  },
+  {
+    titulo: 'Reportes',
+    enlaces: [
+      { href: '/reportes/estadistica', texto: 'Estadística mensual', permiso: 'reporte.ver' },
+      { href: '/reportes/valorizacion', texto: 'Valorización', permiso: 'reporte.ver' },
+      { href: '/reportes/ventas', texto: 'Ventas por período', permiso: 'reporte.ver' },
     ],
   },
   {

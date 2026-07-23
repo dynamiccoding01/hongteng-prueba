@@ -324,7 +324,28 @@ export type Database = {
             foreignKeyName: 'importacion_detalle_variante_id_fkey';
             columns: ['variante_id'];
             isOneToOne: false;
+            referencedRelation: 'v_alertas_stock';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'importacion_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_salidas_mensuales';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'importacion_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
             referencedRelation: 'v_stock_variante';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'importacion_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_valorizacion';
             referencedColumns: ['variante_id'];
           },
           {
@@ -415,7 +436,28 @@ export type Database = {
             foreignKeyName: 'lista_precio_item_variante_id_fkey';
             columns: ['variante_id'];
             isOneToOne: false;
+            referencedRelation: 'v_alertas_stock';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'lista_precio_item_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_salidas_mensuales';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'lista_precio_item_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
             referencedRelation: 'v_stock_variante';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'lista_precio_item_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_valorizacion';
             referencedColumns: ['variante_id'];
           },
         ];
@@ -522,7 +564,28 @@ export type Database = {
             foreignKeyName: 'movimiento_variante_id_fkey';
             columns: ['variante_id'];
             isOneToOne: false;
+            referencedRelation: 'v_alertas_stock';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'movimiento_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_salidas_mensuales';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'movimiento_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
             referencedRelation: 'v_stock_variante';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'movimiento_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_valorizacion';
             referencedColumns: ['variante_id'];
           },
           {
@@ -856,7 +919,28 @@ export type Database = {
             foreignKeyName: 'stock_variante_id_fkey';
             columns: ['variante_id'];
             isOneToOne: false;
+            referencedRelation: 'v_alertas_stock';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'stock_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_salidas_mensuales';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'stock_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
             referencedRelation: 'v_stock_variante';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'stock_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_valorizacion';
             referencedColumns: ['variante_id'];
           },
           {
@@ -1014,6 +1098,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'venta_cliente_id_fkey';
+            columns: ['cliente_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_ventas_detalle';
+            referencedColumns: ['cliente_id'];
+          },
+          {
             foreignKeyName: 'venta_confirmada_por_fkey';
             columns: ['confirmada_por'];
             isOneToOne: false;
@@ -1069,8 +1160,36 @@ export type Database = {
             foreignKeyName: 'venta_detalle_variante_id_fkey';
             columns: ['variante_id'];
             isOneToOne: false;
+            referencedRelation: 'v_alertas_stock';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'venta_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_salidas_mensuales';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'venta_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
             referencedRelation: 'v_stock_variante';
             referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'venta_detalle_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_valorizacion';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'venta_detalle_venta_id_fkey';
+            columns: ['venta_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_ventas_detalle';
+            referencedColumns: ['venta_id'];
           },
           {
             foreignKeyName: 'venta_detalle_venta_id_fkey';
@@ -1128,6 +1247,17 @@ export type Database = {
       };
     };
     Views: {
+      v_alertas_stock: {
+        Row: {
+          cajas: number | null;
+          categoria: string | null;
+          codigo: string | null;
+          stock_minimo: number | null;
+          unidades_por_caja: number | null;
+          variante_id: number | null;
+        };
+        Relationships: [];
+      };
       v_bitacora: {
         Row: {
           accion: string | null;
@@ -1164,6 +1294,18 @@ export type Database = {
         };
         Relationships: [];
       };
+      v_salidas_mensuales: {
+        Row: {
+          cajas: number | null;
+          categoria: string | null;
+          codigo: string | null;
+          mes: string | null;
+          unidades: number | null;
+          unidades_por_caja: number | null;
+          variante_id: number | null;
+        };
+        Relationships: [];
+      };
       v_stock_variante: {
         Row: {
           cajas: number | null;
@@ -1176,6 +1318,38 @@ export type Database = {
           unidades_por_caja: number | null;
           variante_id: number | null;
           zonas: string | null;
+        };
+        Relationships: [];
+      };
+      v_valorizacion: {
+        Row: {
+          cajas: number | null;
+          categoria: string | null;
+          codigo: string | null;
+          costo_caja: number | null;
+          moneda: string | null;
+          tipo_cambio: number | null;
+          unidades_por_caja: number | null;
+          valor_clp: number | null;
+          variante_id: number | null;
+        };
+        Relationships: [];
+      };
+      v_ventas_detalle: {
+        Row: {
+          cajas: number | null;
+          cliente: string | null;
+          cliente_codigo: string | null;
+          cliente_id: number | null;
+          detalle_id: number | null;
+          fecha: string | null;
+          moneda: string | null;
+          monto_clp: number | null;
+          precio_caja: number | null;
+          producto: string | null;
+          tipo_cambio: number | null;
+          unidades_por_caja: number | null;
+          venta_id: number | null;
         };
         Relationships: [];
       };

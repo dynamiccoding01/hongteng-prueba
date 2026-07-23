@@ -123,6 +123,17 @@ base de datos, y el stock solo se toca vía movimientos.
 - [x] ~~Tests de integración: la venta descuenta stock, el sobregiro falla completo (todo o nada), la doble confirmación y la edición post-confirmación se bloquean~~ (5 tests)
 - [x] ~~PR del Sprint 4 con CI verde y merge a `main`~~ (PR #5 mergeado el 2026-07-22 — **Sprint 4 cerrado**)
 
+## Checklist Sprint 5 (detalle de trabajo)
+
+- [x] ~~Migración `0010_reportes.sql`: vistas `v_salidas_mensuales` (REP-02), `v_valorizacion` (REP-04), `v_ventas_detalle` (REP-05) y `v_alertas_stock` (INV-05), todas con `security_invoker`~~ (aplicada el 2026-07-22)
+- [x] ~~Página «Estadística mensual» (REP-02): salidas por mes y detalle por producto~~ (`app/(app)/reportes/estadistica`)
+- [x] ~~Página «Valorización» (REP-04): stock a último costo de importación en CLP, con total y aviso de artículos sin costo~~ (`app/(app)/reportes/valorizacion`)
+- [x] ~~Página «Ventas por período» (REP-05): por cliente y producto con rango de fechas~~ (`app/(app)/reportes/ventas`)
+- [x] ~~Alertas de stock mínimo (INV-05): página con artículos en o bajo mínimo y definición del mínimo por variante~~ (`app/(app)/inventario/alertas`)
+- [x] ~~Exportación a Excel (REP-06): descarga .xlsx de los tres reportes, con permiso `reporte.exportar` y rastro EXPORTAR en bitácora~~ (`app/api/exportar`)
+- [x] ~~Tests de integración de las vistas de reportes~~ (4 tests: salidas del mes, valorización a CLP, monto de venta, alerta bajo mínimo)
+- [ ] PR del Sprint 5 con CI verde y merge a `main`
+
 ## Registro de avance
 
 | Fecha      | Sprint   | Avance / notas                                                                                                                                                                                                                                                                           |
@@ -146,6 +157,7 @@ base de datos, y el stock solo se toca vía movimientos.
 | 2026-07-22 | Sprint 2 | Cliente decide **opción A** (manda 实存). Script de migración ADM-04 completo con simulación, barrera anti-doble-corrida, lotes y conciliación final; probado con planilla sintética + 8 tests del planificador. **Sprint 2 cerrado** — la corrida real espera el BODEGA.xls del cliente |
 | 2026-07-22 | Sprint 3 | Rama `feat/sprint-3-compras`. Migración 0008 (importación + detalle, estados, `fn_confirmar_importacion`), página «Importaciones» con flujo borrador → confirmar, y 5 tests de integración. REP-01 y REP-03 ya existían de Sprint 1                                                      |
 | 2026-07-22 | Sprint 4 | Rama `feat/sprint-4-ventas`. Migración 0009 (listas de precios, venta + detalle, `fn_confirmar_venta`), páginas «Notas de venta» y «Listas de precios», precio sugerido desde la lista del cliente, y 5 tests de integración (incluido sobregiro todo-o-nada)                            |
+| 2026-07-22 | Sprint 5 | Rama `feat/sprint-5-reportes`. Migración 0010 (4 vistas de reportes), páginas Estadística mensual, Valorización, Ventas por período y Alertas de stock, exportación a Excel con bitácora, y 4 tests de integración                                                                       |
 
 ## Hallazgo abierto que requiere decisión del cliente
 
