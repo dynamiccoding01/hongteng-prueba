@@ -142,7 +142,7 @@ base de datos, y el stock solo se toca vía movimientos.
 - [x] ~~Página «Traspasos ante Aduanas» (VEN-03): emitir documento 203 numerado desde una venta confirmada, y anularlo~~ (`app/(app)/ventas/traspasos-aduana`)
 - [x] ~~Página «Empresa» (ADM-03): datos fiscales editables, con aviso mientras el RUT no esté confirmado por el cliente~~ (`app/(app)/admin/empresa`)
 - [x] ~~Tests de integración: correlativo secuencial, permiso en `fn_traspasar`, toma con ajuste de solo la diferencia, emisión/anulación del documento~~ (8 tests nuevos; se corrigió también `fn_traspasar` en el test del Sprint 2, que quedó exigiendo el permiso nuevo)
-- [ ] PR del Sprint 6 con CI verde y merge a `main`
+- [x] ~~PR del Sprint 6 con CI verde y merge a `main`~~ (PR #7 mergeado el 2026-07-23 — **Sprint 6 cerrado, Fase 3 casi completa**)
 
 ## Registro de avance
 
