@@ -218,6 +218,8 @@ ahora; se puede ampliar página por página más adelante.
 | 2026-07-23 | Sprint 7 | Páginas Códigos de barras y Buscar por código (INV-08, sin generación de imagen de etiqueta — ver nota de alcance arriba). Dashboard con tarjetas en el Resumen. 3 tests de integración. PR #8 mergeado. **Sprint 7 cerrado — PRD completo en desarrollo (Fases 1, 2 y 3)**               |
 | 2026-07-23 | Sprint 8 | Pedido del dueño: rediseño de interfaz. Alcance del idioma acotado con el usuario a solo la interfaz fija (menú y botones comunes), no el contenido de cada página. Rama `feat/sprint-8-diseno-idioma`                                                                                    |
 | 2026-07-23 | Sprint 8 | Tema claro/oscuro seleccionable (cookie, sin tocar la base de datos) y selector de idioma es/zh vía `Context` sembrado desde el servidor (evita parpadeo de texto al hidratar). Página «Ajustes» nueva. Refresco visual centralizado: cero cambios de props, cero migraciones. Todo verde |
+| 2026-07-23 | Sprint 8 | Corrección: error de hidratación reportado por el usuario en consola (`data-theme` en `<html>`) — `suppressHydrationWarning`, mismo patrón que usa `next-themes`. PR #10 mergeado                                                                                                         |
+| 2026-07-23 | Sprint 8 | Sidebar rediseñado estilo Supabase: panel con fondo propio, un icono de `lucide-react` (misma librería que usa Supabase) por cada uno de los 26 enlaces, manteniendo la agrupación por módulo existente. Nueva dependencia: `lucide-react` (sin dependencias propias)                     |
 
 ## Hallazgo abierto que requiere decisión del cliente
 
