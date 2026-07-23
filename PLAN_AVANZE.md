@@ -144,6 +144,20 @@ base de datos, y el stock solo se toca vía movimientos.
 - [x] ~~Tests de integración: correlativo secuencial, permiso en `fn_traspasar`, toma con ajuste de solo la diferencia, emisión/anulación del documento~~ (8 tests nuevos; se corrigió también `fn_traspasar` en el test del Sprint 2, que quedó exigiendo el permiso nuevo)
 - [x] ~~PR del Sprint 6 con CI verde y merge a `main`~~ (PR #7 mergeado el 2026-07-23 — **Sprint 6 cerrado, Fase 3 casi completa**)
 
+## Checklist Sprint 7 (detalle de trabajo)
+
+- [x] ~~Migración `0012_comisiones.sql` (VEN-05): tabla `vendedor`, `venta` congela vendedor/% al confirmar, `fn_confirmar_venta` calcula `comision_clp`, vista `v_comisiones`~~ (aplicada el 2026-07-23; tipos regenerados)
+- [x] ~~Página «Vendedores» (VEN-05): alta y edición del % de comisión por usuario~~ (`app/(app)/ventas/vendedores`)
+- [x] ~~Página «Comisiones» (VEN-05): reporte por vendedor y período~~ (`app/(app)/reportes/comisiones`)
+- [x] ~~Nota de venta: seleccionar vendedor al crearla~~ (`app/(app)/ventas/notas`, campo opcional; se muestra el % y el monto de comisión en cada venta)
+- [x] ~~Página «Códigos de barras» (INV-08): asignar `codigo_barras`/`sku_interno` a cada empaque existente~~ (`app/(app)/maestros/codigos`)
+- [x] ~~Página «Buscar por código» (INV-08): lectura rápida (lector USB/Bluetooth) que ubica el artículo y su stock~~ (`app/(app)/inventario/buscar-codigo`; no incluye generación de etiqueta gráfica de barras/QR — ver nota abajo)
+- [x] ~~Dashboard: indicadores en el Resumen (valor de inventario, alertas activas, movimientos del día)~~ (tarjetas nuevas en `app/(app)/page.tsx`)
+- [x] ~~Tests de integración: comisión calculada y congelada al confirmar~~ (3 tests: cálculo, vista `v_comisiones`, inmutabilidad ante cambio posterior del %)
+
+> **Nota de alcance — INV-08:** se implementó la asignación de código de barras/SKU por empaque y la lectura rápida (compatible con lector USB/Bluetooth, que escribe como si fuera un teclado). **No** se generó una imagen de código de barras/QR para imprimir etiquetas: es prioridad Baja en el PRD, y un generador mal implementado podría producir etiquetas que no escanean sin forma de detectarlo sin un lector físico a mano. Si se necesita, mejor evaluarlo con una librería probada cuando haya cómo verificarlo contra un lector real.
+- [ ] PR del Sprint 7 con CI verde y merge a `main`
+
 ## Registro de avance
 
 | Fecha      | Sprint   | Avance / notas                                                                                                                                                                                                                                                                           |
