@@ -1,44 +1,16 @@
-import {
-  AlertTriangle,
-  ArrowLeftRight,
-  BarChart3,
-  Barcode,
-  Boxes,
-  Building2,
-  ClipboardCheck,
-  Coins,
-  Handshake,
-  History,
-  LayoutDashboard,
-  Package,
-  Percent,
-  Receipt,
-  ScanLine,
-  Search,
-  Settings,
-  ShieldCheck,
-  Ship,
-  Stamp,
-  Tag,
-  Tags,
-  Truck,
-  UserCog,
-  Users,
-  Warehouse,
-  type LucideIcon,
-} from 'lucide-react';
+import { Boxes } from 'lucide-react';
 import type { UsuarioSesion } from '@/lib/auth';
 import type { Idioma } from '@/lib/i18n';
 import { t } from '@/lib/i18n';
 import type { Tema } from '@/lib/preferencias';
 import { cerrarSesion } from '@/app/login/acciones';
-import { EnlaceNav } from './enlace-nav';
+import { EnlaceNav, type NombreIcono } from './enlace-nav';
 import { SelectorTema } from './selector-tema';
 
 interface Enlace {
   href: string;
   clave: Parameters<typeof t>[1];
-  icono: LucideIcon;
+  icono: NombreIcono;
   /** Permiso necesario para ver el enlace. Sin permiso, no se muestra. */
   permiso?: string;
 }
@@ -47,43 +19,43 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
   {
     claveTitulo: 'seccionInventario',
     enlaces: [
-      { href: '/', clave: 'navResumen', icono: LayoutDashboard },
-      { href: '/articulos', clave: 'navBuscarArticulos', icono: Search, permiso: 'stock.ver' },
-      { href: '/inventario/stock', clave: 'navStockPorZona', icono: Boxes, permiso: 'stock.ver' },
+      { href: '/', clave: 'navResumen', icono: 'LayoutDashboard' },
+      { href: '/articulos', clave: 'navBuscarArticulos', icono: 'Search', permiso: 'stock.ver' },
+      { href: '/inventario/stock', clave: 'navStockPorZona', icono: 'Boxes', permiso: 'stock.ver' },
       {
         href: '/inventario/movimientos',
         clave: 'navMovimientos',
-        icono: ArrowLeftRight,
+        icono: 'ArrowLeftRight',
         permiso: 'movimiento.ver',
       },
       {
         href: '/inventario/kardex',
         clave: 'navKardex',
-        icono: ClipboardCheck,
+        icono: 'ClipboardCheck',
         permiso: 'movimiento.ver',
       },
       {
         href: '/inventario/alertas',
         clave: 'navAlertasStock',
-        icono: AlertTriangle,
+        icono: 'AlertTriangle',
         permiso: 'stock.ver',
       },
       {
         href: '/inventario/traspasos',
         clave: 'navTraspasos',
-        icono: ArrowLeftRight,
+        icono: 'ArrowLeftRight',
         permiso: 'movimiento.ver',
       },
       {
         href: '/inventario/toma',
         clave: 'navTomaInventario',
-        icono: ClipboardCheck,
+        icono: 'ClipboardCheck',
         permiso: 'toma.ver',
       },
       {
         href: '/inventario/buscar-codigo',
         clave: 'navBuscarCodigo',
-        icono: ScanLine,
+        icono: 'ScanLine',
         permiso: 'stock.ver',
       },
     ],
@@ -94,27 +66,32 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
       {
         href: '/maestros/productos',
         clave: 'navProductos',
-        icono: Package,
+        icono: 'Package',
         permiso: 'producto.ver',
       },
       {
         href: '/maestros/categorias',
         clave: 'navCategorias',
-        icono: Tags,
+        icono: 'Tags',
         permiso: 'categoria.ver',
       },
-      { href: '/maestros/zonas', clave: 'navBodegasZonas', icono: Warehouse, permiso: 'zona.ver' },
+      {
+        href: '/maestros/zonas',
+        clave: 'navBodegasZonas',
+        icono: 'Warehouse',
+        permiso: 'zona.ver',
+      },
       {
         href: '/maestros/proveedores',
         clave: 'navProveedores',
-        icono: Truck,
+        icono: 'Truck',
         permiso: 'proveedor.ver',
       },
-      { href: '/maestros/clientes', clave: 'navClientes', icono: Users, permiso: 'cliente.ver' },
+      { href: '/maestros/clientes', clave: 'navClientes', icono: 'Users', permiso: 'cliente.ver' },
       {
         href: '/maestros/codigos',
         clave: 'navCodigosBarras',
-        icono: Barcode,
+        icono: 'Barcode',
         permiso: 'producto.ver',
       },
     ],
@@ -125,7 +102,7 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
       {
         href: '/compras/importaciones',
         clave: 'navImportaciones',
-        icono: Ship,
+        icono: 'Ship',
         permiso: 'importacion.ver',
       },
     ],
@@ -133,18 +110,18 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
   {
     claveTitulo: 'seccionVentas',
     enlaces: [
-      { href: '/ventas/notas', clave: 'navNotasVenta', icono: Receipt, permiso: 'venta.ver' },
-      { href: '/ventas/precios', clave: 'navListasPrecios', icono: Tag, permiso: 'venta.ver' },
+      { href: '/ventas/notas', clave: 'navNotasVenta', icono: 'Receipt', permiso: 'venta.ver' },
+      { href: '/ventas/precios', clave: 'navListasPrecios', icono: 'Tag', permiso: 'venta.ver' },
       {
         href: '/ventas/traspasos-aduana',
         clave: 'navTraspasosAduana',
-        icono: Stamp,
+        icono: 'Stamp',
         permiso: 'documento_traspaso.ver',
       },
       {
         href: '/ventas/vendedores',
         clave: 'navVendedores',
-        icono: Handshake,
+        icono: 'Handshake',
         permiso: 'vendedor.ver',
       },
     ],
@@ -155,25 +132,25 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
       {
         href: '/reportes/estadistica',
         clave: 'navEstadisticaMensual',
-        icono: BarChart3,
+        icono: 'BarChart3',
         permiso: 'reporte.ver',
       },
       {
         href: '/reportes/valorizacion',
         clave: 'navValorizacion',
-        icono: Coins,
+        icono: 'Coins',
         permiso: 'reporte.ver',
       },
       {
         href: '/reportes/ventas',
         clave: 'navVentasPorPeriodo',
-        icono: BarChart3,
+        icono: 'BarChart3',
         permiso: 'reporte.ver',
       },
       {
         href: '/reportes/comisiones',
         clave: 'navComisiones',
-        icono: Percent,
+        icono: 'Percent',
         permiso: 'comision.ver',
       },
     ],
@@ -181,16 +158,16 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
   {
     claveTitulo: 'seccionAdministracion',
     enlaces: [
-      { href: '/admin/usuarios', clave: 'navUsuarios', icono: UserCog, permiso: 'usuario.ver' },
+      { href: '/admin/usuarios', clave: 'navUsuarios', icono: 'UserCog', permiso: 'usuario.ver' },
       {
         href: '/admin/roles',
         clave: 'navRolesPermisos',
-        icono: ShieldCheck,
+        icono: 'ShieldCheck',
         permiso: 'rol.editar',
       },
-      { href: '/admin/empresa', clave: 'navEmpresa', icono: Building2, permiso: 'empresa.ver' },
-      { href: '/ajustes', clave: 'navAjustes', icono: Settings },
-      { href: '/bitacora', clave: 'navBitacora', icono: History },
+      { href: '/admin/empresa', clave: 'navEmpresa', icono: 'Building2', permiso: 'empresa.ver' },
+      { href: '/ajustes', clave: 'navAjustes', icono: 'Settings' },
+      { href: '/bitacora', clave: 'navBitacora', icono: 'History' },
     ],
   },
 ];
