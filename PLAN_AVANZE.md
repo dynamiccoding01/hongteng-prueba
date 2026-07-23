@@ -186,7 +186,7 @@ ahora; se puede ampliar página por página más adelante.
 - [x] ~~Refresco visual centralizado, sin tocar props de nada: `components/ui.tsx` (nuevo componente `Tarjeta`, radios de borde unificados), `components/formulario.tsx` (estados de foco que no existían, color de acento nuevo), color de acento único en `app/globals.css`~~
 - [x] ~~Reemplazo de las tarjetas armadas a mano por `<Tarjeta>` / unificación de bordes en los archivos identificados: login, admin/usuarios, admin/roles, inventario/toma, inventario/buscar-codigo, compras/importaciones, ventas/notas, ventas/precios~~
 - [x] ~~Verificación completa: format + lint + typecheck + test + build en verde, sin cambios en `supabase/migrations/*`~~
-- [ ] PR del Sprint 8 con CI verde y merge a `main`
+- [x] ~~PR del Sprint 8 con CI verde y merge a `main`~~ (PR #9 mergeado el 2026-07-23 — **Sprint 8 cerrado**)
 
 ## Registro de avance
 
