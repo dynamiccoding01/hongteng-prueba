@@ -8,7 +8,10 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 const esquemaLogin = z.object({
   email: z.string().min(1, 'Ingrese su correo').email('Correo no válido'),
   password: z.string().min(1, 'Ingrese su contraseña'),
-  destino: z.string().optional(),
+  // FormData.get() devuelve null cuando el input oculto no se renderiza (entrada
+  // directa a /login, sin ?destino=). .nullish() acepta string, null y undefined;
+  // .optional() rechazaba el null y bloqueaba TODO inicio de sesión directo.
+  destino: z.string().nullish(),
 });
 
 export interface EstadoLogin {
