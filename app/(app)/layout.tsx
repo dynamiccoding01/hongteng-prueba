@@ -1,5 +1,6 @@
 import { Navegacion } from '@/components/navegacion';
 import { ProveedorIdioma } from '@/components/proveedor-idioma';
+import { ProveedorToast } from '@/components/proveedor-toast';
 import { requerirUsuario } from '@/lib/auth';
 import { obtenerIdioma, obtenerTema } from '@/lib/preferencias';
 
@@ -18,9 +19,11 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen">
       <Navegacion usuario={usuario} idioma={idioma} tema={tema} />
-      <ProveedorIdioma idioma={idioma}>
-        <main className="flex-1 overflow-x-auto px-8 py-6">{children}</main>
-      </ProveedorIdioma>
+      <ProveedorToast>
+        <ProveedorIdioma idioma={idioma}>
+          <main className="flex-1 overflow-x-auto px-8 py-6">{children}</main>
+        </ProveedorIdioma>
+      </ProveedorToast>
     </div>
   );
 }
