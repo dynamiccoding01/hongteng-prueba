@@ -968,27 +968,33 @@ export type Database = {
       };
       rol: {
         Row: {
+          acceso_total: boolean;
           activo: boolean;
           created_at: string;
           descripcion: string | null;
           id: number;
           nombre: string;
+          protegido: boolean;
           updated_at: string;
         };
         Insert: {
+          acceso_total?: boolean;
           activo?: boolean;
           created_at?: string;
           descripcion?: string | null;
           id?: never;
           nombre: string;
+          protegido?: boolean;
           updated_at?: string;
         };
         Update: {
+          acceso_total?: boolean;
           activo?: boolean;
           created_at?: string;
           descripcion?: string | null;
           id?: never;
           nombre?: string;
+          protegido?: boolean;
           updated_at?: string;
         };
         Relationships: [];
@@ -1704,6 +1710,7 @@ export type Database = {
       };
     };
     Functions: {
+      es_superadmin: { Args: never; Returns: boolean };
       fn_anular_documento_traspaso: {
         Args: { p_documento_id: number; p_motivo: string };
         Returns: undefined;

@@ -58,6 +58,8 @@ on conflict (codigo) do nothing;
 -- ---------------------------------------------------------------------------
 -- Roles
 -- ---------------------------------------------------------------------------
+-- El rol Superadmin (acceso_total + protegido) se crea en 0013_superadmin.sql,
+-- donde estan definidas sus banderas. Aqui van los roles operativos del cliente.
 insert into rol (nombre, descripcion) values
   ('Administrador', 'Acceso total al sistema'),
   ('Bodeguero',     'Opera el inventario: existencias, movimientos y kardex'),

@@ -92,19 +92,21 @@ erDiagram
 | Tabla         | Descripción                                              | Atributos                                                                            |
 | ------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `usuario`     | Operador del sistema (extiende `auth.users` de Supabase) | id (uuid, FK auth.users), nombre, email, rol_id, activo, ultimo_acceso               |
-| `rol`         | Perfil de acceso                                         | id, nombre, descripcion, activo                                                      |
+| `rol`         | Perfil de acceso                                         | id, nombre, descripcion, activo, **acceso_total**, **protegido**                     |
 | `permiso`     | Acción concreta sobre un módulo                          | id, codigo (`producto.crear`), modulo, descripcion                                   |
 | `rol_permiso` | **Intermedia** rol ⇄ permiso                             | rol_id, permiso_id (PK compuesta)                                                    |
 | `bitacora`    | Registro de toda acción de usuario — ver § 4.2           | id, **usuario_id**, usuario_email, tabla, registro_id, accion, campos_modificados, … |
 
 ```sql
 create table rol (
-  id          bigint generated always as identity primary key,
-  nombre      text    not null unique,
-  descripcion text,
-  activo      boolean not null default true,
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  id           bigint generated always as identity primary key,
+  nombre       text    not null unique,
+  descripcion  text,
+  activo       boolean not null default true,
+  acceso_total boolean not null default false, -- pasa todos los permisos (Superadmin)
+  protegido    boolean not null default false, -- solo un Superadmin lo ve/edita/asigna
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
 );
 
 create table permiso (
@@ -141,13 +143,17 @@ create or replace function tiene_permiso(p_codigo text)
 returns boolean language sql stable security definer
 set search_path = public as $$
   select exists (
-    select 1
-      from usuario u
-      join rol_permiso rp on rp.rol_id = u.rol_id
-      join permiso p      on p.id = rp.permiso_id
-     where u.id = auth.uid()
-       and u.activo
-       and p.codigo = p_codigo
+    select 1 from usuario u
+     where u.id = auth.uid() and u.activo
+       and (
+         -- Rol de acceso total (Superadmin): pasa cualquier permiso.
+         exists (select 1 from rol r where r.id = u.rol_id and r.acceso_total)
+         -- Rol normal: el permiso está en su rol.
+         or exists (
+           select 1 from rol_permiso rp join permiso p on p.id = rp.permiso_id
+            where rp.rol_id = u.rol_id and p.codigo = p_codigo
+         )
+       )
   );
 $$;
 
@@ -159,6 +165,39 @@ create policy "ver productos" on producto
 create policy "crear productos" on producto
   for insert to authenticated with check (tiene_permiso('producto.crear'));
 ```
+
+#### Jerarquía de roles: Superadmin (migración `0013`)
+
+Por encima del Administrador hay un rol **Superadmin**, para el equipo de desarrollo y el área de TI/sistemas del cliente. Dos banderas en `rol` lo definen:
+
+- **`acceso_total`** — el rol pasa **todos** los `tiene_permiso()` automáticamente (ver el corte de arriba). No hay que mantenerle `rol_permiso` y cubre los permisos que se agreguen en el futuro. `mis_permisos()` le devuelve el catálogo completo, así que su menú y dashboard salen enteros.
+- **`protegido`** — solo un Superadmin puede **ver, editar y asignar** ese rol.
+
+**La regla es de seguridad, no de interfaz.** Un Administrador tiene `rol.editar`, así que podría —si la jerarquía viviera solo en el React— asignarse a sí mismo un rol con más permisos, o crear uno de acceso total. Por eso el corte se aplica en **RLS**: las políticas de `rol`, `rol_permiso` y `usuario` esconden los roles protegidos y rechazan asignarlos salvo que quien opera sea Superadmin.
+
+El punto fino: la comprobación "¿es protegido este rol?" **no puede** hacerse con un subquery normal dentro de la política, porque ese subquery también pasa por RLS y un Administrador —que no ve el rol protegido— obtendría "no protegido" y podría escalar por id literal. Se resuelve con dos funciones `security definer` (saltan RLS, así que responden lo verdadero para todos):
+
+```sql
+-- ¿El usuario autenticado es Superadmin?
+create or replace function es_superadmin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from usuario u join rol r on r.id = u.rol_id
+                  where u.id = auth.uid() and u.activo and r.acceso_total);
+$$;
+
+-- ¿El rol indicado es protegido?  (sin esta función, la política tendría un hueco)
+create or replace function es_rol_protegido(p_rol_id bigint) returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select protegido from rol where id = p_rol_id), false);
+$$;
+
+-- Ejemplo: nadie que no sea Superadmin puede asignarle a un usuario un rol protegido.
+create policy usuario_admin_escribe on usuario for all to authenticated
+  using      (tiene_permiso('usuario.editar') and (es_superadmin() or not es_rol_protegido(usuario.rol_id)))
+  with check (tiene_permiso('usuario.editar') and (es_superadmin() or not es_rol_protegido(usuario.rol_id)));
+```
+
+El primer Superadmin se asigna con `scripts/asignar-rol.ts` (usa el rol de servicio, que salta RLS): por diseño, nadie puede crear un Superadmin desde la interfaz sin ser ya Superadmin.
 
 ### 4.2 Bitácora — toda acción queda registrada (ADM-02)
 

@@ -90,6 +90,16 @@ npx tsx scripts/asignar-rol.ts                          # lista usuarios y roles
 npx tsx scripts/asignar-rol.ts correo@ejemplo.com Administrador
 ```
 
+### Rol Superadmin (desarrollo / TI)
+
+El rol **Superadmin** (`acceso_total` + `protegido`) es para el equipo de desarrollo y el área de sistemas del cliente: ve y edita **todos** los roles, incluido el suyo. Un Administrador normal no lo ve ni puede asignarlo — la jerarquía se aplica en RLS (ver [BACKEND.md § 4.1](BACKEND.md#41-seguridad-y-acceso)). El primer Superadmin se asigna con el mismo script, porque salta RLS con el rol de servicio:
+
+```bash
+npx tsx scripts/asignar-rol.ts correo@ejemplo.com Superadmin
+```
+
+> Conviene mantener **al menos una cuenta Administrador** aparte de las Superadmin: representa al administrador del cliente y permite ver el sistema como lo ve él (sin los roles protegidos).
+
 ## Bitácora: obligatoria en cada tabla nueva
 
 Al crear una tabla operativa, **hay que declarar su trigger de bitácora**. Es parte de la Definición de Terminado:
@@ -128,13 +138,14 @@ npm run db:types                                # regenerar tipos
 
 Las migraciones se aplican en orden alfabético; por eso van numeradas:
 
-| Archivo               | Contenido                                                                                            |
-| --------------------- | ---------------------------------------------------------------------------------------------------- |
-| `0001_utilidades.sql` | `fn_set_updated_at`, `fn_bitacora`, `fn_bitacora_inmutable`                                          |
-| `0002_seguridad.sql`  | `rol`, `permiso`, `rol_permiso`, `usuario`, `bitacora`, `tiene_permiso()`, `registrar_en_bitacora()` |
-| `0003_catalogo.sql`   | monedas, categorías, proveedores, bodegas, zonas, productos y variantes                              |
-| `0004_inventario.sql` | `stock`, `movimiento`, triggers de stock, traspaso, anulación y vistas                               |
-| `0005_rls.sql`        | RLS y políticas de todas las tablas                                                                  |
+| Archivo               | Contenido                                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------------------------- |
+| `0001_utilidades.sql` | `fn_set_updated_at`, `fn_bitacora`, `fn_bitacora_inmutable`                                               |
+| `0002_seguridad.sql`  | `rol`, `permiso`, `rol_permiso`, `usuario`, `bitacora`, `tiene_permiso()`, `registrar_en_bitacora()`      |
+| `0003_catalogo.sql`   | monedas, categorías, proveedores, bodegas, zonas, productos y variantes                                   |
+| `0004_inventario.sql` | `stock`, `movimiento`, triggers de stock, traspaso, anulación y vistas                                    |
+| `0005_rls.sql`        | RLS y políticas de todas las tablas                                                                       |
+| `0013_superadmin.sql` | Rol Superadmin (`acceso_total` + `protegido`), `es_superadmin()`, `es_rol_protegido()` y RLS de jerarquía |
 
 ## Migración de BODEGA.xls
 
