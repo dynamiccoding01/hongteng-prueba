@@ -199,7 +199,7 @@ cambios en Server Actions ni consultas de negocio.
 - [x] ~~Sidebar estilo Supabase con iconos por enlace (`lucide-react`), manteniendo la agrupación por módulo~~ (PR #11/#12 — ya mergeado antes de este checklist)
 - [x] ~~#1 Buscador con autocompletado en los selectores de listas largas: nuevo `components/seleccion-buscable.tsx` (escribe y filtra, con `input hidden` para conservar el envío por formulario). Reemplaza `<Seleccion>` en artículo, cliente, zona, proveedor y usuario en 8 páginas~~
 - [x] ~~#2 Resumen como centro de acción: botones de acceso rápido según el rol (registrar movimiento, nueva venta, importación, toma, buscar por código) + panel «Requiere atención» (alertas de stock, ventas/importaciones en borrador)~~ (`app/(app)/page.tsx`)
-- [ ] #3 Notificaciones tipo «toast» para el resultado de cada acción — **siguiente paso**, se deja fuera de este PR para mantenerlo enfocado (cambia el componente de formulario compartido)
+- [x] ~~#3 Notificaciones tipo «toast» para el resultado de cada acción: nuevo `components/proveedor-toast.tsx` (aviso flotante arriba a la derecha, verde/rojo, se va solo). Se siembra en `app/(app)/layout.tsx` y `FormularioDesplegable` lo dispara al llegar el resultado, en vez del texto inline que se perdía al hacer scroll~~ (PR aparte)
 - [ ] Nivel 2 (media prioridad, aún no): panel lateral deslizante para formularios largos, estados con icono consistentes, tablas con encabezado fijo/hover
 - [ ] Nivel 3 (pulido, aún no): responsive tablet/celular con menú colapsable, mostrar nombre en chino junto al español en el contenido, estados vacíos que guían
 - [x] ~~Verificación completa: format + lint + typecheck + test + build en verde~~ (build validado por el CI)
@@ -239,6 +239,7 @@ cambios en Server Actions ni consultas de negocio.
 | 2026-07-23 | Sprint 8 | Sidebar rediseñado estilo Supabase: panel con fondo propio, un icono de `lucide-react` (misma librería que usa Supabase) por cada uno de los 26 enlaces, manteniendo la agrupación por módulo existente. Nueva dependencia: `lucide-react` (sin dependencias propias)                     |
 | 2026-07-23 | Sprint 8 | Corrección reportada por el usuario: los iconos rompían las páginas (un Server Component pasaba el componente de icono como prop a un Client Component). Se pasa el nombre del icono como texto y el cliente lo resuelve. El CI no lo detectó porque las páginas son dinámicas. PR #12    |
 | 2026-07-23 | Sprint 9 | Nivel 1 de UX (conversado con el dueño). #1 Buscador con autocompletado (`seleccion-buscable.tsx`) reemplaza los `<select>` de listas largas en 8 páginas. #2 Resumen como centro de acción: accesos rápidos por rol + panel «Requiere atención». Rama `feat/nivel1-buscador-resumen`     |
+| 2026-07-23 | Sprint 9 | #3 Notificaciones «toast» (`proveedor-toast.tsx`): aviso flotante para guardado/error en vez del texto inline. Con esto el Nivel 1 de UX queda completo. Falta (para otro momento) el Nivel 2/3. Rama `feat/nivel1-toasts`                                                                |
 
 ## Hallazgo abierto que requiere decisión del cliente
 

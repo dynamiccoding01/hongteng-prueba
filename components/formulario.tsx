@@ -1,9 +1,10 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { t, type Idioma } from '@/lib/i18n';
 import { useIdioma } from './proveedor-idioma';
+import { useToast } from './proveedor-toast';
 
 export interface EstadoFormulario {
   error?: string;
@@ -45,8 +46,15 @@ export function FormularioDesplegable({
   children: React.ReactNode;
 }) {
   const idioma = useIdioma();
+  const mostrarToast = useToast();
   const [abierto, setAbierto] = useState(false);
   const [estado, enviar] = useActionState<EstadoFormulario, FormData>(accion, {});
+
+  // Cada resultado de la acción llega como un objeto nuevo; se avisa una vez.
+  useEffect(() => {
+    if (estado.ok) mostrarToast(estado.ok, 'ok');
+    else if (estado.error) mostrarToast(estado.error, 'error');
+  }, [estado, mostrarToast]);
 
   if (!abierto) {
     return (
@@ -66,15 +74,6 @@ export function FormularioDesplegable({
   return (
     <form action={enviar} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
       <div className="grid gap-3 sm:grid-cols-2">{children}</div>
-
-      {estado.error ? (
-        <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
-          {estado.error}
-        </p>
-      ) : null}
-      {estado.ok ? (
-        <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400">{estado.ok}</p>
-      ) : null}
 
       <div className="mt-4 flex gap-2">
         <BotonGuardar idioma={idioma} />
