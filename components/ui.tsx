@@ -39,9 +39,13 @@ export function Tarjeta({
 }
 
 export function Tabla({ children }: { children: React.ReactNode }) {
+  // El resaltado de fila al pasar el mouse se aplica con un selector sobre
+  // `tbody tr`, así todas las tablas de la app lo heredan sin tocar cada `<tr>`.
   return (
     <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-      <table className="w-full text-sm">{children}</table>
+      <table className="w-full text-sm [&_tbody_tr:hover]:bg-zinc-50 dark:[&_tbody_tr:hover]:bg-zinc-800/40">
+        {children}
+      </table>
     </div>
   );
 }
