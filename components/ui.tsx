@@ -39,10 +39,13 @@ export function Tarjeta({
 }
 
 export function Tabla({ children }: { children: React.ReactNode }) {
-  // El resaltado de fila al pasar el mouse se aplica con un selector sobre
-  // `tbody tr`, así todas las tablas de la app lo heredan sin tocar cada `<tr>`.
+  // El contenedor limita la altura: una tabla larga hace scroll dentro de la
+  // caja y su encabezado (Th, con `sticky top-0`) queda fijo arriba. Una tabla
+  // corta no llega al límite, así que no aparece scroll ni cambia nada. El
+  // resaltado de fila se aplica con un selector sobre `tbody tr`, para que todas
+  // las tablas lo hereden sin tocar cada `<tr>`.
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+    <div className="max-h-[calc(100vh-11rem)] overflow-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
       <table className="w-full text-sm [&_tbody_tr:hover]:bg-zinc-50 dark:[&_tbody_tr:hover]:bg-zinc-800/40">
         {children}
       </table>
@@ -53,7 +56,7 @@ export function Tabla({ children }: { children: React.ReactNode }) {
 export function Th({ children, numerico }: { children: React.ReactNode; numerico?: boolean }) {
   return (
     <th
-      className={`border-b border-zinc-200 bg-zinc-50 px-3 py-2 font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/40 ${
+      className={`sticky top-0 z-10 border-b border-zinc-200 bg-zinc-100 px-3 py-2 font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 ${
         numerico ? 'text-right' : 'text-left'
       }`}
     >
