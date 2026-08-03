@@ -182,8 +182,8 @@ export function Navegacion({
   tema: Tema;
 }) {
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50/60 dark:border-zinc-800 dark:bg-zinc-950/40">
-      <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
+    <aside className="flex w-64 shrink-0 flex-col border-r border-borde bg-menu">
+      <div className="flex items-center gap-2 border-b border-borde px-4 py-4">
         <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-acento text-white">
           <Boxes className="size-4" strokeWidth={2} />
         </div>
@@ -221,7 +221,7 @@ export function Navegacion({
         })}
       </nav>
 
-      <div className="border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
+      <div className="border-t border-borde px-4 py-3">
         <SelectorTema temaActual={tema} idioma={idioma} />
         <p className="mt-3 truncate text-sm font-medium">{usuario.nombre}</p>
         <p className="truncate text-xs text-zinc-500">{usuario.rol}</p>

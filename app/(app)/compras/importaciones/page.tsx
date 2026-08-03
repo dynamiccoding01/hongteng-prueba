@@ -101,10 +101,7 @@ export default async function Importaciones() {
             const totalCajas = imp.detalle.reduce((s, d) => s + Number(d.cajas), 0);
             const esBorrador = imp.estado === 'BORRADOR';
             return (
-              <section
-                key={imp.id}
-                className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
-              >
+              <section key={imp.id} className="rounded-xl border border-borde bg-superficie p-4">
                 <div className="mb-3 flex flex-wrap items-center gap-3">
                   <h2 className="text-sm font-semibold">Importación #{imp.id}</h2>
                   <Etiqueta tono={esBorrador ? 'ambar' : 'verde'}>

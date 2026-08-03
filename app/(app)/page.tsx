@@ -27,13 +27,11 @@ function TarjetaIndicador({
 }) {
   const contenido = (
     <div
-      className={`rounded-xl border p-4 ${
-        tono === 'ambar'
-          ? 'border-amber-300 dark:border-amber-800'
-          : 'border-zinc-200 dark:border-zinc-800'
+      className={`rounded-xl border bg-superficie p-4 ${
+        tono === 'ambar' ? 'border-amber-300 dark:border-amber-800' : 'border-borde'
       }`}
     >
-      <p className="text-xs text-zinc-500">{titulo}</p>
+      <p className="text-xs text-tenue">{titulo}</p>
       <p className="mt-1 text-2xl font-semibold">{valor}</p>
     </div>
   );
@@ -59,7 +57,7 @@ function AccionRapida({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-xl border border-zinc-200 p-4 transition hover:border-acento hover:bg-acento/5 dark:border-zinc-800"
+      className="flex items-center gap-3 rounded-xl border border-borde bg-superficie p-4 transition hover:border-acento hover:bg-acento/5"
     >
       <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-acento/10 text-acento">
         <Icono className="size-5" />
