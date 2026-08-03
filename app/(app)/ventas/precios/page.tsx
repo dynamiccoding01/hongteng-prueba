@@ -72,10 +72,7 @@ export default async function ListasDePrecios() {
       ) : (
         <div className="space-y-8">
           {(listas ?? []).map((lista) => (
-            <section
-              key={lista.id}
-              className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
-            >
+            <section key={lista.id} className="rounded-xl border border-borde bg-superficie p-4">
               <div className="mb-3 flex flex-wrap items-center gap-3">
                 <h2 className="text-sm font-semibold">{lista.nombre}</h2>
                 <Etiqueta tono={lista.activo ? 'verde' : 'neutro'}>{lista.moneda.codigo}</Etiqueta>

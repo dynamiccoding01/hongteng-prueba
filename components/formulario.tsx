@@ -72,7 +72,7 @@ export function FormularioDesplegable({
   }
 
   return (
-    <form action={enviar} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+    <form action={enviar} className="rounded-xl border border-borde bg-superficie p-4">
       <div className="grid gap-3 sm:grid-cols-2">{children}</div>
 
       <div className="mt-4 flex gap-2">
