@@ -84,7 +84,7 @@ export function SeleccionBuscable({
         </button>
 
         {abierto ? (
-          <div className="absolute z-20 mt-1 w-full rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="absolute z-20 mt-1 w-full rounded-md border border-borde bg-superficie shadow-lg">
             <input
               autoFocus
               value={consulta}

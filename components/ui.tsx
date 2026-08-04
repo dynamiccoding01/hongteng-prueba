@@ -16,7 +16,7 @@ export function Encabezado({
     <div className="mb-6 flex items-end justify-between gap-4">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">{titulo}</h1>
-        {descripcion ? <p className="mt-1 text-sm text-zinc-500">{descripcion}</p> : null}
+        {descripcion ? <p className="mt-1 text-sm text-tenue">{descripcion}</p> : null}
       </div>
       {children ? <div className="flex shrink-0 flex-wrap gap-2">{children}</div> : null}
     </div>
@@ -32,7 +32,7 @@ export function Tarjeta({
   className?: string;
 }) {
   return (
-    <div className={`rounded-xl border border-zinc-200 p-4 dark:border-zinc-800 ${className}`}>
+    <div className={`rounded-xl border border-borde bg-superficie p-4 ${className}`}>
       {children}
     </div>
   );
@@ -45,8 +45,8 @@ export function Tabla({ children }: { children: React.ReactNode }) {
   // resaltado de fila se aplica con un selector sobre `tbody tr`, para que todas
   // las tablas lo hereden sin tocar cada `<tr>`.
   return (
-    <div className="max-h-[calc(100vh-11rem)] overflow-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-      <table className="w-full text-sm [&_tbody_tr:hover]:bg-zinc-50 dark:[&_tbody_tr:hover]:bg-zinc-800/40">
+    <div className="max-h-[calc(100vh-11rem)] overflow-auto rounded-xl border border-borde bg-superficie">
+      <table className="w-full text-sm [&_tbody_tr:hover]:bg-black/[0.025] dark:[&_tbody_tr:hover]:bg-white/[0.04]">
         {children}
       </table>
     </div>
@@ -56,7 +56,7 @@ export function Tabla({ children }: { children: React.ReactNode }) {
 export function Th({ children, numerico }: { children: React.ReactNode; numerico?: boolean }) {
   return (
     <th
-      className={`sticky top-0 z-10 border-b border-zinc-200 bg-zinc-100 px-3 py-2 font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 ${
+      className={`sticky top-0 z-10 border-b border-borde bg-zinc-100 px-3 py-2 font-medium text-tenue dark:bg-zinc-900 ${
         numerico ? 'text-right' : 'text-left'
       }`}
     >
@@ -76,9 +76,9 @@ export function Td({
 }) {
   return (
     <td
-      className={`border-b border-zinc-100 px-3 py-2 dark:border-zinc-900 ${
+      className={`border-b border-borde/60 px-3 py-2 ${
         numerico ? 'text-right tabular-nums' : ''
-      } ${tenue ? 'text-zinc-500' : ''}`}
+      } ${tenue ? 'text-tenue' : ''}`}
     >
       {children}
     </td>
@@ -108,7 +108,7 @@ export function Etiqueta({
 
 export function Vacio({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-zinc-300 px-6 py-12 text-center text-sm text-zinc-500 dark:border-zinc-700">
+    <div className="rounded-xl border border-dashed border-borde px-6 py-12 text-center text-sm text-tenue">
       {children}
     </div>
   );

@@ -83,10 +83,7 @@ export default async function TomaDeInventario() {
           {(tomas ?? []).map((toma) => {
             const esBorrador = toma.estado === 'BORRADOR';
             return (
-              <section
-                key={toma.id}
-                className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
-              >
+              <section key={toma.id} className="rounded-xl border border-borde bg-superficie p-4">
                 <div className="mb-3 flex flex-wrap items-center gap-3">
                   <h2 className="text-sm font-semibold">Toma #{toma.id}</h2>
                   <Etiqueta tono={esBorrador ? 'ambar' : 'verde'}>
