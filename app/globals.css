@@ -82,3 +82,25 @@ body {
     'Segoe UI',
     sans-serif;
 }
+
+/*
+ * Animaciones del panel deslizante (drawer) de formularios y del menú lateral
+ * en móvil: el panel entra desde la derecha/izquierda y el fondo aparece.
+ */
+@keyframes deslizar-desde-derecha {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

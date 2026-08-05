@@ -182,7 +182,7 @@ export function Navegacion({
   tema: Tema;
 }) {
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-borde bg-menu">
+    <>
       <div className="flex items-center gap-2 border-b border-borde px-4 py-4">
         <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-acento text-white">
           <Boxes className="size-4" strokeWidth={2} />
@@ -234,6 +234,6 @@ export function Navegacion({
           </button>
         </form>
       </div>
-    </aside>
+    </>
   );
 }
