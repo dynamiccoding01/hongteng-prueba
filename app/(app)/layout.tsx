@@ -1,3 +1,4 @@
+import { Marco } from '@/components/marco';
 import { Navegacion } from '@/components/navegacion';
 import { ProveedorIdioma } from '@/components/proveedor-idioma';
 import { ProveedorToast } from '@/components/proveedor-toast';
@@ -17,13 +18,12 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   ]);
 
   return (
-    <div className="flex min-h-screen">
-      <Navegacion usuario={usuario} idioma={idioma} tema={tema} />
-      <ProveedorToast>
-        <ProveedorIdioma idioma={idioma}>
-          <main className="flex-1 overflow-x-auto px-8 py-6">{children}</main>
-        </ProveedorIdioma>
-      </ProveedorToast>
-    </div>
+    <ProveedorToast>
+      <ProveedorIdioma idioma={idioma}>
+        <Marco navegacion={<Navegacion usuario={usuario} idioma={idioma} tema={tema} />}>
+          {children}
+        </Marco>
+      </ProveedorIdioma>
+    </ProveedorToast>
   );
 }
