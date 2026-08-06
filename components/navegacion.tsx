@@ -1,11 +1,13 @@
-import { Boxes } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 import type { UsuarioSesion } from '@/lib/auth';
 import type { Idioma } from '@/lib/i18n';
 import { t } from '@/lib/i18n';
 import type { Tema } from '@/lib/preferencias';
 import { cerrarSesion } from '@/app/login/acciones';
-import { EnlaceNav, type NombreIcono } from './enlace-nav';
-import { SelectorTema } from './selector-tema';
+import { BotonTema } from './boton-tema';
+import { EnlaceNav } from './enlace-nav';
+import { GrupoNav } from './grupo-nav';
+import type { NombreIcono } from './iconos';
 
 interface Enlace {
   href: string;
@@ -15,11 +17,18 @@ interface Enlace {
   permiso?: string;
 }
 
-const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] = [
+/** Inicio: siempre visible arriba, fuera de los módulos colapsables. */
+const INICIO: Enlace = { href: '/', clave: 'navResumen', icono: 'LayoutDashboard' };
+
+const SECCIONES: {
+  claveTitulo: Parameters<typeof t>[1];
+  icono: NombreIcono;
+  enlaces: Enlace[];
+}[] = [
   {
     claveTitulo: 'seccionInventario',
+    icono: 'Boxes',
     enlaces: [
-      { href: '/', clave: 'navResumen', icono: 'LayoutDashboard' },
       { href: '/articulos', clave: 'navBuscarArticulos', icono: 'Search', permiso: 'stock.ver' },
       { href: '/inventario/stock', clave: 'navStockPorZona', icono: 'Boxes', permiso: 'stock.ver' },
       {
@@ -62,6 +71,7 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
   },
   {
     claveTitulo: 'seccionMaestros',
+    icono: 'Library',
     enlaces: [
       {
         href: '/maestros/productos',
@@ -98,6 +108,7 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
   },
   {
     claveTitulo: 'seccionCompras',
+    icono: 'ShoppingCart',
     enlaces: [
       {
         href: '/compras/importaciones',
@@ -109,6 +120,7 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
   },
   {
     claveTitulo: 'seccionVentas',
+    icono: 'ShoppingBag',
     enlaces: [
       { href: '/ventas/notas', clave: 'navNotasVenta', icono: 'Receipt', permiso: 'venta.ver' },
       { href: '/ventas/precios', clave: 'navListasPrecios', icono: 'Tag', permiso: 'venta.ver' },
@@ -128,6 +140,7 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
   },
   {
     claveTitulo: 'seccionReportes',
+    icono: 'BarChart3',
     enlaces: [
       {
         href: '/reportes/estadistica',
@@ -157,6 +170,7 @@ const SECCIONES: { claveTitulo: Parameters<typeof t>[1]; enlaces: Enlace[] }[] =
   },
   {
     claveTitulo: 'seccionAdministracion',
+    icono: 'Wrench',
     enlaces: [
       { href: '/admin/usuarios', clave: 'navUsuarios', icono: 'UserCog', permiso: 'usuario.ver' },
       {
@@ -183,31 +197,44 @@ export function Navegacion({
 }) {
   return (
     <>
-      <div className="flex items-center gap-2 border-b border-borde px-4 py-4">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-acento text-white">
-          <Boxes className="size-4" strokeWidth={2} />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-[10px] tracking-widest text-zinc-500 uppercase">
-            HONG TENG LTDA
-          </p>
-          <p className="truncate text-sm font-semibold">{t(idioma, 'subtituloMenu')}</p>
+      <div className="border-b border-borde px-3 py-3">
+        <p className="px-1 pb-2 text-[10px] font-semibold tracking-widest text-zinc-400 uppercase dark:text-zinc-500">
+          Hong Teng Ltda
+        </p>
+        <div className="flex items-center gap-2.5 rounded-lg bg-zinc-100/70 px-2.5 py-2 dark:bg-zinc-800/50">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-acento text-white">
+            <User className="size-[18px]" strokeWidth={2} />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{usuario.nombre}</p>
+            <p className="truncate text-xs text-tenue">{usuario.rol}</p>
+          </div>
         </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2.5 py-3">
-        {SECCIONES.map((seccion) => {
-          const visibles = seccion.enlaces.filter(
-            (e) => !e.permiso || usuario.permisos.has(e.permiso),
-          );
-          if (visibles.length === 0) return null;
+        <ul className="space-y-0.5">
+          <li>
+            <EnlaceNav href={INICIO.href} icono={INICIO.icono}>
+              {t(idioma, INICIO.clave)}
+            </EnlaceNav>
+          </li>
+        </ul>
 
-          return (
-            <div key={seccion.claveTitulo} className="mb-4">
-              <p className="px-2.5 pb-1 text-[10px] font-semibold tracking-wider text-zinc-400 uppercase dark:text-zinc-500">
-                {t(idioma, seccion.claveTitulo)}
-              </p>
-              <ul className="space-y-0.5">
+        <div className="mt-2 space-y-1">
+          {SECCIONES.map((seccion) => {
+            const visibles = seccion.enlaces.filter(
+              (e) => !e.permiso || usuario.permisos.has(e.permiso),
+            );
+            if (visibles.length === 0) return null;
+
+            return (
+              <GrupoNav
+                key={seccion.claveTitulo}
+                titulo={t(idioma, seccion.claveTitulo)}
+                icono={seccion.icono}
+                rutas={visibles.map((e) => e.href)}
+              >
                 {visibles.map((enlace) => (
                   <li key={enlace.href}>
                     <EnlaceNav href={enlace.href} icono={enlace.icono}>
@@ -215,22 +242,21 @@ export function Navegacion({
                     </EnlaceNav>
                   </li>
                 ))}
-              </ul>
-            </div>
-          );
-        })}
+              </GrupoNav>
+            );
+          })}
+        </div>
       </nav>
 
-      <div className="border-t border-borde px-4 py-3">
-        <SelectorTema temaActual={tema} idioma={idioma} />
-        <p className="mt-3 truncate text-sm font-medium">{usuario.nombre}</p>
-        <p className="truncate text-xs text-zinc-500">{usuario.rol}</p>
+      <div className="space-y-0.5 border-t border-borde px-2.5 py-3">
+        <BotonTema temaActual={tema} idioma={idioma} />
         <form action={cerrarSesion}>
           <button
             type="submit"
-            className="mt-2 text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-zinc-600 transition hover:bg-red-50 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
           >
-            {t(idioma, 'cerrarSesion')}
+            <LogOut className="size-4 shrink-0" />
+            <span className="truncate">{t(idioma, 'cerrarSesion')}</span>
           </button>
         </form>
       </div>
