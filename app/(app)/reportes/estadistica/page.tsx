@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 
 export const metadata = { title: 'Estadística mensual · Inventario' };
 
@@ -15,17 +17,31 @@ function nombreMes(iso: string): string {
 export default async function Estadistica({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { mes } = await searchParams;
+  const crudos = await searchParams;
+  const mes = typeof crudos['mes'] === 'string' ? crudos['mes'] : undefined;
   const usuario = await requerirPermiso('reporte.ver');
   const puedeExportar = usuario.permisos.has('reporte.exportar');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(crudos);
 
   const supabase = await crearClienteServidor();
-  const { data: filas, error } = await supabase
-    .from('v_salidas_mensuales')
-    .select('*')
-    .order('mes', { ascending: false });
+
+  // El resumen por mes agrupa todo el histórico, así que pide solo las tres
+  // columnas que suma. El detalle del mes elegido sí es un listado y se pagina.
+  const [{ data: filas, error }, detalle] = await Promise.all([
+    supabase.from('v_salidas_mensuales').select('mes, cajas, unidades').order('mes', {
+      ascending: false,
+    }),
+    mes
+      ? supabase
+          .from('v_salidas_mensuales')
+          .select('*', { count: 'exact' })
+          .eq('mes', mes)
+          .order('cajas', { ascending: false })
+          .range(desde, hasta)
+      : Promise.resolve({ data: [], count: 0 }),
+  ]);
 
   if (error) return <Vacio>No se pudo cargar la estadística: {error.message}</Vacio>;
 
@@ -39,9 +55,7 @@ export default async function Estadistica({
     porMes.set(clave, acumulado);
   }
 
-  const delMes = mes
-    ? (filas ?? []).filter((f) => f.mes === mes).sort((a, b) => Number(b.cajas) - Number(a.cajas))
-    : [];
+  const delMes = detalle.data ?? [];
 
   return (
     <>
@@ -128,6 +142,8 @@ export default async function Estadistica({
               ))}
             </tbody>
           </Tabla>
+
+          <Paginacion total={detalle.count ?? 0} pagina={pagina} porPagina={porPagina} />
         </section>
       ) : null}
     </>

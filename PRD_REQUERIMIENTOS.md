@@ -19,14 +19,15 @@ Prioridad: **Alta** (núcleo) · **Media** (operación completa) · **Baja** (va
 
 ## Maestros / Catálogo
 
-| Código | Requerimiento                                                                                                                                                                   | Prioridad |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| MAE-01 | Maestro de productos con código (SKU), categoría, descripción bilingüe (ES/中文), rango de tallas y unidad de medida (pares 双数 para calzado, piezas 件数 para ropa)           | Alta      |
-| MAE-02 | Variantes por empaque: un mismo código de fábrica puede venir en cajas de distinta cantidad (ej. `LB23020` en cajas de 600 y de 1200 piezas). El stock se controla por variante | Alta      |
-| MAE-03 | Maestro de categorías (niño, juvenil, adulto, ropa) ampliable                                                                                                                   | Alta      |
-| MAE-04 | Maestro de zonas/ubicaciones de bodega, normalizado                                                                                                                             | Alta      |
-| MAE-05 | Maestro de proveedores (China) y de clientes mayoristas                                                                                                                         | Alta      |
-| MAE-06 | Maestro de monedas y tipo de cambio (USD, EUR, UF, UTM)                                                                                                                         | Media     |
+| Código | Requerimiento                                                                                                                                                                    | Prioridad |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| MAE-01 | Maestro de productos con código (SKU), categoría, descripción bilingüe (ES/中文), rango de tallas y unidad de medida (pares 双数 para calzado, piezas 件数 para ropa)            | Alta      |
+| MAE-02 | Variantes por empaque: un mismo código de fábrica puede venir en cajas de distinta cantidad (ej. `LB23020` en cajas de 600 y de 1200 piezas). El stock se controla por variante  | Alta      |
+| MAE-03 | Maestro de categorías (niño, juvenil, adulto, ropa) ampliable                                                                                                                    | Alta      |
+| MAE-04 | Maestro de zonas/ubicaciones de bodega, normalizado                                                                                                                              | Alta      |
+| MAE-05 | Maestro de proveedores (China) y de clientes mayoristas                                                                                                                          | Alta      |
+| MAE-06 | Maestro de monedas y tipo de cambio (USD, EUR, UF, UTM)                                                                                                                          | Media     |
+| MAE-07 | Maestro de unidades de medida administrable por el cliente. No confundir con las unidades por caja de MAE-02: esto es en qué se cuenta el artículo, aquello cuántas trae la caja | Alta      |
 
 ## Compras / Importaciones
 

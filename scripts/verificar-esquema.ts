@@ -142,8 +142,8 @@ async function main() {
     insert into bodega (codigo, nombre) values ('TEST', 'Bodega de prueba');
     insert into zona (bodega_id, codigo)
       select id, 'Z-TEST' from bodega where codigo = 'TEST';
-    insert into producto (codigo, categoria_id, rango_tallas)
-      select 'TEST-001', id, '30-35' from categoria where codigo = 'NINO';
+    insert into producto (codigo, categoria_id, rango_tallas, unidad_medida_id)
+      select 'TEST-001', id, '30-35', unidad_medida_default_id from categoria where codigo = 'NINO';
     insert into producto_variante (producto_id, unidades_por_caja)
       select id, 48 from producto where codigo = 'TEST-001';
 
@@ -217,7 +217,8 @@ async function main() {
       begin;
       insert into bodega (codigo, nombre) values ('TEST2', 'Bodega de prueba 2');
       insert into zona (bodega_id, codigo) select id, 'Z-TEST2' from bodega where codigo = 'TEST2';
-      insert into producto (codigo, categoria_id) select 'TEST-002', id from categoria where codigo = 'NINO';
+      insert into producto (codigo, categoria_id, unidad_medida_id)
+        select 'TEST-002', id, unidad_medida_default_id from categoria where codigo = 'NINO';
       insert into producto_variante (producto_id, unidades_por_caja)
         select id, 12 from producto where codigo = 'TEST-002';
       insert into movimiento (variante_id, zona_id, tipo, cajas)

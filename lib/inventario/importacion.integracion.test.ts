@@ -50,11 +50,13 @@ describe.runIf(hayCredenciales)('compras: confirmación de importación', { time
     adminId = String(admin.id);
 
     const [cat] = await consultar(
-      `insert into categoria (codigo, nombre_es) values ('${CODIGO}', 'Cat test') returning id`,
+      `insert into categoria (codigo, nombre_es, unidad_medida_default_id)
+       values ('${CODIGO}', 'Cat test', (select id from unidad_medida where codigo = 'PAR')) returning id`,
     );
     categoriaId = n(cat, 'id');
     const [prod] = await consultar(
-      `insert into producto (codigo, categoria_id) values ('${CODIGO}', ${categoriaId}) returning id`,
+      `insert into producto (codigo, categoria_id, unidad_medida_id)
+       values ('${CODIGO}', ${categoriaId}, (select id from unidad_medida where codigo = 'PAR')) returning id`,
     );
     productoId = n(prod, 'id');
     const [vari] = await consultar(

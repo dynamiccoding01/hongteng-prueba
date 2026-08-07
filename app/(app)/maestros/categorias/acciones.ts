@@ -18,7 +18,8 @@ const esquemaCategoria = z.object({
     .regex(/^[A-Z0-9_]+$/, 'Use solo mayúsculas, números y guion bajo'),
   nombre_es: z.string().trim().min(1, 'El nombre es obligatorio'),
   nombre_zh: z.string().trim().optional(),
-  unidad_medida_default: z.enum(['PAR', 'PIEZA', 'JUEGO']),
+  // Unidad sugerida al dar de alta un artículo de esta categoría (MAE-07).
+  unidad_medida_default_id: z.coerce.number().int().positive('Seleccione la unidad de medida'),
 });
 
 export async function guardarCategoria(
@@ -31,7 +32,7 @@ export async function guardarCategoria(
     codigo: datos.get('codigo'),
     nombre_es: datos.get('nombre_es'),
     nombre_zh: datos.get('nombre_zh') || undefined,
-    unidad_medida_default: datos.get('unidad_medida_default'),
+    unidad_medida_default_id: datos.get('unidad_medida_default_id'),
   });
 
   if (!analisis.success) {
@@ -51,6 +52,7 @@ export async function guardarCategoria(
   if (error) return { error: mensajeError(error, 'categoría') };
 
   revalidatePath('/maestros/categorias');
+  revalidatePath('/maestros/productos');
   return { ok: id ? 'Categoría actualizada' : 'Categoría creada' };
 }
 

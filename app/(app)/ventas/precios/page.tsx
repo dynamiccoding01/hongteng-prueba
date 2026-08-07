@@ -3,38 +3,58 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { asignarListaACliente, crearLista, fijarPrecio } from './acciones';
 
 export const metadata = { title: 'Listas de precios · Inventario' };
 
 /** VEN-04: listas de precios por moneda y su asignación a clientes. */
-export default async function ListasDePrecios() {
+export default async function ListasDePrecios({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('venta.ver');
   const puedeEditar = usuario.permisos.has('precio.editar');
 
+  const crudos = await searchParams;
+  const pgListas = leerPaginacion(crudos, 'listas');
+  const pgClientes = leerPaginacion(crudos, 'clientes');
+
   const supabase = await crearClienteServidor();
 
-  const [{ data: listas, error }, { data: monedas }, { data: variantes }, { data: clientes }] =
-    await Promise.all([
-      supabase
-        .from('lista_precio')
-        .select(
-          'id, nombre, activo, moneda:moneda_id(codigo, simbolo), items:lista_precio_item(id, precio_caja, variante:variante_id(unidades_por_caja, producto:producto_id(codigo)))',
-        )
-        .order('nombre'),
-      supabase.from('moneda').select('id, codigo, nombre').eq('activo', true).order('codigo'),
-      supabase
-        .from('producto_variante')
-        .select('id, unidades_por_caja, producto:producto_id!inner(codigo, activo)')
-        .eq('activo', true)
-        .eq('producto.activo', true)
-        .limit(1000),
-      supabase
-        .from('cliente')
-        .select('id, codigo, nombre, lista:lista_precio_id(nombre)')
-        .eq('activo', true)
-        .order('nombre'),
-    ]);
+  const [
+    { data: listas, count: totalListas, error },
+    { data: monedas },
+    { data: variantes },
+    { data: clientes, count: totalClientes },
+    { data: todasLasListas },
+  ] = await Promise.all([
+    supabase
+      .from('lista_precio')
+      .select(
+        'id, nombre, activo, moneda:moneda_id(codigo, simbolo), items:lista_precio_item(id, precio_caja, variante:variante_id(unidades_por_caja, producto:producto_id(codigo)))',
+        { count: 'exact' },
+      )
+      .order('nombre')
+      .range(pgListas.desde, pgListas.hasta),
+    supabase.from('moneda').select('id, codigo, nombre').eq('activo', true).order('codigo'),
+    supabase
+      .from('producto_variante')
+      .select('id, unidades_por_caja, producto:producto_id!inner(codigo, activo)')
+      .eq('activo', true)
+      .eq('producto.activo', true)
+      .limit(1000),
+    supabase
+      .from('cliente')
+      .select('id, codigo, nombre, lista:lista_precio_id(nombre)', { count: 'exact' })
+      .eq('activo', true)
+      .order('nombre')
+      .range(pgClientes.desde, pgClientes.hasta),
+    // Opciones del desplegable: todas las listas, no la página que se ve.
+    supabase.from('lista_precio').select('id, nombre').eq('activo', true).order('nombre'),
+  ]);
 
   if (error) return <Vacio>No se pudieron cargar las listas: {error.message}</Vacio>;
 
@@ -48,7 +68,7 @@ export default async function ListasDePrecios() {
       valor: v.id,
       texto: `${v.producto.codigo} — ${numero(v.unidades_por_caja)} u/caja`,
     }));
-  const opcionesLista = (listas ?? []).map((l) => ({ valor: l.id, texto: l.nombre }));
+  const opcionesLista = (todasLasListas ?? []).map((l) => ({ valor: l.id, texto: l.nombre }));
 
   return (
     <>
@@ -138,6 +158,13 @@ export default async function ListasDePrecios() {
         </div>
       )}
 
+      <Paginacion
+        total={totalListas ?? 0}
+        pagina={pgListas.pagina}
+        porPagina={pgListas.porPagina}
+        prefijo="listas"
+      />
+
       <section className="mt-10">
         <h2 className="mb-3 text-sm font-medium">Lista asignada por cliente</h2>
         {(clientes ?? []).length === 0 ? (
@@ -180,6 +207,13 @@ export default async function ListasDePrecios() {
             </tbody>
           </Tabla>
         )}
+
+        <Paginacion
+          total={totalClientes ?? 0}
+          pagina={pgClientes.pagina}
+          porPagina={pgClientes.porPagina}
+          prefijo="clientes"
+        />
       </section>
     </>
   );

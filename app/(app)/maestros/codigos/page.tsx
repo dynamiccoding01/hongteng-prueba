@@ -4,15 +4,23 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
 import { Buscador } from '@/components/buscador';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { actualizarCodigos } from './acciones';
 
 export const metadata = { title: 'Códigos de barras · Inventario' };
 
 /** INV-08: código de barras / SKU interno por empaque, para lectura rápida. */
-export default async function Codigos({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const { q } = await searchParams;
+export default async function Codigos({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const crudos = await searchParams;
+  const q = typeof crudos['q'] === 'string' ? crudos['q'] : undefined;
   const usuario = await requerirPermiso('producto.ver');
   const puedeEditar = usuario.permisos.has('producto.editar');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(crudos);
 
   const supabase = await crearClienteServidor();
 
@@ -20,15 +28,16 @@ export default async function Codigos({ searchParams }: { searchParams: Promise<
     .from('producto_variante')
     .select(
       'id, unidades_por_caja, codigo_barras, sku_interno, producto:producto_id!inner(codigo, activo)',
+      { count: 'exact' },
     )
     .eq('activo', true)
     .eq('producto.activo', true)
     .order('id')
-    .limit(500);
+    .range(desde, hasta);
 
   if (q) consulta = consulta.ilike('producto.codigo', `%${q}%`);
 
-  const { data: variantes, error } = await consulta;
+  const { data: variantes, count, error } = await consulta;
 
   if (error) return <Vacio>No se pudieron cargar los empaques: {error.message}</Vacio>;
 
@@ -104,6 +113,8 @@ export default async function Codigos({ searchParams }: { searchParams: Promise<
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

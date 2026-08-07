@@ -3,19 +3,31 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { fijarStockMinimo } from './acciones';
 
 export const metadata = { title: 'Alertas de stock · Inventario' };
 
 /** INV-05: artículos en o bajo su stock mínimo, y definición del mínimo. */
-export default async function AlertasDeStock() {
+export default async function AlertasDeStock({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('stock.ver');
   const puedeEditar = usuario.permisos.has('producto.editar');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: alertas, error }, { data: variantes }] = await Promise.all([
-    supabase.from('v_alertas_stock').select('*').order('codigo'),
+  const [{ data: alertas, count, error }, { data: variantes }] = await Promise.all([
+    supabase
+      .from('v_alertas_stock')
+      .select('*', { count: 'exact' })
+      .order('codigo')
+      .range(desde, hasta),
+    // Opciones del formulario, no un listado: va completa.
     supabase
       .from('producto_variante')
       .select('id, unidades_por_caja, stock_minimo, producto:producto_id!inner(codigo, activo)')
@@ -103,6 +115,8 @@ export default async function AlertasDeStock() {
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

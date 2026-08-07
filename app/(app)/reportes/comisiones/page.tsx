@@ -1,6 +1,8 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 
 export const metadata = { title: 'Comisiones · Inventario' };
 
@@ -14,26 +16,46 @@ function fecha(valor: string): string {
 export default async function Comisiones({
   searchParams,
 }: {
-  searchParams: Promise<{ desde?: string; hasta?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { desde, hasta } = await searchParams;
+  const crudos = await searchParams;
+  const desde = typeof crudos['desde'] === 'string' ? crudos['desde'] : undefined;
+  const hasta = typeof crudos['hasta'] === 'string' ? crudos['hasta'] : undefined;
   await requerirPermiso('comision.ver');
+  const { pagina, porPagina, desde: primera, hasta: ultima } = leerPaginacion(crudos);
 
   const supabase = await crearClienteServidor();
 
-  let consulta = supabase.from('v_comisiones').select('*').order('fecha', { ascending: false });
-  if (desde) consulta = consulta.gte('fecha', desde);
-  if (hasta) consulta = consulta.lte('fecha', hasta);
+  let consulta = supabase
+    .from('v_comisiones')
+    .select('*', { count: 'exact' })
+    .order('fecha', { ascending: false })
+    .range(primera, ultima);
+  // El resumen por vendedor abarca todo el período filtrado, no la página: por
+  // eso va aparte y pide solo las dos columnas que necesita para sumar.
+  let resumen = supabase.from('v_comisiones').select('vendedor, comision_clp');
 
-  const { data: filas, error } = await consulta.limit(1000);
+  if (desde) {
+    consulta = consulta.gte('fecha', desde);
+    resumen = resumen.gte('fecha', desde);
+  }
+  if (hasta) {
+    consulta = consulta.lte('fecha', hasta);
+    resumen = resumen.lte('fecha', hasta);
+  }
+
+  const [{ data: filas, count, error }, { data: paraResumen }] = await Promise.all([
+    consulta,
+    resumen,
+  ]);
 
   if (error) return <Vacio>No se pudo cargar el reporte: {error.message}</Vacio>;
 
   const porVendedor = new Map<string, number>();
-  for (const f of filas ?? []) {
+  for (const f of paraResumen ?? []) {
     porVendedor.set(f.vendedor!, (porVendedor.get(f.vendedor!) ?? 0) + Number(f.comision_clp ?? 0));
   }
-  const totalComisiones = (filas ?? []).reduce((s, f) => s + Number(f.comision_clp ?? 0), 0);
+  const totalComisiones = (paraResumen ?? []).reduce((s, f) => s + Number(f.comision_clp ?? 0), 0);
 
   return (
     <>
@@ -126,6 +148,8 @@ export default async function Comisiones({
           </section>
         </div>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

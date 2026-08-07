@@ -123,7 +123,7 @@ export type Database = {
           id: number;
           nombre_es: string;
           nombre_zh: string | null;
-          unidad_medida_default: Database['public']['Enums']['unidad_medida'];
+          unidad_medida_default_id: number;
           updated_at: string;
         };
         Insert: {
@@ -133,7 +133,7 @@ export type Database = {
           id?: never;
           nombre_es: string;
           nombre_zh?: string | null;
-          unidad_medida_default?: Database['public']['Enums']['unidad_medida'];
+          unidad_medida_default_id: number;
           updated_at?: string;
         };
         Update: {
@@ -143,10 +143,18 @@ export type Database = {
           id?: never;
           nombre_es?: string;
           nombre_zh?: string | null;
-          unidad_medida_default?: Database['public']['Enums']['unidad_medida'];
+          unidad_medida_default_id?: number;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'categoria_unidad_medida_default_id_fkey';
+            columns: ['unidad_medida_default_id'];
+            isOneToOne: false;
+            referencedRelation: 'unidad_medida';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       cliente: {
         Row: {
@@ -784,7 +792,7 @@ export type Database = {
           talla_desde: string | null;
           talla_hasta: string | null;
           temporada: string | null;
-          unidad_medida: Database['public']['Enums']['unidad_medida'];
+          unidad_medida_id: number;
           updated_at: string;
           updated_by: string | null;
         };
@@ -806,7 +814,7 @@ export type Database = {
           talla_desde?: string | null;
           talla_hasta?: string | null;
           temporada?: string | null;
-          unidad_medida?: Database['public']['Enums']['unidad_medida'];
+          unidad_medida_id: number;
           updated_at?: string;
           updated_by?: string | null;
         };
@@ -828,7 +836,7 @@ export type Database = {
           talla_desde?: string | null;
           talla_hasta?: string | null;
           temporada?: string | null;
-          unidad_medida?: Database['public']['Enums']['unidad_medida'];
+          unidad_medida_id?: number;
           updated_at?: string;
           updated_by?: string | null;
         };
@@ -859,6 +867,13 @@ export type Database = {
             columns: ['proveedor_id'];
             isOneToOne: false;
             referencedRelation: 'proveedor';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'producto_unidad_medida_id_fkey';
+            columns: ['unidad_medida_id'];
+            isOneToOne: false;
+            referencedRelation: 'unidad_medida';
             referencedColumns: ['id'];
           },
           {
@@ -1286,6 +1301,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      unidad_medida: {
+        Row: {
+          activo: boolean;
+          codigo: string;
+          created_at: string;
+          id: number;
+          nombre_es: string;
+          nombre_zh: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          activo?: boolean;
+          codigo: string;
+          created_at?: string;
+          id?: never;
+          nombre_es: string;
+          nombre_zh?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          activo?: boolean;
+          codigo?: string;
+          created_at?: string;
+          id?: never;
+          nombre_es?: string;
+          nombre_zh?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       usuario: {
         Row: {
           activo: boolean;
@@ -1668,7 +1713,7 @@ export type Database = {
           codigo: string | null;
           producto_id: number | null;
           rango_tallas: string | null;
-          unidad_medida: Database['public']['Enums']['unidad_medida'] | null;
+          unidad_medida: string | null;
           unidades: number | null;
           unidades_por_caja: number | null;
           variante_id: number | null;
@@ -1710,6 +1755,7 @@ export type Database = {
       };
     };
     Functions: {
+      es_rol_protegido: { Args: { p_rol_id: number }; Returns: boolean };
       es_superadmin: { Args: never; Returns: boolean };
       fn_anular_documento_traspaso: {
         Args: { p_documento_id: number; p_motivo: string };
@@ -1773,7 +1819,6 @@ export type Database = {
         | 'AJUSTE_NEGATIVO'
         | 'TRASPASO_SALIDA'
         | 'TRASPASO_ENTRADA';
-      unidad_medida: 'PAR' | 'PIEZA' | 'JUEGO';
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -1903,7 +1948,6 @@ export const Constants = {
         'TRASPASO_SALIDA',
         'TRASPASO_ENTRADA',
       ],
-      unidad_medida: ['PAR', 'PIEZA', 'JUEGO'],
     },
   },
 } as const;

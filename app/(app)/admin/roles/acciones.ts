@@ -87,3 +87,64 @@ export async function crearRol(
   revalidatePath('/admin/roles');
   return { ok: `Rol «${analisis.data.nombre}» creado` };
 }
+
+const esquemaEditarRol = esquemaCrearRol.extend({
+  id: z.coerce.number().int().positive(),
+  activo: z.enum(['1', '0']),
+});
+
+/**
+ * ADM-01: corregir el nombre o la descripción de un rol, o darlo de baja.
+ *
+ * Nombrar mal un rol es fácil y hasta ahora no había cómo arreglarlo salvo
+ * creando otro. Los roles protegidos (Superadmin) no llegan aquí: RLS no se los
+ * muestra a un Administrador, y su política de escritura los excluye.
+ */
+export async function editarRol(
+  _previo: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  await requerirPermiso('rol.editar');
+
+  const analisis = esquemaEditarRol.safeParse({
+    id: datos.get('id'),
+    nombre: datos.get('nombre'),
+    descripcion: datos.get('descripcion'),
+    activo: datos.get('activo'),
+  });
+  if (!analisis.success) {
+    return { error: analisis.error.issues[0]?.message ?? 'Datos no válidos' };
+  }
+
+  const { id, nombre, descripcion, activo } = analisis.data;
+  const supabase = await crearClienteServidor();
+
+  // Un rol sin usuarios se puede desactivar sin más; con usuarios dentro, no:
+  // `usuario.rol_id` es obligatorio y quedarían con un perfil inhabilitado.
+  if (activo === '0') {
+    const { count, error: errorConteo } = await supabase
+      .from('usuario')
+      .select('id', { count: 'exact', head: true })
+      .eq('rol_id', id);
+
+    if (errorConteo) return { error: mensajeError(errorConteo, 'rol') };
+
+    if ((count ?? 0) > 0) {
+      return {
+        error: `No se puede desactivar: ${count} usuario(s) tienen este rol. Cámbieles el rol primero.`,
+      };
+    }
+  }
+
+  const { error } = await supabase
+    .from('rol')
+    .update({ nombre, descripcion: descripcion ?? null, activo: activo === '1' })
+    .eq('id', id);
+
+  if (error) return { error: mensajeError(error, 'rol') };
+
+  revalidatePath('/admin/roles');
+  // El nombre del rol se muestra en la lista de usuarios.
+  revalidatePath('/admin/usuarios');
+  return { ok: `Rol «${nombre}» actualizado` };
+}

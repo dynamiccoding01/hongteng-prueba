@@ -11,12 +11,17 @@ insert into moneda (codigo, nombre, simbolo, decimales) values
   ('UTM', 'Unidad Tributaria Mensual', 'UTM', 4)
 on conflict (codigo) do nothing;
 
--- Categorias tal como estan en BODEGA.xls
-insert into categoria (codigo, nombre_es, nombre_zh, unidad_medida_default) values
-  ('NINO',    'Nino',    '童鞋', 'PAR'),
-  ('JUVENIL', 'Juvenil', NULL,   'PAR'),
-  ('ADULTO',  'Adulto',  '男鞋', 'PAR'),
-  ('ROPA',    'Ropa',    '服装', 'PIEZA')
+-- Categorias tal como estan en BODEGA.xls.
+-- La unidad se resuelve por codigo contra el maestro unidad_medida (0014).
+insert into categoria (codigo, nombre_es, nombre_zh, unidad_medida_default_id)
+select v.codigo, v.nombre_es, v.nombre_zh, u.id
+  from (values
+    ('NINO',    'Nino',    '童鞋'::text, 'PAR'),
+    ('JUVENIL', 'Juvenil', null,         'PAR'),
+    ('ADULTO',  'Adulto',  '男鞋',       'PAR'),
+    ('ROPA',    'Ropa',    '服装',       'PIEZA')
+  ) as v(codigo, nombre_es, nombre_zh, unidad)
+  join unidad_medida u on u.codigo = v.unidad
 on conflict (codigo) do nothing;
 
 -- Bodega principal (ZOFRI Iquique). Arica se agrega cuando se confirme.

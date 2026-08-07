@@ -2,6 +2,8 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { guardarCliente } from './acciones';
 
 export const metadata = { title: 'Clientes · Inventario' };
@@ -40,17 +42,28 @@ function Campos({ c }: { c?: Cliente }) {
 }
 
 /** MAE-06: clientes (compradores mayoristas de ZOFRI y resto de Chile). */
-export default async function Clientes() {
+export default async function Clientes({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('cliente.ver');
   const puedeEditar = usuario.permisos.has('cliente.editar');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
-  const { data: clientes, error } = await supabase
+  const {
+    data: clientes,
+    count,
+    error,
+  } = await supabase
     .from('cliente')
     .select(
       'id, codigo, nombre, rut, contacto, email, telefono, direccion, ciudad, pais, notas, activo',
+      { count: 'exact' },
     )
-    .order('nombre');
+    .order('nombre')
+    .range(desde, hasta);
 
   if (error) return <Vacio>No se pudieron cargar los clientes: {error.message}</Vacio>;
 
@@ -109,6 +122,8 @@ export default async function Clientes() {
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

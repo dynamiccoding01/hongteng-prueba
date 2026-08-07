@@ -3,10 +3,10 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Buscador } from '@/components/buscador';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 
 export const metadata = { title: 'Stock por zona · Inventario' };
-
-const LIMITE = 500;
 
 /**
  * INV-01: existencias por producto y por zona, en cajas y unidades a la vez.
@@ -16,10 +16,12 @@ const LIMITE = 500;
 export default async function StockPorZona({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { q } = await searchParams;
+  const crudos = await searchParams;
+  const q = typeof crudos['q'] === 'string' ? crudos['q'] : undefined;
   await requerirPermiso('stock.ver');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(crudos);
 
   const supabase = await crearClienteServidor();
 
@@ -27,22 +29,22 @@ export default async function StockPorZona({
     .from('stock')
     .select(
       'id, cajas, unidades, zona:zona_id!inner(codigo, bodega:bodega_id(codigo)), variante:variante_id!inner(unidades_por_caja, producto:producto_id!inner(codigo, rango_tallas, categoria:categoria_id(nombre_es)))',
+      { count: 'exact' },
     )
     .gt('cajas', 0)
-    .limit(LIMITE);
+    // El orden va en la base de datos, no en TypeScript: ordenar después de
+    // paginar solo reordenaría la página que tocó, no el listado.
+    .order('zona_id')
+    .order('variante_id')
+    .range(desde, hasta);
 
   if (q) consulta = consulta.ilike('variante.producto.codigo', `%${q}%`);
 
-  const { data: filas, error } = await consulta;
+  const { data: filas, count, error } = await consulta;
 
   if (error) return <Vacio>No se pudo consultar el stock: {error.message}</Vacio>;
 
-  const ordenadas = (filas ?? []).sort(
-    (a, b) =>
-      a.variante.producto.codigo.localeCompare(b.variante.producto.codigo) ||
-      a.zona.codigo.localeCompare(b.zona.codigo),
-  );
-
+  const ordenadas = filas ?? [];
   const totalCajas = ordenadas.reduce((s, f) => s + Number(f.cajas), 0);
   const totalUnidades = ordenadas.reduce((s, f) => s + Number(f.unidades), 0);
 
@@ -106,13 +108,15 @@ export default async function StockPorZona({
             </tbody>
           </Tabla>
 
+          {/* Los totales son de esta página, no del listado completo: sumar
+              todo exigiría traerlo entero, que es justo lo que evita paginar. */}
           <p className="mt-4 text-sm text-zinc-500">
-            {numero(ordenadas.length)} {ordenadas.length === 1 ? 'ubicación' : 'ubicaciones'} ·{' '}
-            {numero(totalCajas)} cajas · {numero(totalUnidades)} unidades
-            {ordenadas.length === LIMITE ? ' · mostrando las primeras ' + LIMITE : ''}
+            En esta página: {numero(totalCajas)} cajas · {numero(totalUnidades)} unidades
           </p>
         </>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

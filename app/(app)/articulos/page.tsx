@@ -3,6 +3,8 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Buscador } from '@/components/buscador';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 
 export const metadata = { title: 'Buscar artículos · Inventario' };
 
@@ -14,18 +16,24 @@ export const metadata = { title: 'Buscar artículos · Inventario' };
 export default async function Articulos({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { q } = await searchParams;
+  const crudos = await searchParams;
+  const q = typeof crudos['q'] === 'string' ? crudos['q'] : undefined;
   await requerirPermiso('stock.ver');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(crudos);
 
   const supabase = await crearClienteServidor();
 
-  let consulta = supabase.from('v_stock_variante').select('*').order('codigo').limit(200);
+  let consulta = supabase
+    .from('v_stock_variante')
+    .select('*', { count: 'exact' })
+    .order('codigo')
+    .range(desde, hasta);
 
   if (q) consulta = consulta.ilike('codigo', `%${q}%`);
 
-  const { data: articulos, error } = await consulta;
+  const { data: articulos, count, error } = await consulta;
 
   if (error) return <Vacio>No se pudo consultar el stock: {error.message}</Vacio>;
 
@@ -84,6 +92,8 @@ export default async function Articulos({
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

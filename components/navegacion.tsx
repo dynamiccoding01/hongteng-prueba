@@ -86,6 +86,12 @@ const SECCIONES: {
         permiso: 'categoria.ver',
       },
       {
+        href: '/maestros/unidades',
+        clave: 'navUnidadesMedida',
+        icono: 'Ruler',
+        permiso: 'unidad.ver',
+      },
+      {
         href: '/maestros/zonas',
         clave: 'navBodegasZonas',
         icono: 'Warehouse',

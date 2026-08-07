@@ -3,22 +3,33 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { guardarVendedor } from './acciones';
 
 export const metadata = { title: 'Vendedores · Inventario' };
 
 /** VEN-05: usuarios con rol de vendedor y su porcentaje de comisión. */
-export default async function Vendedores() {
+export default async function Vendedores({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('vendedor.ver');
   const puedeEditar = usuario.permisos.has('vendedor.editar');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: vendedores, error }, { data: usuarios }] = await Promise.all([
+  const [{ data: vendedores, count, error }, { data: usuarios }] = await Promise.all([
     supabase
       .from('vendedor')
-      .select('id, usuario_id, porcentaje_comision, activo, usuario:usuario_id(nombre, email)')
-      .order('id'),
+      .select('id, usuario_id, porcentaje_comision, activo, usuario:usuario_id(nombre, email)', {
+        count: 'exact',
+      })
+      .order('id')
+      .range(desde, hasta),
+    // Opciones del formulario, no un listado.
     supabase.from('usuario').select('id, nombre, email').eq('activo', true).order('nombre'),
   ]);
 
@@ -98,6 +109,8 @@ export default async function Vendedores() {
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

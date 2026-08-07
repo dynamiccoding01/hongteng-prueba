@@ -2,6 +2,8 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { anularDocumento, emitirDocumento } from './acciones';
 
 export const metadata = { title: 'Traspasos ante Aduanas · Inventario' };
@@ -13,20 +15,26 @@ function fecha(valor: string): string {
 }
 
 /** VEN-03: documentos de traspaso de mercaderías ante Aduanas (formato 203). */
-export default async function TraspasosAduana() {
+export default async function TraspasosAduana({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('documento_traspaso.ver');
   const puedeEmitir = usuario.permisos.has('documento_traspaso.crear');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: documentos, error }, { data: ventasConfirmadas }] = await Promise.all([
+  const [{ data: documentos, count, error }, { data: ventasConfirmadas }] = await Promise.all([
     supabase
       .from('documento_traspaso')
       .select(
         'id, folio, fecha, adquiriente_nombre, adquiriente_rut, procedencia, destino, estado, venta:venta_id(id, cliente:cliente_id(nombre))',
+        { count: 'exact' },
       )
       .order('id', { ascending: false })
-      .limit(50),
+      .range(desde, hasta),
     supabase
       .from('venta')
       .select('id, fecha, cliente:cliente_id(nombre, rut)')
@@ -128,6 +136,8 @@ export default async function TraspasosAduana() {
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

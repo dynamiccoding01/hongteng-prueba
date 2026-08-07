@@ -3,6 +3,8 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { agregarDetalleVenta, confirmarVenta, crearVenta } from './acciones';
 
 export const metadata = { title: 'Notas de venta · Inventario' };
@@ -14,14 +16,19 @@ function fecha(valor: string): string {
 }
 
 /** VEN-01/02: notas de venta con descuento de stock al confirmar. */
-export default async function NotasDeVenta() {
+export default async function NotasDeVenta({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('venta.ver');
   const puedeCrear = usuario.permisos.has('venta.crear');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
 
   const [
-    { data: ventas, error },
+    { data: ventas, count, error },
     { data: clientes },
     { data: monedas },
     { data: variantes },
@@ -32,9 +39,10 @@ export default async function NotasDeVenta() {
       .from('venta')
       .select(
         'id, fecha, tipo_cambio, estado, notas, comision_clp, comision_porcentaje, cliente:cliente_id(nombre, lista:lista_precio_id(nombre)), moneda:moneda_id(codigo, simbolo), vendedor:vendedor_id(usuario:usuario_id(nombre)), detalle:venta_detalle(id, cajas, precio_caja, zona:zona_id(codigo), variante:variante_id(unidades_por_caja, producto:producto_id(codigo)))',
+        { count: 'exact' },
       )
       .order('id', { ascending: false })
-      .limit(50),
+      .range(desde, hasta),
     supabase.from('cliente').select('id, codigo, nombre').eq('activo', true).order('nombre'),
     supabase.from('moneda').select('id, codigo, nombre').eq('activo', true).order('codigo'),
     supabase
@@ -225,6 +233,8 @@ export default async function NotasDeVenta() {
           })}
         </div>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

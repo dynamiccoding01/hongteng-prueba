@@ -63,7 +63,17 @@ Las capas 1 y 2 son comodidad de UX: **la autorización que cuenta es la 3**. Nu
 
 El cliente de servidor ([lib/supabase/server.ts](lib/supabase/server.ts)) usa la clave pública con la sesión del usuario en cookies, para que RLS se evalúe con su identidad real. La `service_role key` (`getServiceRoleKey()` en [lib/env.ts](lib/env.ts)) omite RLS y solo puede usarse en scripts y código de servidor.
 
+Supabase renombró sus claves: [lib/env.ts](lib/env.ts) acepta los dos nombres (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` o el antiguo `..._ANON_KEY`; `SUPABASE_SECRET_KEY` o `..._SERVICE_ROLE_KEY`) y valida con Zod al arrancar. `SUPABASE_ACCESS_TOKEN` es aparte: es el PAT del panel que usan los scripts para ejecutar DDL vía Management API.
+
+`app/api/exportar/route.ts` es el **único** Route Handler: comprueba `reporte.exportar` en código —no hay página que lo cubra—, arma el `.xlsx` con `xlsx` y registra `EXPORTAR` en la bitácora.
+
 Rol **Superadmin** (`0013_superadmin.sql`): `acceso_total` + `protegido`, para desarrollo/TI; un Administrador normal no lo ve ni lo asigna, y la jerarquía se aplica en RLS.
+
+### Usuarios: el único lugar donde se omite RLS
+
+`usuario.id` es FK contra `auth.users`, así que dar de alta a alguien exige crear antes su cuenta de autenticación, y eso solo se puede con la clave secreta ([lib/supabase/admin.ts](lib/supabase/admin.ts)). Ese cliente **omite RLS**, de modo que la regla es estricta: se usa **solo** para `auth.users` (crear cuenta, cambiar correo, cambiar contraseña). Todo lo que toque la tabla `usuario` va con `crearClienteServidor()`, para que sea RLS —y no un `if` en TypeScript— lo que impida que un Administrador se fabrique un Superadmin. `acciones.ts` de `/admin/usuarios` valida el rol destino leyéndolo con el cliente de sesión: si RLS no se lo muestra, no puede asignarlo.
+
+Sin `SUPABASE_SECRET_KEY` configurada el sistema funciona completo salvo el alta de usuarios, que devuelve un aviso claro en vez de reventar.
 
 ### Patrón de página
 
@@ -74,6 +84,46 @@ Cada ruta bajo `app/(app)/` es un Server Component que:
 3. renderiza con los primitivos de [components/ui.tsx](components/ui.tsx) (`Encabezado`, `Tabla`, `Th`, `Td`, `Vacio`, `numero`).
 
 Las escrituras van en un `acciones.ts` hermano con `'use server'`: valida con Zod → escribe con el cliente de servidor → traduce el error de PostgREST con `mensajeError()` de [lib/errores.ts](lib/errores.ts) → `revalidatePath()` → devuelve `EstadoFormulario` (`{ ok }` o `{ error }`) para `useActionState`.
+
+### Listados: siempre paginados
+
+**Ninguna consulta de listado trae la tabla entera.** Toda página que muestre filas pagina en la base de datos, nunca en TypeScript: `.range(desde, hasta)` con `{ count: 'exact' }`, y el usuario elige cuántas filas ver entre **10, 15 y 20**.
+
+El circuito es siempre el mismo:
+
+1. `const { pagina, porPagina, desde, hasta } = leerPaginacion(searchParams)` de [lib/paginacion.ts](lib/paginacion.ts);
+2. la consulta lleva `.select('…', { count: 'exact' }).range(desde, hasta)`;
+3. debajo de la tabla va `<Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />` ([components/paginacion.tsx](components/paginacion.tsx)).
+
+`pagina` y `filas` viajan en la URL, así que una vista concreta se puede compartir o recargar. Cualquier filtro nuevo debe borrar `pagina` al aplicarse (si no, el usuario queda en una página 7 que ya no existe): `Buscador` y `Paginacion` ya lo hacen.
+
+Traer todo y cortar con `.slice()` no es paginar: la consulta ya cruzó la red. Un `.limit(200)` tampoco — oculta filas sin decirlo.
+
+### Capa de cliente
+
+Los Client Components son pocos y acotados; casi todo se renderiza en el servidor. Las convenciones que ya están resueltas y no hay que reinventar:
+
+- **Altas y ediciones**: `FormularioDesplegable` de [components/formulario.tsx](components/formulario.tsx) con `Campo` / `Seleccion` dentro. Es un panel lateral (`createPortal` sobre `document.body`) que se abre desde un botón, se cierra solo al guardar y bloquea el scroll de fondo. Ya lo usan 18 páginas: no escribir un `<form action={...}>` a mano para un CRUD.
+- **Avisos**: el `{ ok }` / `{ error }` de la acción se convierte en toast dentro de `FormularioDesplegable` vía `useToast()` ([components/proveedor-toast.tsx](components/proveedor-toast.tsx)). No renderizar mensajes de error inline en la página.
+- **Carcasa**: [components/marco.tsx](components/marco.tsx) gobierna solo abrir/cerrar el menú en móvil. La navegación se calcula en el servidor —incluido el filtrado por permisos— y le llega ya renderizada como prop: `Marco` nunca conoce permisos.
+- **Colores**: usar siempre los tokens semánticos de [app/globals.css](app/globals.css) (`bg-fondo`, `bg-superficie`, `bg-menu`, `border-borde`, `text-tenue`, `bg-acento`). El variante `dark:` está reasignado a `[data-theme='oscuro']`, no al media query; los grises fijos de Tailwind rompen el cambio de tema.
+
+`EstadoFormulario` está declarado dos veces con la misma forma: [lib/errores.ts](lib/errores.ts) es el que importan los `acciones.ts`; el de `components/formulario.tsx` existe para no arrastrar código de servidor al cliente.
+
+### Agregar una página nueva
+
+Una ruta no queda visible solo con crear su `page.tsx`. El circuito completo toca cinco lugares:
+
+1. `app/(app)/<ruta>/page.tsx` con `requerirPermiso('<codigo>')` y, si escribe, su `acciones.ts` hermano.
+2. El permiso `<codigo>` insertado en una migración y concedido a los roles que corresponda (RLS lo exige de verdad).
+3. Una entrada en `SECCIONES` de [components/navegacion.tsx](components/navegacion.tsx) con su `permiso` — sin él, el enlace se muestra a todos.
+4. El icono en `ICONOS` de [components/iconos.tsx](components/iconos.tsx) (el tipo `NombreIcono` se deriva de ahí).
+5. La clave del enlace en **ambos** idiomas de [lib/i18n.ts](lib/i18n.ts): el diccionario es un objeto tipado y falta una clave rompe el typecheck.
+
+### Producto: dos conceptos que se confunden
+
+- `producto.unidad_medida_id` → maestro `unidad_medida` (MAE-07). **En qué se cuenta** el artículo: par, pieza, juego. Lo administra el cliente desde `/maestros/unidades`; era un enum fijo hasta la migración `0014`.
+- `producto_variante.unidades_por_caja` (MAE-02) → **cuántas unidades trae la caja**. No es descriptivo: es el factor con el que `fn_aplicar_movimiento` convierte cajas a unidades, así que un empaque con movimientos no se corrige, se agrega otro. Por eso el formulario solo lo pide al crear el artículo, y "Agregar empaque" es una acción aparte.
 
 ### Inventario: nunca se escribe `stock` directamente
 
@@ -99,7 +149,7 @@ Para acciones que no son cambios de tabla (login, exportar, imprimir) se usa `re
 
 ### Migraciones
 
-`supabase/migrations/` es la **única fuente de verdad** del esquema; se aplican en orden alfabético, por eso van numeradas (`0001_utilidades` … `0013_superadmin`). Nunca cambiar el esquema desde el panel de Supabase. Tras una migración, regenerar los tipos con `npm run db:types` — `lib/supabase/database.types.ts` es generado, no se edita a mano.
+`supabase/migrations/` es la **única fuente de verdad** del esquema; se aplican en orden alfabético, por eso van numeradas (`0001_utilidades` … `0014_unidad_medida`). Nunca cambiar el esquema desde el panel de Supabase. Tras una migración, regenerar los tipos con `npm run db:types` — `lib/supabase/database.types.ts` es generado, no se edita a mano.
 
 Convenciones del esquema (detalle en [BACKEND.md § 3](BACKEND.md)): `snake_case`, tablas en **singular**, PK `bigint generated always as identity` (nunca el código de negocio), `created_at`/`updated_at` en toda tabla, `activo` para borrado lógico, dinero `numeric(14,4)` (jamás `float`), texto `text`.
 
@@ -111,12 +161,12 @@ Convenciones del esquema (detalle en [BACKEND.md § 3](BACKEND.md)): `snake_case
 
 Una historia no está terminada si le falta alguno de estos puntos (ver [PLAN_AVANZE.md](PLAN_AVANZE.md) y [BACKEND.md § Buenas prácticas](BACKEND.md)):
 
-- PR revisado — **nunca push directo a `main`** — con CI verde (format, lint, typecheck, tests, build).
-- TypeScript `strict` sin `any`; toda entrada validada con Zod en el borde.
+- PR revisado — **nunca push directo a `main`** — con CI verde (format, lint, typecheck, tests, build; Node 22 en CI, `>=20.9` en `engines`).
+- TypeScript `strict` sin `any`; toda entrada validada con Zod en el borde. `tsconfig.json` va más allá de `strict`: con `noUncheckedIndexedAccess`, `datos[0]` es `T | undefined` y hay que estrecharlo (de ahí los `?? ` en el código), y `noUnusedLocals`/`noUnusedParameters` convierten un import olvidado en error de build.
 - Migración versionada, reproducible desde cero, con **RLS y política escrita** para cada tabla nueva.
 - Trigger de bitácora declarado en cada tabla operativa nueva.
 - Tests unitarios de la lógica; de integración si toca stock, incluida concurrencia.
-- Documentación actualizada en el **mismo** PR (`BACKEND.md`, `FLUJO.md`, `DESARROLLO.md`, `PLAN_AVANZE.md`).
+- Documentación actualizada en el **mismo** PR (`BACKEND.md`, `FLUJO.md`, `DESARROLLO.md`, `PLAN_AVANZE.md`, y `GUIA_PRUEBAS.md` si cambia el guion de demostración o los datos de prueba).
 
 Commits convencionales (`feat:`, `fix:`, `docs:`, `refactor:`) con descripción en español.
 

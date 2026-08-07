@@ -2,6 +2,8 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { guardarProveedor } from './acciones';
 
 export const metadata = { title: 'Proveedores · Inventario' };
@@ -41,15 +43,27 @@ function Campos({ p }: { p?: Proveedor }) {
 }
 
 /** MAE-05: proveedores (fábricas en China). */
-export default async function Proveedores() {
+export default async function Proveedores({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('proveedor.ver');
   const puedeEditar = usuario.permisos.has('proveedor.editar');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
-  const { data: proveedores, error } = await supabase
+  const {
+    data: proveedores,
+    count,
+    error,
+  } = await supabase
     .from('proveedor')
-    .select('id, codigo, nombre, nombre_zh, pais, contacto, email, telefono, direccion, activo')
-    .order('nombre');
+    .select('id, codigo, nombre, nombre_zh, pais, contacto, email, telefono, direccion, activo', {
+      count: 'exact',
+    })
+    .order('nombre')
+    .range(desde, hasta);
 
   if (error) return <Vacio>No se pudieron cargar los proveedores: {error.message}</Vacio>;
 
@@ -111,6 +125,8 @@ export default async function Proveedores() {
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

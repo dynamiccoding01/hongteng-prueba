@@ -84,8 +84,8 @@ body {
 }
 
 /*
- * Animaciones del panel deslizante (drawer) de formularios y del menú lateral
- * en móvil: el panel entra desde la derecha/izquierda y el fondo aparece.
+ * Animaciones del menú lateral en móvil (entra desde la izquierda), del fondo
+ * oscurecido y del modal de formularios, que aparece centrado creciendo un poco.
  */
 @keyframes deslizar-desde-derecha {
   from {
@@ -102,5 +102,28 @@ body {
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes aparecer-modal {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Quien prefiere menos movimiento no ve el desplazamiento ni el crecimiento. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes aparecer-modal {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 }

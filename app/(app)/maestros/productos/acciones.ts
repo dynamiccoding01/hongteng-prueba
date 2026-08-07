@@ -5,92 +5,135 @@ import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
 
+/**
+ * Datos del artículo en sí. Las unidades por caja NO están aquí a propósito:
+ * son del empaque (producto_variante), no del producto.
+ */
 const esquemaProducto = z.object({
   codigo: z.string().trim().min(1, 'El código es obligatorio'),
   categoria_id: z.coerce.number().int().positive('Seleccione la categoría'),
+  unidad_medida_id: z.coerce.number().int().positive('Seleccione en qué se cuenta el artículo'),
   descripcion_es: z.string().trim().optional(),
   descripcion_zh: z.string().trim().optional(),
   rango_tallas: z.string().trim().optional(),
-  unidad_medida: z.enum(['PAR', 'PIEZA', 'JUEGO']),
   marca: z.string().trim().optional(),
-  // Empaque inicial. Un producto sin variante no puede tener stock.
-  unidades_por_caja: z.coerce.number().positive('Las unidades por caja deben ser mayores que cero'),
+  activo: z.enum(['1', '0']),
 });
 
-/** MAE-01 y MAE-02: producto de fábrica y su primer empaque. */
-export async function guardarProducto(
-  _previo: EstadoFormulario,
-  datos: FormData,
-): Promise<EstadoFormulario> {
-  const id = datos.get('id');
+/** En el alta se pide además el primer empaque: sin él no puede haber stock. */
+const esquemaAlta = esquemaProducto.extend({
+  unidades_por_caja: z.coerce.number().positive('Indique cuántas unidades trae cada caja'),
+});
 
-  const analisis = esquemaProducto.safeParse({
+function leerFormulario(datos: FormData) {
+  return {
     codigo: datos.get('codigo'),
     categoria_id: datos.get('categoria_id'),
+    unidad_medida_id: datos.get('unidad_medida_id'),
     descripcion_es: datos.get('descripcion_es') || undefined,
     descripcion_zh: datos.get('descripcion_zh') || undefined,
     rango_tallas: datos.get('rango_tallas') || undefined,
-    unidad_medida: datos.get('unidad_medida'),
     marca: datos.get('marca') || undefined,
+    activo: datos.get('activo'),
     unidades_por_caja: datos.get('unidades_por_caja'),
-  });
+  };
+}
+
+function aValores(datos: z.infer<typeof esquemaProducto>) {
+  return {
+    // Los códigos vienen de fábrica y a veces son numéricos ('80013'): texto siempre.
+    codigo: datos.codigo.trim(),
+    categoria_id: datos.categoria_id,
+    unidad_medida_id: datos.unidad_medida_id,
+    descripcion_es: datos.descripcion_es ?? null,
+    descripcion_zh: datos.descripcion_zh ?? null,
+    rango_tallas: datos.rango_tallas ?? null,
+    marca: datos.marca ?? null,
+    activo: datos.activo === '1',
+  };
+}
+
+/**
+ * MAE-01: alta de un artículo con su primer empaque.
+ *
+ * Crear y editar están separados porque no piden lo mismo: al crear hay que
+ * declarar cuántas unidades trae la caja, al editar ese dato ya no se toca
+ * (ver `agregarEmpaque`).
+ */
+export async function crearProducto(
+  _previo: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const analisis = esquemaAlta.safeParse(leerFormulario(datos));
 
   if (!analisis.success) {
     return { error: analisis.error.issues[0]?.message ?? 'Datos no válidos' };
   }
 
   const { unidades_por_caja, ...producto } = analisis.data;
-  const valores = {
-    ...producto,
-    // Los códigos vienen de fábrica y a veces son numéricos ('80013'): texto siempre.
-    codigo: producto.codigo.trim(),
-    descripcion_es: producto.descripcion_es ?? null,
-    descripcion_zh: producto.descripcion_zh ?? null,
-    rango_tallas: producto.rango_tallas ?? null,
-    marca: producto.marca ?? null,
-  };
-
   const supabase = await crearClienteServidor();
-
-  if (id) {
-    const { error } = await supabase.from('producto').update(valores).eq('id', Number(id));
-    if (error) return { error: mensajeError(error, 'producto') };
-    revalidatePath('/maestros/productos');
-    return { ok: 'Producto actualizado' };
-  }
 
   const { data: creado, error } = await supabase
     .from('producto')
-    .insert(valores)
+    .insert(aValores(producto))
     .select('id')
     .single();
 
   if (error) return { error: mensajeError(error, 'producto') };
 
   // El empaque va en la misma operación: sin variante no puede haber stock.
-  const { error: errorVariante } = await supabase
+  const { error: errorEmpaque } = await supabase
     .from('producto_variante')
     .insert({ producto_id: creado.id, unidades_por_caja });
 
-  if (errorVariante) {
+  if (errorEmpaque) {
     return {
-      error: `Producto creado, pero falló el empaque: ${mensajeError(errorVariante, 'empaque')}`,
+      error: `Artículo creado, pero falló el empaque: ${mensajeError(errorEmpaque, 'empaque')}`,
     };
   }
 
   revalidatePath('/maestros/productos');
-  return { ok: 'Producto creado' };
+  return { ok: 'Artículo creado' };
 }
 
-/** MAE-02: un mismo código puede venir en cajas de distinta cantidad. */
-export async function agregarVariante(
+/** MAE-01: edición del artículo. No toca empaques ni existencias. */
+export async function editarProducto(
+  _previo: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const id = Number(datos.get('id'));
+  if (!id) return { error: 'No se pudo identificar el artículo' };
+
+  const analisis = esquemaProducto.safeParse(leerFormulario(datos));
+
+  if (!analisis.success) {
+    return { error: analisis.error.issues[0]?.message ?? 'Datos no válidos' };
+  }
+
+  const supabase = await crearClienteServidor();
+  const { error } = await supabase.from('producto').update(aValores(analisis.data)).eq('id', id);
+
+  if (error) return { error: mensajeError(error, 'producto') };
+
+  revalidatePath('/maestros/productos');
+  return { ok: 'Artículo actualizado' };
+}
+
+/**
+ * MAE-02: un mismo código puede llegar en cajas de distinta cantidad.
+ *
+ * Es un empaque NUEVO, no una corrección del anterior: `unidades_por_caja` es
+ * el factor con el que fn_aplicar_movimiento convierte cajas a unidades, así
+ * que cambiarlo con movimientos ya registrados desincronizaría el stock.
+ */
+export async function agregarEmpaque(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
   const analisis = z
     .object({
       producto_id: z.coerce.number().int().positive(),
-      unidades_por_caja: z.coerce.number().positive('Indique las unidades por caja'),
+      unidades_por_caja: z.coerce.number().positive('Indique cuántas unidades trae cada caja'),
     })
     .safeParse({
       producto_id: datos.get('producto_id'),
@@ -106,7 +149,7 @@ export async function agregarVariante(
 
   if (error) {
     if (error.code === '23505') {
-      return { error: 'Ese empaque ya existe para este producto' };
+      return { error: 'Este artículo ya tiene un empaque con esa cantidad' };
     }
     return { error: mensajeError(error, 'empaque') };
   }

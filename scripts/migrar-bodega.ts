@@ -113,8 +113,8 @@ async function main() {
       .map((p) => `(${lit(p.codigo)}, ${lit(p.categoria)}, ${lit(p.rangoTallas)})`)
       .join(', ');
     await consultar(`
-      insert into producto (codigo, categoria_id, rango_tallas, unidad_medida)
-      select v.codigo, c.id, nullif(v.rango, ''), c.unidad_medida_default
+      insert into producto (codigo, categoria_id, rango_tallas, unidad_medida_id)
+      select v.codigo, c.id, nullif(v.rango, ''), c.unidad_medida_default_id
         from (values ${valores}) as v(codigo, categoria, rango)
         join categoria c on c.codigo = v.categoria
        where not exists (select 1 from producto p where p.codigo = v.codigo)`);

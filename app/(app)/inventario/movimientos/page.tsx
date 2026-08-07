@@ -3,11 +3,11 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { anularMovimiento, registrarMovimiento } from './acciones';
 
 export const metadata = { title: 'Movimientos · Inventario' };
-
-const LIMITE = 100;
 
 const TIPOS: Record<string, { texto: string; tono: 'verde' | 'ambar' | 'neutro' }> = {
   ENTRADA: { texto: 'Entrada', tono: 'verde' },
@@ -25,29 +25,37 @@ function fecha(iso: string): string {
 }
 
 /** INV-02: registro y consulta de movimientos (kardex global). */
-export default async function Movimientos() {
+export default async function Movimientos({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('movimiento.ver');
   const puedeCrear = usuario.permisos.has('movimiento.crear');
   const puedeAnular = usuario.permisos.has('movimiento.anular');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: movimientos, error }, { data: variantes }, { data: zonas }] = await Promise.all([
-    supabase
-      .from('movimiento')
-      .select(
-        'id, tipo, cajas, unidades, saldo_cajas, motivo, fecha, anulado_por, zona:zona_id(codigo), variante:variante_id(unidades_por_caja, producto:producto_id(codigo)), usuario:usuario_id(nombre)',
-      )
-      .order('fecha', { ascending: false })
-      .limit(LIMITE),
-    supabase
-      .from('producto_variante')
-      .select('id, unidades_por_caja, producto:producto_id!inner(codigo, activo)')
-      .eq('activo', true)
-      .eq('producto.activo', true)
-      .limit(1000),
-    supabase.from('zona').select('id, codigo').eq('activo', true).order('codigo'),
-  ]);
+  const [{ data: movimientos, count, error }, { data: variantes }, { data: zonas }] =
+    await Promise.all([
+      supabase
+        .from('movimiento')
+        .select(
+          'id, tipo, cajas, unidades, saldo_cajas, motivo, fecha, anulado_por, zona:zona_id(codigo), variante:variante_id(unidades_por_caja, producto:producto_id(codigo)), usuario:usuario_id(nombre)',
+          { count: 'exact' },
+        )
+        .order('fecha', { ascending: false })
+        .range(desde, hasta),
+      // Opciones del formulario, no listados: van completas.
+      supabase
+        .from('producto_variante')
+        .select('id, unidades_por_caja, producto:producto_id!inner(codigo, activo)')
+        .eq('activo', true)
+        .eq('producto.activo', true)
+        .limit(1000),
+      supabase.from('zona').select('id, codigo').eq('activo', true).order('codigo'),
+    ]);
 
   if (error) return <Vacio>No se pudieron cargar los movimientos: {error.message}</Vacio>;
 
@@ -170,6 +178,8 @@ export default async function Movimientos() {
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

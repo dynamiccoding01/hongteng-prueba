@@ -1,26 +1,41 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 
 export const metadata = { title: 'Valorización · Inventario' };
 
 /** REP-04: inventario valorizado al último costo de importación, en CLP. */
-export default async function Valorizacion() {
+export default async function Valorizacion({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('reporte.ver');
   const puedeExportar = usuario.permisos.has('reporte.exportar');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
-  const { data: filas, error } = await supabase
-    .from('v_valorizacion')
-    .select('*')
-    .gt('cajas', 0)
-    .order('codigo');
+
+  // Dos consultas a propósito: la tabla se pagina, pero los totales del
+  // encabezado son de TODO el inventario, no de la página que se está viendo.
+  // Por eso la segunda pide solo las tres columnas que suma.
+  const [{ data: filas, count, error }, { data: paraTotales }] = await Promise.all([
+    supabase
+      .from('v_valorizacion')
+      .select('*', { count: 'exact' })
+      .gt('cajas', 0)
+      .order('codigo')
+      .range(desde, hasta),
+    supabase.from('v_valorizacion').select('cajas, valor_clp, costo_caja').gt('cajas', 0),
+  ]);
 
   if (error) return <Vacio>No se pudo cargar la valorización: {error.message}</Vacio>;
 
-  const totalValor = (filas ?? []).reduce((s, f) => s + Number(f.valor_clp ?? 0), 0);
-  const totalCajas = (filas ?? []).reduce((s, f) => s + Number(f.cajas), 0);
-  const sinCosto = (filas ?? []).filter((f) => f.costo_caja === null).length;
+  const totalValor = (paraTotales ?? []).reduce((s, f) => s + Number(f.valor_clp ?? 0), 0);
+  const totalCajas = (paraTotales ?? []).reduce((s, f) => s + Number(f.cajas), 0);
+  const sinCosto = (paraTotales ?? []).filter((f) => f.costo_caja === null).length;
 
   return (
     <>
@@ -89,6 +104,8 @@ export default async function Valorizacion() {
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

@@ -1,10 +1,17 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Tarjeta, Td, Th, Vacio } from '@/components/ui';
-import { FormularioDesplegable, Seleccion } from '@/components/formulario';
-import { actualizarUsuario } from './acciones';
+import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
+import { actualizarUsuario, crearUsuario, restablecerContrasena } from './acciones';
 
 export const metadata = { title: 'Usuarios · Inventario' };
+
+const ESTADOS = [
+  { valor: '1', texto: 'Activo' },
+  { valor: '0', texto: 'Inactivo' },
+];
 
 function fecha(iso: string | null): string {
   if (!iso) return 'nunca';
@@ -13,18 +20,28 @@ function fecha(iso: string | null): string {
   );
 }
 
-/** ADM-01: usuarios del sistema y su rol. */
-export default async function Usuarios() {
+/** ADM-01: usuarios del sistema, su rol y su acceso. */
+export default async function Usuarios({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const actual = await requerirPermiso('usuario.ver');
+  const puedeCrear = actual.permisos.has('usuario.crear');
   const puedeEditar = actual.permisos.has('usuario.editar');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: usuarios, error }, { data: roles }] = await Promise.all([
+  const [{ data: usuarios, count, error }, { data: roles }] = await Promise.all([
     supabase
       .from('usuario')
-      .select('id, nombre, email, activo, ultimo_acceso, rol:rol_id(id, nombre)')
-      .order('nombre'),
+      .select('id, nombre, email, activo, ultimo_acceso, rol_id, rol:rol_id(id, nombre)', {
+        count: 'exact',
+      })
+      .order('nombre')
+      .range(desde, hasta),
+    // Opciones del formulario: la lista completa de roles asignables.
     supabase.from('rol').select('id, nombre').eq('activo', true).order('nombre'),
   ]);
 
@@ -34,13 +51,45 @@ export default async function Usuarios() {
 
   return (
     <>
-      <Encabezado titulo="Usuarios" descripcion="Acceso al sistema y rol asignado (ADM-01)" />
-
-      <Tarjeta className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-        Las cuentas se crean desde el panel de Supabase (<em>Authentication → Users</em>). Este
-        sistema no maneja contraseñas: solo asigna el rol. Un usuario nuevo entra con el rol{' '}
-        <strong>Consulta</strong> hasta que un administrador lo cambie.
-      </Tarjeta>
+      <Encabezado titulo="Usuarios" descripcion="Acceso al sistema y rol asignado (ADM-01)">
+        {puedeCrear ? (
+          <FormularioDesplegable accion={crearUsuario} etiquetaNuevo="Nuevo usuario">
+            <Campo
+              etiqueta="Nombre"
+              nombre="nombre"
+              requerido
+              ejemplo="María Pérez"
+              largoMax={80}
+              autocompletado="off"
+            />
+            <Campo
+              etiqueta="Correo"
+              nombre="email"
+              tipo="email"
+              requerido
+              ejemplo="maria@hongteng.cl"
+              largoMax={120}
+              autocompletado="off"
+              ayuda="Con este correo inicia sesión"
+            />
+            <Seleccion etiqueta="Rol" nombre="rol_id" opciones={opcionesRol} requerido />
+            <Campo
+              etiqueta="Contraseña inicial"
+              nombre="clave"
+              tipo="password"
+              requerido
+              largoMax={72}
+              autocompletado="new-password"
+              ayuda="Mínimo 8 caracteres"
+              patron=".{8,}"
+            />
+            <p className="text-sm text-tenue sm:col-span-2">
+              Entréguele la contraseña a la persona: con ella entra de inmediato y después puede
+              cambiarla.
+            </p>
+          </FormularioDesplegable>
+        ) : null}
+      </Encabezado>
 
       {(usuarios ?? []).length === 0 ? (
         <Vacio>No hay usuarios registrados.</Vacio>
@@ -77,25 +126,63 @@ export default async function Usuarios() {
                 </Td>
                 {puedeEditar ? (
                   <Td>
-                    <FormularioDesplegable accion={actualizarUsuario} etiquetaNuevo="" esEdicion>
-                      <input type="hidden" name="id" value={u.id} />
-                      <Seleccion
-                        etiqueta="Rol"
-                        nombre="rol_id"
-                        valor={u.rol?.id}
-                        opciones={opcionesRol}
-                        requerido
-                      />
-                      <label className="flex items-center gap-2 self-end text-sm">
-                        <input
-                          type="checkbox"
-                          name="activo"
-                          defaultChecked={u.activo}
-                          className="size-4"
+                    <div className="flex gap-3 whitespace-nowrap">
+                      <FormularioDesplegable accion={actualizarUsuario} etiquetaNuevo="" esEdicion>
+                        <input type="hidden" name="id" value={u.id} />
+                        <Campo
+                          etiqueta="Nombre"
+                          nombre="nombre"
+                          valor={u.nombre}
+                          requerido
+                          largoMax={80}
                         />
-                        <span>Cuenta activa</span>
-                      </label>
-                    </FormularioDesplegable>
+                        <Campo
+                          etiqueta="Correo"
+                          nombre="email"
+                          tipo="email"
+                          valor={u.email}
+                          requerido
+                          largoMax={120}
+                          ayuda="Si lo cambia, cambia su acceso"
+                        />
+                        <Seleccion
+                          etiqueta="Rol"
+                          nombre="rol_id"
+                          valor={u.rol_id}
+                          opciones={opcionesRol}
+                          requerido
+                        />
+                        <Seleccion
+                          etiqueta="Estado"
+                          nombre="activo"
+                          valor={u.activo ? '1' : '0'}
+                          opciones={ESTADOS}
+                          requerido
+                        />
+                      </FormularioDesplegable>
+
+                      <FormularioDesplegable
+                        accion={restablecerContrasena}
+                        etiquetaNuevo="Contraseña"
+                        esEdicion
+                      >
+                        <input type="hidden" name="id" value={u.id} />
+                        <p className="text-sm text-tenue sm:col-span-2">
+                          Contraseña nueva para <strong>{u.nombre}</strong> ({u.email}).
+                        </p>
+                        <Campo
+                          etiqueta="Contraseña nueva"
+                          nombre="clave"
+                          tipo="password"
+                          requerido
+                          ancho="completo"
+                          largoMax={72}
+                          autocompletado="new-password"
+                          ayuda="Mínimo 8 caracteres"
+                          patron=".{8,}"
+                        />
+                      </FormularioDesplegable>
+                    </div>
                   </Td>
                 ) : null}
               </tr>
@@ -103,6 +190,13 @@ export default async function Usuarios() {
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
+
+      <Tarjeta className="mt-6 text-sm text-zinc-600 dark:text-zinc-400">
+        Un usuario desactivado conserva su historial en la bitácora pero no puede entrar. Por eso
+        las cuentas no se eliminan: se desactivan.
+      </Tarjeta>
     </>
   );
 }

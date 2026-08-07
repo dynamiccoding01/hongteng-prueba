@@ -4,10 +4,10 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Buscador } from '@/components/buscador';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 
 export const metadata = { title: 'Kardex · Inventario' };
-
-const LIMITE = 300;
 
 const TIPOS: Record<string, { texto: string; tono: 'verde' | 'ambar' | 'neutro' }> = {
   ENTRADA: { texto: 'Entrada', tono: 'verde' },
@@ -32,10 +32,13 @@ function fecha(iso: string): string {
 export default async function Kardex({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; variante?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { q, variante } = await searchParams;
+  const crudos = await searchParams;
+  const q = typeof crudos['q'] === 'string' ? crudos['q'] : undefined;
+  const variante = typeof crudos['variante'] === 'string' ? crudos['variante'] : undefined;
   await requerirPermiso('movimiento.ver');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(crudos);
 
   const supabase = await crearClienteServidor();
 
@@ -100,16 +103,18 @@ export default async function Kardex({
 
   const v = variantes![0]!;
 
-  const [{ data: movimientos, error }, { data: stock }] = await Promise.all([
+  const [{ data: movimientos, count, error }, { data: stock }] = await Promise.all([
     supabase
       .from('movimiento')
       .select(
         'id, tipo, cajas, unidades, saldo_cajas, motivo, fecha, anulado_por, zona:zona_id(codigo), usuario:usuario_id(nombre)',
+        { count: 'exact' },
       )
       .eq('variante_id', v.id)
       .order('fecha', { ascending: true })
       .order('id', { ascending: true })
-      .limit(LIMITE),
+      .range(desde, hasta),
+    // La existencia actual sale de `stock`, no de sumar la página del kardex.
     supabase.from('stock').select('cajas, unidades').eq('variante_id', v.id),
   ]);
 
@@ -171,6 +176,8 @@ export default async function Kardex({
           </tbody>
         </Tabla>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

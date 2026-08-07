@@ -1,6 +1,8 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 
 export const metadata = { title: 'Ventas por período · Inventario' };
 
@@ -8,25 +10,45 @@ export const metadata = { title: 'Ventas por período · Inventario' };
 export default async function VentasPorPeriodo({
   searchParams,
 }: {
-  searchParams: Promise<{ desde?: string; hasta?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { desde, hasta } = await searchParams;
+  const crudos = await searchParams;
+  const desde = typeof crudos['desde'] === 'string' ? crudos['desde'] : undefined;
+  const hasta = typeof crudos['hasta'] === 'string' ? crudos['hasta'] : undefined;
   const usuario = await requerirPermiso('reporte.ver');
   const puedeExportar = usuario.permisos.has('reporte.exportar');
+  const { pagina, porPagina, desde: primera, hasta: ultima } = leerPaginacion(crudos);
 
   const supabase = await crearClienteServidor();
 
-  let consulta = supabase.from('v_ventas_detalle').select('*').order('fecha', { ascending: false });
-  if (desde) consulta = consulta.gte('fecha', desde);
-  if (hasta) consulta = consulta.lte('fecha', hasta);
+  let consulta = supabase
+    .from('v_ventas_detalle')
+    .select('*', { count: 'exact' })
+    .order('fecha', { ascending: false })
+    .range(primera, ultima);
+  // Los resúmenes por cliente y por producto son del período completo, no de la
+  // página: consulta aparte con solo las columnas que se agregan.
+  let resumen = supabase.from('v_ventas_detalle').select('cliente, producto, cajas, monto_clp');
 
-  const { data: filas, error } = await consulta.limit(1000);
+  if (desde) {
+    consulta = consulta.gte('fecha', desde);
+    resumen = resumen.gte('fecha', desde);
+  }
+  if (hasta) {
+    consulta = consulta.lte('fecha', hasta);
+    resumen = resumen.lte('fecha', hasta);
+  }
+
+  const [{ data: filas, count, error }, { data: paraResumen }] = await Promise.all([
+    consulta,
+    resumen,
+  ]);
 
   if (error) return <Vacio>No se pudo cargar el reporte: {error.message}</Vacio>;
 
   const porCliente = new Map<string, { cajas: number; monto: number }>();
   const porProducto = new Map<string, { cajas: number; monto: number }>();
-  for (const f of filas ?? []) {
+  for (const f of paraResumen ?? []) {
     const c = porCliente.get(f.cliente!) ?? { cajas: 0, monto: 0 };
     c.cajas += Number(f.cajas);
     c.monto += Number(f.monto_clp ?? 0);
@@ -37,7 +59,7 @@ export default async function VentasPorPeriodo({
     p.monto += Number(f.monto_clp ?? 0);
     porProducto.set(f.producto!, p);
   }
-  const totalMonto = (filas ?? []).reduce((s, f) => s + Number(f.monto_clp ?? 0), 0);
+  const totalMonto = (paraResumen ?? []).reduce((s, f) => s + Number(f.monto_clp ?? 0), 0);
 
   const parametros = new URLSearchParams();
   if (desde) parametros.set('desde', desde);
@@ -141,6 +163,8 @@ export default async function VentasPorPeriodo({
           </section>
         </div>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

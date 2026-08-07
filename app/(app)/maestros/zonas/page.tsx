@@ -2,30 +2,55 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { guardarBodega, guardarZona } from './acciones';
 
 export const metadata = { title: 'Bodegas y zonas · Inventario' };
 
 /** MAE-04: bodegas y sus zonas de ubicación, normalizadas. */
-export default async function Zonas() {
+export default async function Zonas({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('zona.ver');
   const puedeEditar = usuario.permisos.has('zona.editar');
 
+  // Dos listados independientes: cada uno lleva su propio par de parámetros
+  // para que moverse en las zonas no reinicie la página de las bodegas.
+  const crudos = await searchParams;
+  const pgBodegas = leerPaginacion(crudos, 'bodegas');
+  const pgZonas = leerPaginacion(crudos, 'zonas');
+
   const supabase = await crearClienteServidor();
 
-  const [{ data: bodegas, error: errorBodegas }, { data: zonas, error: errorZonas }] =
-    await Promise.all([
-      supabase.from('bodega').select('id, codigo, nombre, direccion, activo').order('codigo'),
-      supabase
-        .from('zona')
-        .select('id, codigo, descripcion, activo, bodega:bodega_id(id, codigo, nombre)')
-        .order('codigo'),
-    ]);
+  const [
+    { data: bodegas, count: totalBodegas, error: errorBodegas },
+    { data: zonas, count: totalZonas, error: errorZonas },
+    { data: todasLasBodegas },
+  ] = await Promise.all([
+    supabase
+      .from('bodega')
+      .select('id, codigo, nombre, direccion, activo', { count: 'exact' })
+      .order('codigo')
+      .range(pgBodegas.desde, pgBodegas.hasta),
+    supabase
+      .from('zona')
+      .select('id, codigo, descripcion, activo, bodega:bodega_id(id, codigo, nombre)', {
+        count: 'exact',
+      })
+      .order('codigo')
+      .range(pgZonas.desde, pgZonas.hasta),
+    // El desplegable del formulario necesita TODAS las bodegas, no la página
+    // que se esté mirando: son opciones a elegir, no un listado.
+    supabase.from('bodega').select('id, codigo, nombre').eq('activo', true).order('codigo'),
+  ]);
 
   const error = errorBodegas ?? errorZonas;
   if (error) return <Vacio>No se pudieron cargar los datos: {error.message}</Vacio>;
 
-  const opcionesBodega = (bodegas ?? []).map((b) => ({
+  const opcionesBodega = (todasLasBodegas ?? []).map((b) => ({
     valor: b.id,
     texto: `${b.codigo} — ${b.nombre}`,
   }));
@@ -81,6 +106,13 @@ export default async function Zonas() {
             </tbody>
           </Tabla>
         )}
+
+        <Paginacion
+          total={totalBodegas ?? 0}
+          pagina={pgBodegas.pagina}
+          porPagina={pgBodegas.porPagina}
+          prefijo="bodegas"
+        />
       </section>
 
       <section>
@@ -152,6 +184,13 @@ export default async function Zonas() {
             </tbody>
           </Tabla>
         )}
+
+        <Paginacion
+          total={totalZonas ?? 0}
+          pagina={pgZonas.pagina}
+          porPagina={pgZonas.porPagina}
+          prefijo="zonas"
+        />
       </section>
     </>
   );

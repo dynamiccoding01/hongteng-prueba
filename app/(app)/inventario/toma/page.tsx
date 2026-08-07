@@ -3,6 +3,8 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { agregarConteo, aplicarToma, crearToma } from './acciones';
 
 export const metadata = { title: 'Toma de inventario · Inventario' };
@@ -14,21 +16,27 @@ function fecha(valor: string): string {
 }
 
 /** INV-06: toma de inventario físico, con ajuste automático de diferencias. */
-export default async function TomaDeInventario() {
+export default async function TomaDeInventario({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('toma.ver');
   const puedeCrear = usuario.permisos.has('toma.crear');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: tomas, error }, { data: bodegas }, { data: variantes }, { data: zonas }] =
+  const [{ data: tomas, count, error }, { data: bodegas }, { data: variantes }, { data: zonas }] =
     await Promise.all([
       supabase
         .from('toma_inventario')
         .select(
           'id, fecha, estado, notas, bodega:bodega_id(codigo, nombre), detalle:toma_inventario_detalle(id, cajas_contadas, zona:zona_id(id, codigo), variante:variante_id(id, unidades_por_caja, producto:producto_id(codigo)))',
+          { count: 'exact' },
         )
         .order('id', { ascending: false })
-        .limit(30),
+        .range(desde, hasta),
       supabase.from('bodega').select('id, codigo, nombre').eq('activo', true).order('codigo'),
       supabase
         .from('producto_variante')
@@ -188,6 +196,8 @@ export default async function TomaDeInventario() {
           })}
         </div>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

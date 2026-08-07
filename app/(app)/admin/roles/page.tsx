@@ -1,9 +1,16 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tarjeta, Vacio } from '@/components/ui';
-import { FormularioDesplegable, Campo } from '@/components/formulario';
+import { Encabezado, Etiqueta, Tabla, Tarjeta, Td, Th, Vacio } from '@/components/ui';
+import { FormularioDesplegable, Campo, Seleccion } from '@/components/formulario';
 import { MatrizPermisos, type ModuloPermisos } from '@/components/matriz-permisos';
-import { crearRol } from './acciones';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
+import { crearRol, editarRol } from './acciones';
+
+const ESTADOS = [
+  { valor: '1', texto: 'Activo' },
+  { valor: '0', texto: 'Inactivo' },
+];
 
 export const metadata = { title: 'Roles y permisos · Inventario' };
 
@@ -13,19 +20,36 @@ export const metadata = { title: 'Roles y permisos · Inventario' };
  * crear roles. RLS decide qué roles se ven: un Administrador no ve los roles
  * protegidos (Superadmin); un Superadmin los ve todos.
  */
-export default async function Roles() {
+export default async function Roles({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('rol.editar');
   const puedeEditar = usuario.permisos.has('rol.editar');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: roles, error }, { data: permisos }, { data: asignaciones }] = await Promise.all([
+  const [
+    { data: roles, error },
+    { data: permisos },
+    { data: asignaciones },
+    { data: paginados, count },
+  ] = await Promise.all([
+    // La matriz necesita todos los roles: son sus columnas, no un listado.
     supabase
       .from('rol')
       .select('id, nombre, descripcion, activo, acceso_total, protegido')
       .order('nombre'),
     supabase.from('permiso').select('id, codigo, modulo, descripcion').order('codigo'),
     supabase.from('rol_permiso').select('rol_id, permiso_id'),
+    // La tabla de abajo sí es un listado y va paginada.
+    supabase
+      .from('rol')
+      .select('id, nombre, descripcion, activo, acceso_total, protegido', { count: 'exact' })
+      .order('nombre')
+      .range(desde, hasta),
   ]);
 
   if (error) return <Vacio>No se pudieron cargar los roles: {error.message}</Vacio>;
@@ -53,8 +77,13 @@ export default async function Roles() {
       >
         {puedeEditar ? (
           <FormularioDesplegable accion={crearRol} etiquetaNuevo="Nuevo rol">
-            <Campo etiqueta="Nombre" nombre="nombre" requerido ejemplo="Ej. Supervisor" />
-            <Campo etiqueta="Descripción" nombre="descripcion" ejemplo="Para qué sirve el rol" />
+            <Campo etiqueta="Nombre" nombre="nombre" requerido ejemplo="Supervisor" largoMax={40} />
+            <Campo
+              etiqueta="Descripción"
+              nombre="descripcion"
+              ejemplo="Para qué sirve el rol"
+              largoMax={200}
+            />
           </FormularioDesplegable>
         ) : null}
       </Encabezado>
@@ -72,21 +101,74 @@ export default async function Roles() {
         puedeEditar={puedeEditar}
       />
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        {(roles ?? []).map((r) => (
-          <Tarjeta key={r.id} className="text-sm">
-            <p className="font-medium">
-              {r.nombre}{' '}
-              {r.acceso_total ? (
-                <Etiqueta tono="ambar">acceso total</Etiqueta>
-              ) : (
-                <Etiqueta tono="neutro">{conteo.get(r.id) ?? 0} permisos</Etiqueta>
-              )}
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">{r.descripcion}</p>
-          </Tarjeta>
-        ))}
-      </div>
+      <h2 className="mt-8 mb-3 text-sm font-semibold">Roles</h2>
+
+      <Tabla>
+        <thead>
+          <tr>
+            <Th>Rol</Th>
+            <Th>Descripción</Th>
+            <Th numerico>Permisos</Th>
+            <Th>Estado</Th>
+            {puedeEditar ? <Th> </Th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {(paginados ?? []).map((r) => (
+            <tr key={r.id}>
+              <Td>{r.nombre}</Td>
+              <Td tenue>{r.descripcion ?? '—'}</Td>
+              <Td numerico tenue>
+                {r.acceso_total ? (
+                  <Etiqueta tono="ambar">acceso total</Etiqueta>
+                ) : (
+                  (conteo.get(r.id) ?? 0)
+                )}
+              </Td>
+              <Td>
+                <Etiqueta tono={r.activo ? 'verde' : 'neutro'}>
+                  {r.activo ? 'Activo' : 'Inactivo'}
+                </Etiqueta>
+              </Td>
+              {puedeEditar ? (
+                <Td>
+                  {/* Los roles protegidos son del sistema: no se renombran. */}
+                  {r.protegido ? (
+                    <span className="text-xs text-tenue">del sistema</span>
+                  ) : (
+                    <FormularioDesplegable accion={editarRol} etiquetaNuevo="" esEdicion>
+                      <input type="hidden" name="id" value={r.id} />
+                      <Campo
+                        etiqueta="Nombre"
+                        nombre="nombre"
+                        valor={r.nombre}
+                        requerido
+                        largoMax={40}
+                      />
+                      <Campo
+                        etiqueta="Descripción"
+                        nombre="descripcion"
+                        valor={r.descripcion}
+                        ejemplo="Para qué sirve el rol"
+                        largoMax={200}
+                      />
+                      <Seleccion
+                        etiqueta="Estado"
+                        nombre="activo"
+                        valor={r.activo ? '1' : '0'}
+                        opciones={ESTADOS}
+                        requerido
+                      />
+                    </FormularioDesplegable>
+                  )}
+                </Td>
+              ) : null}
+            </tr>
+          ))}
+        </tbody>
+      </Tabla>
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }

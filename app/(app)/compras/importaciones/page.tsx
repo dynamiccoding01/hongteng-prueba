@@ -3,6 +3,8 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { Paginacion } from '@/components/paginacion';
+import { leerPaginacion } from '@/lib/paginacion';
 import { agregarDetalle, confirmarImportacion, crearImportacion } from './acciones';
 
 export const metadata = { title: 'Importaciones · Inventario' };
@@ -14,14 +16,19 @@ function fecha(valor: string): string {
 }
 
 /** COM-01 a COM-03: importaciones con detalle e ingreso a stock al confirmar. */
-export default async function Importaciones() {
+export default async function Importaciones({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await requerirPermiso('importacion.ver');
   const puedeCrear = usuario.permisos.has('importacion.crear');
+  const { pagina, porPagina, desde, hasta } = leerPaginacion(await searchParams);
 
   const supabase = await crearClienteServidor();
 
   const [
-    { data: importaciones, error },
+    { data: importaciones, count, error },
     { data: proveedores },
     { data: monedas },
     { data: variantes },
@@ -31,9 +38,10 @@ export default async function Importaciones() {
       .from('importacion')
       .select(
         'id, fecha, documento_aduana, tipo_cambio, estado, notas, proveedor:proveedor_id(nombre), moneda:moneda_id(codigo, simbolo), detalle:importacion_detalle(id, cajas, costo_caja, zona:zona_id(codigo), variante:variante_id(unidades_por_caja, producto:producto_id(codigo)))',
+        { count: 'exact' },
       )
       .order('id', { ascending: false })
-      .limit(50),
+      .range(desde, hasta),
     supabase.from('proveedor').select('id, codigo, nombre').eq('activo', true).order('nombre'),
     supabase.from('moneda').select('id, codigo, nombre').eq('activo', true).order('codigo'),
     supabase
@@ -195,6 +203,8 @@ export default async function Importaciones() {
           })}
         </div>
       )}
+
+      <Paginacion total={count ?? 0} pagina={pagina} porPagina={porPagina} />
     </>
   );
 }
