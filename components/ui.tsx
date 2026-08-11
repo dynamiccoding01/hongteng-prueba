@@ -69,16 +69,19 @@ export function Td({
   children,
   numerico,
   tenue,
+  className = '',
 }: {
   children: React.ReactNode;
   numerico?: boolean;
   tenue?: boolean;
+  /** Para casos puntuales, como la franja de color de la bodega en su fila. */
+  className?: string;
 }) {
   return (
     <td
       className={`border-b border-borde/60 px-3 py-2 ${
         numerico ? 'text-right tabular-nums' : ''
-      } ${tenue ? 'text-tenue' : ''}`}
+      } ${tenue ? 'text-tenue' : ''} ${className}`}
     >
       {children}
     </td>

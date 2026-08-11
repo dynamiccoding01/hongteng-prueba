@@ -1,7 +1,7 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
-import { Campo, FormularioDesplegable } from '@/components/formulario';
+import { AreaTexto, Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
 import { guardarCliente } from './acciones';
@@ -23,20 +23,83 @@ interface Cliente {
   activo: boolean;
 }
 
+const ESTADOS = [
+  { valor: '1', texto: 'Activo' },
+  { valor: '0', texto: 'Inactivo' },
+];
+
+/** Campos del cliente: identificación, ubicación y por último cómo contactarlo. */
 function Campos({ c }: { c?: Cliente }) {
   return (
     <>
       {c ? <input type="hidden" name="id" value={c.id} /> : null}
-      <Campo etiqueta="Código" nombre="codigo" valor={c?.codigo} requerido ejemplo="CLI001" />
-      <Campo etiqueta="Nombre" nombre="nombre" valor={c?.nombre} requerido />
-      <Campo etiqueta="RUT" nombre="rut" valor={c?.rut} ejemplo="76.123.456-7" />
-      <Campo etiqueta="País" nombre="pais" valor={c?.pais ?? 'CL'} requerido ejemplo="CL" />
-      <Campo etiqueta="Ciudad" nombre="ciudad" valor={c?.ciudad} ejemplo="Iquique" />
-      <Campo etiqueta="Contacto" nombre="contacto" valor={c?.contacto} />
-      <Campo etiqueta="Correo" nombre="email" valor={c?.email} tipo="email" />
-      <Campo etiqueta="Teléfono" nombre="telefono" valor={c?.telefono} />
-      <Campo etiqueta="Dirección" nombre="direccion" valor={c?.direccion} ancho="completo" />
-      <Campo etiqueta="Notas" nombre="notas" valor={c?.notas} ancho="completo" />
+      <Campo
+        etiqueta="Código"
+        nombre="codigo"
+        valor={c?.codigo}
+        requerido
+        ejemplo="CLI001"
+        largoMax={20}
+        transformar="codigo"
+        ayuda="Se guarda en mayúsculas y sin espacios"
+      />
+      <Campo etiqueta="Nombre" nombre="nombre" valor={c?.nombre} requerido largoMax={120} />
+      <Campo
+        etiqueta="RUT"
+        nombre="rut"
+        valor={c?.rut}
+        ejemplo="76.123.456-7"
+        largoMax={12}
+        patron="[0-9]{1,3}(\.?[0-9]{3})*-[0-9kK]"
+        transformar="codigo"
+        ayuda="Con dígito verificador. Vacío si el cliente es extranjero"
+      />
+      <Seleccion
+        etiqueta="Estado"
+        nombre="activo"
+        valor={c ? (c.activo ? '1' : '0') : '1'}
+        opciones={ESTADOS}
+        requerido
+      />
+      <Campo
+        etiqueta="País"
+        nombre="pais"
+        valor={c?.pais ?? 'CL'}
+        requerido
+        ejemplo="CL"
+        largoMax={3}
+        patron="[A-Za-z]{2,3}"
+        transformar="codigo"
+        ayuda="Código de 2 o 3 letras: CL, PE, BO"
+      />
+      <Campo etiqueta="Ciudad" nombre="ciudad" valor={c?.ciudad} ejemplo="Iquique" largoMax={80} />
+      <Campo etiqueta="Contacto" nombre="contacto" valor={c?.contacto} largoMax={80} />
+      <Campo
+        etiqueta="Correo"
+        nombre="email"
+        valor={c?.email}
+        tipo="email"
+        largoMax={120}
+        ejemplo="compras@cliente.cl"
+      />
+      <Campo
+        etiqueta="Teléfono"
+        nombre="telefono"
+        valor={c?.telefono}
+        tipo="tel"
+        largoMax={25}
+        patron="[0-9+][0-9\s\-]{5,24}"
+        ejemplo="+56 9 1234 5678"
+        ayuda="Solo números, espacios y guiones"
+      />
+      <AreaTexto
+        etiqueta="Dirección"
+        nombre="direccion"
+        valor={c?.direccion}
+        largoMax={200}
+        filas={2}
+      />
+      <AreaTexto etiqueta="Notas" nombre="notas" valor={c?.notas} largoMax={500} filas={3} />
     </>
   );
 }

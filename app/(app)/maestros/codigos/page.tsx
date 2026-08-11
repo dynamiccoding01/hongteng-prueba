@@ -24,6 +24,8 @@ export default async function Codigos({
 
   const supabase = await crearClienteServidor();
 
+  // El orden va en la consulta, no en TypeScript: ordenar después de `.range()`
+  // solo reordenaría las filas que tocaron esta página.
   let consulta = supabase
     .from('producto_variante')
     .select(
@@ -32,25 +34,39 @@ export default async function Codigos({
     )
     .eq('activo', true)
     .eq('producto.activo', true)
-    .order('id')
+    .order('producto(codigo)')
+    .order('unidades_por_caja')
     .range(desde, hasta);
 
-  if (q) consulta = consulta.ilike('producto.codigo', `%${q}%`);
+  // Los que faltan por asignar se cuentan en la base de datos sobre todo el
+  // filtro, no sobre la página: es el número que dice cuánto trabajo queda.
+  let pendientes = supabase
+    .from('producto_variante')
+    .select('id, producto:producto_id!inner(codigo, activo)', { count: 'exact', head: true })
+    .eq('activo', true)
+    .eq('producto.activo', true)
+    .is('codigo_barras', null)
+    .is('sku_interno', null);
 
-  const { data: variantes, count, error } = await consulta;
+  if (q) {
+    consulta = consulta.ilike('producto.codigo', `%${q}%`);
+    pendientes = pendientes.ilike('producto.codigo', `%${q}%`);
+  }
+
+  const [{ data: variantes, count, error }, { count: sinCodigo }] = await Promise.all([
+    consulta,
+    pendientes,
+  ]);
 
   if (error) return <Vacio>No se pudieron cargar los empaques: {error.message}</Vacio>;
 
-  const ordenadas = (variantes ?? []).sort((a, b) =>
-    a.producto.codigo.localeCompare(b.producto.codigo),
-  );
-  const sinCodigo = ordenadas.filter((v) => !v.codigo_barras && !v.sku_interno).length;
+  const ordenadas = variantes ?? [];
 
   return (
     <>
       <Encabezado
         titulo="Códigos de barras"
-        descripcion={`Código de barras y SKU por empaque (INV-08) · ${numero(sinCodigo)} sin asignar`}
+        descripcion={`Código de barras y SKU por empaque (INV-08) · ${numero(sinCodigo ?? 0)} sin asignar`}
       >
         <Suspense fallback={null}>
           <Buscador marcador="Código de artículo…" />
@@ -93,17 +109,29 @@ export default async function Codigos({
                   <Td>
                     <FormularioDesplegable accion={actualizarCodigos} etiquetaNuevo="" esEdicion>
                       <input type="hidden" name="variante_id" value={v.id} />
+                      <p className="text-sm text-tenue sm:col-span-2">
+                        Artículo <code className="text-xs">{v.producto.codigo}</code>, caja de{' '}
+                        {numero(v.unidades_por_caja)}.
+                      </p>
                       <Campo
                         etiqueta="Código de barras"
                         nombre="codigo_barras"
                         valor={v.codigo_barras}
                         ejemplo="7801234567890"
+                        largoMax={40}
+                        patron="[0-9A-Za-z\-]+"
+                        transformar="codigo"
+                        ayuda="Solo números, letras y guiones"
                       />
                       <Campo
                         etiqueta="SKU interno"
                         nombre="sku_interno"
                         valor={v.sku_interno}
                         ejemplo="B7577E-48"
+                        largoMax={40}
+                        patron="[0-9A-Za-z\-]+"
+                        transformar="codigo"
+                        ayuda="Solo números, letras y guiones"
                       />
                     </FormularioDesplegable>
                   </Td>

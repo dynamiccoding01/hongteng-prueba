@@ -25,6 +25,7 @@ select v.codigo, v.nombre_es, v.nombre_zh, u.id
 on conflict (codigo) do nothing;
 
 -- Bodega principal (ZOFRI Iquique). Arica se agrega cuando se confirme.
+-- El color no se indica: lo asigna el trigger (0017/0018).
 insert into bodega (codigo, nombre, direccion) values
   ('IQQ', 'Iquique — ZOFRI', 'Manzana 15, Galpon 1, Zona Franca de Iquique')
 on conflict (codigo) do nothing;

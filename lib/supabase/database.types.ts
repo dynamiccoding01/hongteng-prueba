@@ -89,6 +89,7 @@ export type Database = {
         Row: {
           activo: boolean;
           codigo: string;
+          color: string;
           created_at: string;
           direccion: string | null;
           id: number;
@@ -98,6 +99,7 @@ export type Database = {
         Insert: {
           activo?: boolean;
           codigo: string;
+          color?: string;
           created_at?: string;
           direccion?: string | null;
           id?: never;
@@ -107,6 +109,7 @@ export type Database = {
         Update: {
           activo?: boolean;
           codigo?: string;
+          color?: string;
           created_at?: string;
           direccion?: string | null;
           id?: never;

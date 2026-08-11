@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
+import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
@@ -32,6 +32,7 @@ function Campos({ u }: { u?: Unidad }) {
         requerido
         ejemplo="PAR"
         largoMax={20}
+        transformar="codigo"
         ayuda="Se guarda en mayúsculas y sin espacios"
       />
       <Campo
@@ -82,7 +83,11 @@ export default async function Unidades({
     error,
   } = await supabase
     .from('unidad_medida')
-    .select('id, codigo, nombre_es, nombre_zh, activo, productos:producto(id)', { count: 'exact' })
+    // `producto(count)` lo cuenta en la base de datos. Traer los ids para hacer
+    // `.length` significaría bajar el catálogo entero por cada unidad listada.
+    .select('id, codigo, nombre_es, nombre_zh, activo, productos:producto(count)', {
+      count: 'exact',
+    })
     .order('codigo')
     .range(desde, hasta);
 
@@ -124,7 +129,7 @@ export default async function Unidades({
                 <Td>{u.nombre_es}</Td>
                 <Td tenue>{u.nombre_zh ?? '—'}</Td>
                 <Td numerico tenue>
-                  {u.productos.length}
+                  {numero(u.productos[0]?.count ?? 0)}
                 </Td>
                 <Td>
                   <Etiqueta tono={u.activo ? 'verde' : 'neutro'}>

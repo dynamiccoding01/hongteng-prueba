@@ -14,12 +14,18 @@ interface Categoria {
   nombre_es: string;
   nombre_zh: string | null;
   unidad_medida_default_id: number;
+  activo: boolean;
 }
 
 interface Opcion {
   valor: string | number;
   texto: string;
 }
+
+const ESTADOS: Opcion[] = [
+  { valor: '1', texto: 'Activa' },
+  { valor: '0', texto: 'Inactiva' },
+];
 
 function Campos({ c, unidades }: { c?: Categoria; unidades: Opcion[] }) {
   return (
@@ -32,8 +38,11 @@ function Campos({ c, unidades }: { c?: Categoria; unidades: Opcion[] }) {
         requerido
         ejemplo="NINO"
         largoMax={20}
+        // El patrón exige mayúsculas y `transformar` las escribe: sin esto el
+        // campo se pinta en rojo por lo que el propio formulario iba a corregir.
         patron="[A-Z0-9_]+"
-        ayuda="Solo mayúsculas, números y guion bajo"
+        transformar="codigo"
+        ayuda="Solo letras A–Z, números y guion bajo. Se guarda en mayúsculas"
       />
       <Campo
         etiqueta="Nombre"
@@ -55,6 +64,13 @@ function Campos({ c, unidades }: { c?: Categoria; unidades: Opcion[] }) {
         nombre="unidad_medida_default_id"
         valor={c?.unidad_medida_default_id}
         opciones={unidades}
+        requerido
+      />
+      <Seleccion
+        etiqueta="Estado"
+        nombre="activo"
+        valor={c ? (c.activo ? '1' : '0') : '1'}
+        opciones={ESTADOS}
         requerido
       />
     </>

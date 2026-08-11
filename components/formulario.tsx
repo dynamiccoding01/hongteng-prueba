@@ -164,6 +164,20 @@ const CLASE_CONTROL =
   'rounded-md border border-zinc-300 px-3 py-2 outline-none focus-visible:border-acento focus-visible:ring-2 focus-visible:ring-acento/30 user-invalid:border-red-500 dark:border-zinc-700 dark:bg-zinc-900';
 
 /**
+ * Cómo se normaliza el texto mientras se escribe.
+ *
+ * Los `acciones.ts` ya aplican la misma transformación antes de guardar; hacerlo
+ * también aquí evita la trampa de un campo que exige mayúsculas y rechaza lo que
+ * la persona acaba de escribir sin explicar por qué.
+ */
+export type Transformacion = 'mayusculas' | 'codigo';
+
+function normalizar(texto: string, como: Transformacion): string {
+  const mayusculas = texto.toUpperCase();
+  return como === 'codigo' ? mayusculas.replace(/\s+/g, '') : mayusculas;
+}
+
+/**
  * Campo de texto del formulario.
  *
  * Las restricciones (`minimo`, `patron`, `largoMax`…) son ayuda inmediata para
@@ -186,6 +200,7 @@ export function Campo({
   largoMax,
   ayuda,
   autocompletado,
+  transformar,
 }: {
   etiqueta: string;
   nombre: string;
@@ -202,6 +217,8 @@ export function Campo({
   /** Se muestra bajo el campo y como mensaje cuando el dato no cumple. */
   ayuda?: string;
   autocompletado?: string;
+  /** Normaliza el texto mientras se escribe. Solo para campos de texto. */
+  transformar?: Transformacion;
 }) {
   const idioma = useIdioma();
   const esNumero = tipo === 'number';
@@ -230,7 +247,77 @@ export function Campo({
         maxLength={largoMax}
         title={ayuda}
         autoComplete={autocompletado}
+        onInput={
+          transformar
+            ? (evento) => {
+                const campo = evento.currentTarget;
+                const normalizado = normalizar(campo.value, transformar);
+                if (normalizado === campo.value) return;
+                // Reescribir `value` manda el cursor al final: se restaura para
+                // poder corregir en medio de un código ya escrito.
+                const cursor = campo.selectionStart;
+                const perdidos = campo.value.length - normalizado.length;
+                campo.value = normalizado;
+                if (cursor !== null) {
+                  const destino = Math.max(0, cursor - perdidos);
+                  campo.setSelectionRange(destino, destino);
+                }
+              }
+            : undefined
+        }
         className={CLASE_CONTROL}
+      />
+      {ayuda ? <span className="text-xs text-tenue">{ayuda}</span> : null}
+    </label>
+  );
+}
+
+/**
+ * Campo de varias líneas, para direcciones, notas y observaciones.
+ *
+ * Ocupa el ancho completo salvo que se pida lo contrario: un texto largo dentro
+ * de media rejilla obliga a escribir en una ranura de dos palabras.
+ */
+export function AreaTexto({
+  etiqueta,
+  nombre,
+  valor,
+  requerido,
+  ejemplo,
+  filas = 3,
+  largoMax,
+  ayuda,
+  ancho = 'completo',
+}: {
+  etiqueta: string;
+  nombre: string;
+  valor?: string | null;
+  requerido?: boolean;
+  ejemplo?: string;
+  filas?: number;
+  largoMax?: number;
+  ayuda?: string;
+  ancho?: 'completo' | 'medio';
+}) {
+  const idioma = useIdioma();
+
+  return (
+    <label className={`flex flex-col gap-1 text-sm ${ancho === 'completo' ? 'sm:col-span-2' : ''}`}>
+      <span className="font-medium">
+        {etiqueta}
+        {requerido ? null : (
+          <span className="ml-1 text-zinc-400">{t(idioma, 'campoOpcional')}</span>
+        )}
+      </span>
+      <textarea
+        name={nombre}
+        defaultValue={valor ?? ''}
+        required={requerido}
+        placeholder={ejemplo}
+        rows={filas}
+        maxLength={largoMax}
+        title={ayuda}
+        className={`${CLASE_CONTROL} resize-y`}
       />
       {ayuda ? <span className="text-xs text-tenue">{ayuda}</span> : null}
     </label>
@@ -252,16 +339,32 @@ export function Seleccion({
   requerido?: boolean;
   ancho?: 'completo';
 }) {
+  const idioma = useIdioma();
+  const sinValor = valor === undefined || valor === null || valor === '';
+  // Un valor que no está entre las opciones: el maestro al que apunta se
+  // desactivó. Sin la opción vacía el navegador elegiría la primera de la lista
+  // y el cambio se guardaría solo, así que se deja visible y sin elegir.
+  const huerfano = !sinValor && !opciones.some((o) => String(o.valor) === String(valor));
+  // La opción vacía obliga a elegir a conciencia cuando no hay nada puesto. Si
+  // el campo es obligatorio y ya trae un valor válido, ofrecerla solo permite
+  // dejar inválido un formulario que estaba bien.
+  const conVacio = !requerido || sinValor || huerfano;
+
   return (
     <label className={`flex flex-col gap-1 text-sm ${ancho === 'completo' ? 'sm:col-span-2' : ''}`}>
-      <span className="font-medium">{etiqueta}</span>
+      <span className="font-medium">
+        {etiqueta}
+        {requerido ? null : (
+          <span className="ml-1 text-zinc-400">{t(idioma, 'campoOpcional')}</span>
+        )}
+      </span>
       <select
         name={nombre}
         defaultValue={valor ?? ''}
         required={requerido}
         className={CLASE_CONTROL}
       >
-        <option value="">—</option>
+        {conVacio ? <option value="">—</option> : null}
         {opciones.map((o) => (
           <option key={o.valor} value={o.valor}>
             {o.texto}

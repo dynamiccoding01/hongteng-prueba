@@ -10,19 +10,32 @@ import { mensajeError, type EstadoFormulario } from '@/lib/errores';
  * son del empaque (producto_variante), no del producto.
  */
 const esquemaProducto = z.object({
-  codigo: z.string().trim().min(1, 'El código es obligatorio'),
+  codigo: z
+    .string()
+    .trim()
+    .min(1, 'El código es obligatorio')
+    .max(40, 'El código no puede superar 40 caracteres'),
   categoria_id: z.coerce.number().int().positive('Seleccione la categoría'),
   unidad_medida_id: z.coerce.number().int().positive('Seleccione en qué se cuenta el artículo'),
-  descripcion_es: z.string().trim().optional(),
-  descripcion_zh: z.string().trim().optional(),
-  rango_tallas: z.string().trim().optional(),
-  marca: z.string().trim().optional(),
+  // Proveedor habitual del artículo. Opcional: en la planilla del cliente hay
+  // códigos sin fábrica identificada.
+  proveedor_id: z.coerce.number().int().positive().optional(),
+  descripcion_es: z.string().trim().max(200).optional(),
+  descripcion_zh: z.string().trim().max(200).optional(),
+  rango_tallas: z.string().trim().max(40).optional(),
+  marca: z.string().trim().max(60).optional(),
   activo: z.enum(['1', '0']),
 });
 
-/** En el alta se pide además el primer empaque: sin él no puede haber stock. */
+/**
+ * En el alta se pide además el primer empaque: sin él no puede haber stock.
+ * El tope es el de la columna en la base de datos, numeric(10,2).
+ */
 const esquemaAlta = esquemaProducto.extend({
-  unidades_por_caja: z.coerce.number().positive('Indique cuántas unidades trae cada caja'),
+  unidades_por_caja: z.coerce
+    .number()
+    .positive('Indique cuántas unidades trae cada caja')
+    .max(99999999, 'Cantidad por caja fuera de rango'),
 });
 
 function leerFormulario(datos: FormData) {
@@ -30,6 +43,7 @@ function leerFormulario(datos: FormData) {
     codigo: datos.get('codigo'),
     categoria_id: datos.get('categoria_id'),
     unidad_medida_id: datos.get('unidad_medida_id'),
+    proveedor_id: datos.get('proveedor_id') || undefined,
     descripcion_es: datos.get('descripcion_es') || undefined,
     descripcion_zh: datos.get('descripcion_zh') || undefined,
     rango_tallas: datos.get('rango_tallas') || undefined,
@@ -45,6 +59,7 @@ function aValores(datos: z.infer<typeof esquemaProducto>) {
     codigo: datos.codigo.trim(),
     categoria_id: datos.categoria_id,
     unidad_medida_id: datos.unidad_medida_id,
+    proveedor_id: datos.proveedor_id ?? null,
     descripcion_es: datos.descripcion_es ?? null,
     descripcion_zh: datos.descripcion_zh ?? null,
     rango_tallas: datos.rango_tallas ?? null,
@@ -120,6 +135,52 @@ export async function editarProducto(
 }
 
 /**
+ * MAE-02: corrige la cantidad de un empaque que todavía no tiene historial.
+ *
+ * El límite lo pone la base (`tr_variante_cantidad_inmutable`, 0019): con
+ * movimientos registrados el cambio se rechaza, porque el factor ya se aplicó
+ * y el stock dejaría de cuadrar con el kardex. Aquí solo se traduce el rechazo.
+ */
+export async function editarEmpaque(
+  _previo: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const analisis = z
+    .object({
+      variante_id: z.coerce.number().int().positive(),
+      unidades_por_caja: z.coerce
+        .number()
+        .positive('Indique la cantidad de unidades por caja')
+        .max(99999999, 'Cantidad por caja fuera de rango'),
+    })
+    .safeParse({
+      variante_id: datos.get('variante_id'),
+      unidades_por_caja: datos.get('unidades_por_caja'),
+    });
+
+  if (!analisis.success) {
+    return { error: analisis.error.issues[0]?.message ?? 'Datos no válidos' };
+  }
+
+  const supabase = await crearClienteServidor();
+  const { error } = await supabase
+    .from('producto_variante')
+    .update({ unidades_por_caja: analisis.data.unidades_por_caja })
+    .eq('id', analisis.data.variante_id);
+
+  if (error) {
+    if (error.code === '23505') {
+      return { error: 'Este artículo ya tiene otro empaque con esa cantidad' };
+    }
+    return { error: mensajeError(error, 'empaque') };
+  }
+
+  revalidatePath('/maestros/productos');
+  revalidatePath('/maestros/codigos');
+  return { ok: 'Cantidad actualizada' };
+}
+
+/**
  * MAE-02: un mismo código puede llegar en cajas de distinta cantidad.
  *
  * Es un empaque NUEVO, no una corrección del anterior: `unidades_por_caja` es
@@ -133,7 +194,10 @@ export async function agregarEmpaque(
   const analisis = z
     .object({
       producto_id: z.coerce.number().int().positive(),
-      unidades_por_caja: z.coerce.number().positive('Indique cuántas unidades trae cada caja'),
+      unidades_por_caja: z.coerce
+        .number()
+        .positive('Indique cuántas unidades trae cada caja')
+        .max(99999999, 'Cantidad por caja fuera de rango'),
     })
     .safeParse({
       producto_id: datos.get('producto_id'),

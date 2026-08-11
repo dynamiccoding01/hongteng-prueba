@@ -1,7 +1,7 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
-import { Campo, FormularioDesplegable } from '@/components/formulario';
+import { AreaTexto, Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
 import { guardarProveedor } from './acciones';
@@ -21,23 +21,81 @@ interface Proveedor {
   activo: boolean;
 }
 
+const ESTADOS = [
+  { valor: '1', texto: 'Activo' },
+  { valor: '0', texto: 'Inactivo' },
+];
+
+/**
+ * Campos del proveedor, en el orden en que se piensan: primero quién es,
+ * después dónde está, después con quién se habla.
+ */
 function Campos({ p }: { p?: Proveedor }) {
   return (
     <>
       {p ? <input type="hidden" name="id" value={p.id} /> : null}
-      <Campo etiqueta="Código" nombre="codigo" valor={p?.codigo} requerido ejemplo="FUJIAN01" />
-      <Campo etiqueta="Nombre" nombre="nombre" valor={p?.nombre} requerido />
+      <Campo
+        etiqueta="Código"
+        nombre="codigo"
+        valor={p?.codigo}
+        requerido
+        ejemplo="FUJIAN01"
+        largoMax={20}
+        transformar="codigo"
+        ayuda="Se guarda en mayúsculas y sin espacios"
+      />
+      <Campo etiqueta="Nombre" nombre="nombre" valor={p?.nombre} requerido largoMax={120} />
       <Campo
         etiqueta="Nombre en chino"
         nombre="nombre_zh"
         valor={p?.nombre_zh}
         ejemplo="福建鞋厂"
+        largoMax={120}
       />
-      <Campo etiqueta="País" nombre="pais" valor={p?.pais ?? 'CN'} requerido ejemplo="CN" />
-      <Campo etiqueta="Contacto" nombre="contacto" valor={p?.contacto} />
-      <Campo etiqueta="Correo" nombre="email" valor={p?.email} tipo="email" />
-      <Campo etiqueta="Teléfono" nombre="telefono" valor={p?.telefono} />
-      <Campo etiqueta="Dirección" nombre="direccion" valor={p?.direccion} ancho="completo" />
+      <Campo
+        etiqueta="País"
+        nombre="pais"
+        valor={p?.pais ?? 'CN'}
+        requerido
+        ejemplo="CN"
+        largoMax={3}
+        patron="[A-Za-z]{2,3}"
+        transformar="codigo"
+        ayuda="Código de 2 o 3 letras: CN, CL, PE"
+      />
+      <Campo etiqueta="Contacto" nombre="contacto" valor={p?.contacto} largoMax={80} />
+      <Campo
+        etiqueta="Correo"
+        nombre="email"
+        valor={p?.email}
+        tipo="email"
+        largoMax={120}
+        ejemplo="ventas@fabrica.cn"
+      />
+      <Campo
+        etiqueta="Teléfono"
+        nombre="telefono"
+        valor={p?.telefono}
+        tipo="tel"
+        largoMax={25}
+        patron="[0-9+][0-9\s\-]{5,24}"
+        ejemplo="+86 592 123 4567"
+        ayuda="Solo números, espacios y guiones"
+      />
+      <Seleccion
+        etiqueta="Estado"
+        nombre="activo"
+        valor={p ? (p.activo ? '1' : '0') : '1'}
+        opciones={ESTADOS}
+        requerido
+      />
+      <AreaTexto
+        etiqueta="Dirección"
+        nombre="direccion"
+        valor={p?.direccion}
+        largoMax={200}
+        filas={2}
+      />
     </>
   );
 }

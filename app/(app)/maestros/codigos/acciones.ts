@@ -5,10 +5,18 @@ import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
 
+const codigo = z
+  .string()
+  .trim()
+  .max(40)
+  .regex(/^[0-9A-Za-z-]+$/, 'Use solo números, letras y guiones')
+  .optional()
+  .or(z.literal(''));
+
 const esquema = z.object({
   variante_id: z.coerce.number().int().positive(),
-  codigo_barras: z.string().trim().optional(),
-  sku_interno: z.string().trim().optional(),
+  codigo_barras: codigo,
+  sku_interno: codigo,
 });
 
 /** INV-08: asigna el código de barras / SKU interno de un empaque existente. */
@@ -30,8 +38,10 @@ export async function actualizarCodigos(
   const { error } = await supabase
     .from('producto_variante')
     .update({
-      codigo_barras: analisis.data.codigo_barras ?? null,
-      sku_interno: analisis.data.sku_interno ?? null,
+      // Vacío es null y no cadena vacía: la columna es unique, y dos empaques
+      // con '' chocarían entre sí como si compartieran código.
+      codigo_barras: analisis.data.codigo_barras?.toUpperCase() || null,
+      sku_interno: analisis.data.sku_interno?.toUpperCase() || null,
     })
     .eq('id', analisis.data.variante_id);
 

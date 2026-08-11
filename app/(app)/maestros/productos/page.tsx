@@ -2,11 +2,11 @@ import { Suspense } from 'react';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
-import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { AreaTexto, Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { Buscador } from '@/components/buscador';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
-import { agregarEmpaque, crearProducto, editarProducto } from './acciones';
+import { agregarEmpaque, crearProducto, editarEmpaque, editarProducto } from './acciones';
 
 export const metadata = { title: 'Productos · Inventario' };
 
@@ -25,6 +25,7 @@ interface Producto {
   activo: boolean;
   categoria_id: number;
   unidad_medida_id: number;
+  proveedor_id: number | null;
 }
 
 const ESTADOS: Opcion[] = [
@@ -33,35 +34,45 @@ const ESTADOS: Opcion[] = [
 ];
 
 /**
- * Campos del artículo. Las unidades por caja no están aquí: solo se piden al
- * crear, porque después son un empaque nuevo y no una corrección.
+ * Campos del artículo, agrupados: primero qué es, después cómo se cuenta,
+ * después de dónde viene y por último las descripciones.
+ *
+ * Las unidades por caja solo aparecen al crear (`alta`): después son un empaque
+ * nuevo y no una corrección, y van junto a «Se cuenta en» porque es ahí donde
+ * se confunden. Una dice en qué se cuenta el artículo (par); la otra, cuántos
+ * de esos vienen en cada caja (45).
  */
 function CamposProducto({
   p,
   categorias,
   unidades,
+  proveedores,
+  alta,
 }: {
   p?: Producto;
   categorias: Opcion[];
   unidades: Opcion[];
+  proveedores: Opcion[];
+  alta?: boolean;
 }) {
   return (
     <>
       {p ? <input type="hidden" name="id" value={p.id} /> : null}
-      <Campo etiqueta="Código" nombre="codigo" valor={p?.codigo} requerido ejemplo="B7577E" />
+      <Campo
+        etiqueta="Código"
+        nombre="codigo"
+        valor={p?.codigo}
+        requerido
+        ejemplo="B7577E"
+        largoMax={40}
+        ayuda="El código de fábrica (货号)"
+      />
       <Seleccion
         etiqueta="Categoría"
         nombre="categoria_id"
         valor={p?.categoria_id}
         opciones={categorias}
         requerido
-      />
-      <Campo
-        etiqueta="Descripción"
-        nombre="descripcion_es"
-        valor={p?.descripcion_es}
-        ancho="completo"
-        ejemplo="Zapatilla escolar niño, negro"
       />
       <Seleccion
         etiqueta="Se cuenta en"
@@ -70,19 +81,31 @@ function CamposProducto({
         opciones={unidades}
         requerido
       />
+      {alta ? (
+        <Campo
+          etiqueta="Cantidad unidades"
+          nombre="unidades_por_caja"
+          tipo="number"
+          requerido
+          ejemplo="45"
+          minimo={0.01}
+          maximo={99999999}
+          ayuda="Cuántas trae cada caja, en la unidad elegida arriba"
+        />
+      ) : null}
       <Campo
         etiqueta="Rango de tallas"
         nombre="rango_tallas"
         valor={p?.rango_tallas}
         ejemplo="30-35"
+        largoMax={40}
       />
-      <Campo etiqueta="Marca" nombre="marca" valor={p?.marca} />
-      <Campo
-        etiqueta="Descripción en chino"
-        nombre="descripcion_zh"
-        valor={p?.descripcion_zh}
-        ancho="completo"
-        ejemplo="童鞋 黑色"
+      <Campo etiqueta="Marca" nombre="marca" valor={p?.marca} largoMax={60} />
+      <Seleccion
+        etiqueta="Proveedor"
+        nombre="proveedor_id"
+        valor={p?.proveedor_id}
+        opciones={proveedores}
       />
       <Seleccion
         etiqueta="Estado"
@@ -90,6 +113,22 @@ function CamposProducto({
         valor={p ? (p.activo ? '1' : '0') : '1'}
         opciones={ESTADOS}
         requerido
+      />
+      <AreaTexto
+        etiqueta="Descripción"
+        nombre="descripcion_es"
+        valor={p?.descripcion_es}
+        ejemplo="Zapatilla escolar niño, negro"
+        largoMax={200}
+        filas={2}
+      />
+      <AreaTexto
+        etiqueta="Descripción en chino"
+        nombre="descripcion_zh"
+        valor={p?.descripcion_zh}
+        ejemplo="童鞋 黑色"
+        largoMax={200}
+        filas={2}
       />
     </>
   );
@@ -115,7 +154,7 @@ export default async function Productos({
     // La cadena del select debe ser un literal: los tipos de Supabase la
     // analizan estáticamente y una concatenación los deja en `unknown`.
     .select(
-      'id, codigo, descripcion_es, descripcion_zh, rango_tallas, marca, activo, categoria_id, unidad_medida_id, categoria:categoria_id(nombre_es), unidad:unidad_medida_id(nombre_es), variantes:producto_variante(id, unidades_por_caja)',
+      'id, codigo, descripcion_es, descripcion_zh, rango_tallas, marca, activo, categoria_id, unidad_medida_id, proveedor_id, categoria:categoria_id(nombre_es), unidad:unidad_medida_id(nombre_es), proveedor:proveedor_id(nombre), variantes:producto_variante(id, unidades_por_caja)',
       { count: 'exact' },
     )
     .order('codigo')
@@ -123,14 +162,37 @@ export default async function Productos({
 
   if (q) consulta = consulta.ilike('codigo', `%${q}%`);
 
-  const [{ data: productos, count, error }, { data: categorias }, { data: unidadesMedida }] =
-    await Promise.all([
-      consulta,
-      supabase.from('categoria').select('id, nombre_es').eq('activo', true).order('codigo'),
-      supabase.from('unidad_medida').select('id, nombre_es').eq('activo', true).order('codigo'),
-    ]);
+  // Las tres consultas de opciones van completas y sin paginar: son listas para
+  // elegir en el formulario, no listados.
+  const [
+    { data: productos, count, error },
+    { data: categorias },
+    { data: unidadesMedida },
+    { data: proveedores },
+  ] = await Promise.all([
+    consulta,
+    supabase.from('categoria').select('id, nombre_es').eq('activo', true).order('codigo'),
+    supabase.from('unidad_medida').select('id, nombre_es').eq('activo', true).order('codigo'),
+    supabase.from('proveedor').select('id, codigo, nombre').eq('activo', true).order('nombre'),
+  ]);
 
   if (error) return <Vacio>No se pudieron cargar los productos: {error.message}</Vacio>;
+
+  // Qué empaques de esta página ya tienen kardex. La cantidad por caja solo se
+  // corrige mientras no lo tengan (0019): con movimientos aplicados, cambiar el
+  // factor descuadraría el stock. Se cuenta en la base, no trayendo los
+  // movimientos.
+  const idsVariante = productos.flatMap((p) => p.variantes.map((v) => v.id));
+  const conMovimientos = new Set<number>();
+  if (idsVariante.length > 0) {
+    const { data: conteos } = await supabase
+      .from('producto_variante')
+      .select('id, movimientos:movimiento(count)')
+      .in('id', idsVariante);
+    for (const v of conteos ?? []) {
+      if ((v.movimientos[0]?.count ?? 0) > 0) conMovimientos.add(v.id);
+    }
+  }
 
   const opcionesCategoria: Opcion[] = (categorias ?? []).map((c) => ({
     valor: c.id,
@@ -139,6 +201,10 @@ export default async function Productos({
   const opcionesUnidad: Opcion[] = (unidadesMedida ?? []).map((u) => ({
     valor: u.id,
     texto: u.nombre_es,
+  }));
+  const opcionesProveedor: Opcion[] = (proveedores ?? []).map((p) => ({
+    valor: p.id,
+    texto: `${p.codigo} — ${p.nombre}`,
   }));
   const total = count ?? 0;
 
@@ -153,15 +219,11 @@ export default async function Productos({
         </Suspense>
         {puedeCrear ? (
           <FormularioDesplegable accion={crearProducto} etiquetaNuevo="Nuevo artículo">
-            <CamposProducto categorias={opcionesCategoria} unidades={opcionesUnidad} />
-            <Campo
-              etiqueta="Unidades que trae cada caja"
-              nombre="unidades_por_caja"
-              tipo="number"
-              requerido
-              ejemplo="45"
-              minimo={0.01}
-              ayuda="Debe ser mayor que cero"
+            <CamposProducto
+              categorias={opcionesCategoria}
+              unidades={opcionesUnidad}
+              proveedores={opcionesProveedor}
+              alta
             />
           </FormularioDesplegable>
         ) : null}
@@ -187,8 +249,9 @@ export default async function Productos({
                 <Th>Código</Th>
                 <Th>Artículo</Th>
                 <Th>Categoría</Th>
+                <Th>Proveedor</Th>
                 <Th>Tallas</Th>
-                <Th numerico>Unidades por caja</Th>
+                <Th numerico>Cantidad unidades</Th>
                 <Th>Se cuenta en</Th>
                 <Th>Estado</Th>
                 {puedeEditar ? <Th> </Th> : null}
@@ -202,15 +265,61 @@ export default async function Productos({
                   </Td>
                   <Td>{p.descripcion_es ?? '—'}</Td>
                   <Td tenue>{p.categoria?.nombre_es ?? '—'}</Td>
+                  <Td tenue>{p.proveedor?.nombre ?? '—'}</Td>
                   <Td tenue>{p.rango_tallas ?? '—'}</Td>
                   <Td numerico>
                     {p.variantes.length === 0 ? (
                       <Etiqueta tono="ambar">sin definir</Etiqueta>
                     ) : (
-                      [...p.variantes]
-                        .sort((a, b) => a.unidades_por_caja - b.unidades_por_caja)
-                        .map((v) => numero(v.unidades_por_caja))
-                        .join(' · ')
+                      <div className="flex flex-col items-end gap-1">
+                        {[...p.variantes]
+                          .sort((a, b) => a.unidades_por_caja - b.unidades_por_caja)
+                          .map((v) => (
+                            <span
+                              key={v.id}
+                              className="inline-flex items-center gap-2 whitespace-nowrap"
+                            >
+                              {numero(v.unidades_por_caja)}
+                              {puedeEditar ? (
+                                conMovimientos.has(v.id) ? (
+                                  // Con kardex el dato queda sellado: se dice por
+                                  // qué, en vez de ofrecer un botón que va a fallar.
+                                  <span
+                                    className="text-xs text-tenue"
+                                    title="Este empaque ya tiene movimientos: su cantidad no se puede cambiar. Use «Agregar empaque»."
+                                  >
+                                    con movimientos
+                                  </span>
+                                ) : (
+                                  <FormularioDesplegable
+                                    accion={editarEmpaque}
+                                    etiquetaNuevo=""
+                                    esEdicion
+                                  >
+                                    <input type="hidden" name="variante_id" value={v.id} />
+                                    <p className="text-sm text-tenue sm:col-span-2">
+                                      Artículo <code className="text-xs">{p.codigo}</code>, que se
+                                      cuenta en <strong>{p.unidad?.nombre_es ?? '—'}</strong>. Este
+                                      empaque todavía no tiene movimientos, así que su cantidad se
+                                      puede corregir.
+                                    </p>
+                                    <Campo
+                                      etiqueta="Cantidad unidades"
+                                      nombre="unidades_por_caja"
+                                      valor={v.unidades_por_caja}
+                                      tipo="number"
+                                      requerido
+                                      ancho="completo"
+                                      minimo={0.01}
+                                      maximo={99999999}
+                                      ayuda="Cuántas trae cada caja"
+                                    />
+                                  </FormularioDesplegable>
+                                )
+                              ) : null}
+                            </span>
+                          ))}
+                      </div>
                     )}
                   </Td>
                   <Td tenue>{p.unidad?.nombre_es ?? '—'}</Td>
@@ -227,6 +336,7 @@ export default async function Productos({
                             p={p}
                             categorias={opcionesCategoria}
                             unidades={opcionesUnidad}
+                            proveedores={opcionesProveedor}
                           />
                         </FormularioDesplegable>
                         <FormularioDesplegable
@@ -241,13 +351,14 @@ export default async function Productos({
                             cantidad de un empaque que ya tiene movimientos no se corrige.
                           </p>
                           <Campo
-                            etiqueta="Unidades que trae cada caja"
+                            etiqueta="Cantidad unidades"
                             nombre="unidades_por_caja"
                             tipo="number"
                             requerido
                             ejemplo="24"
                             ancho="completo"
                             minimo={0.01}
+                            maximo={99999999}
                             ayuda="Debe ser distinta de los empaques que el artículo ya tiene"
                           />
                         </FormularioDesplegable>
