@@ -16,7 +16,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A["Registrar importación<br/>proveedor, doc. aduana 203,<br/>moneda y tipo de cambio"] --> B["Cargar detalle por producto<br/>cajas + costo unitario"]
+    A["Registrar importación<br/>proveedor y doc. aduana 203<br/>(siempre en USD)"] --> B["Cargar detalle por producto<br/>cajas + precio de compra y de venta"]
     B --> C{"¿Confirmar<br/>importación?"}
     C -->|Sí| D["Se generan movimientos<br/>de ENTRADA automáticos"]
     D --> E["Trigger actualiza stock<br/>(cajas y unidades por zona)"]

@@ -7,22 +7,29 @@ import { mensajeError, type EstadoFormulario } from '@/lib/errores';
 
 const esquemaCabecera = z.object({
   proveedor_id: z.coerce.number().int().positive('Seleccione el proveedor'),
-  moneda_id: z.coerce.number().int().positive('Seleccione la moneda'),
-  tipo_cambio: z.coerce.number().positive('Tipo de cambio no válido').optional(),
   documento_aduana: z.string().trim().optional(),
   fecha: z.string().trim().optional(),
   notas: z.string().trim().optional(),
 });
 
-/** COM-01: crea la cabecera de una importación en estado BORRADOR. */
+/**
+ * COM-01: crea la cabecera de una importación en estado BORRADOR.
+ *
+ * La moneda no se elige: siempre USD. Es la decisión que ordena todo el
+ * costeo —se compra en dólares, y de ahí salen el precio de venta y la lista—
+ * y la impone `tr_importacion_solo_usd` en la base. Aquí solo se busca su id
+ * para no dejar que el formulario mande una moneda cualquiera.
+ *
+ * El tipo de cambio tampoco se manda: lo pone `fn_documento_tipo_cambio` con
+ * el oficial de la fecha (migración 0025), que se mantiene en Maestros › Tipo
+ * de cambio. De ese número sale la valorización del stock en pesos.
+ */
 export async function crearImportacion(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
   const analisis = esquemaCabecera.safeParse({
     proveedor_id: datos.get('proveedor_id'),
-    moneda_id: datos.get('moneda_id'),
-    tipo_cambio: datos.get('tipo_cambio') || undefined,
     documento_aduana: datos.get('documento_aduana') || undefined,
     fecha: datos.get('fecha') || undefined,
     notas: datos.get('notas') || undefined,
@@ -33,10 +40,18 @@ export async function crearImportacion(
   }
 
   const supabase = await crearClienteServidor();
+
+  const { data: usd } = await supabase
+    .from('moneda')
+    .select('id')
+    .eq('codigo', 'USD')
+    .maybeSingle();
+
+  if (!usd) return { error: 'Falta la moneda USD en el maestro de monedas' };
+
   const { error } = await supabase.from('importacion').insert({
     proveedor_id: analisis.data.proveedor_id,
-    moneda_id: analisis.data.moneda_id,
-    tipo_cambio: analisis.data.tipo_cambio ?? null,
+    moneda_id: usd.id,
     documento_aduana: analisis.data.documento_aduana ?? null,
     fecha: analisis.data.fecha || undefined,
     notas: analisis.data.notas ?? null,
@@ -48,13 +63,25 @@ export async function crearImportacion(
   return { ok: 'Importación creada como borrador' };
 }
 
-const esquemaDetalle = z.object({
-  importacion_id: z.coerce.number().int().positive(),
-  variante_id: z.coerce.number().int().positive('Seleccione el artículo'),
-  zona_id: z.coerce.number().int().positive('Seleccione la zona de destino'),
-  cajas: z.coerce.number().positive('Las cajas deben ser mayores que cero'),
-  costo_caja: z.coerce.number().min(0, 'Costo no válido').optional(),
-});
+const esquemaDetalle = z
+  .object({
+    importacion_id: z.coerce.number().int().positive(),
+    variante_id: z.coerce.number().int().positive('Seleccione el artículo'),
+    zona_id: z.coerce.number().int().positive('Seleccione la zona de destino'),
+    cajas: z.coerce.number().positive('Las cajas deben ser mayores que cero'),
+    costo_caja: z.coerce.number().min(0, 'Costo no válido').optional(),
+    precio_venta_caja: z.coerce.number().min(0, 'Precio de venta no válido').optional(),
+  })
+  // Mismo criterio que `importacion_detalle_margen_ck` en la base. Aquí solo
+  // para dar un mensaje en castellano; la barrera es la restricción, que se
+  // aplica venga el dato de donde venga.
+  .refine(
+    (d) =>
+      d.costo_caja === undefined ||
+      d.precio_venta_caja === undefined ||
+      d.precio_venta_caja >= d.costo_caja,
+    { message: 'El precio de venta no puede ser menor al costo de compra' },
+  );
 
 /** COM-02: agrega una línea de detalle (solo en BORRADOR, lo exige la BD). */
 export async function agregarDetalle(
@@ -67,6 +94,7 @@ export async function agregarDetalle(
     zona_id: datos.get('zona_id'),
     cajas: datos.get('cajas'),
     costo_caja: datos.get('costo_caja') || undefined,
+    precio_venta_caja: datos.get('precio_venta_caja') || undefined,
   });
 
   if (!analisis.success) {
@@ -80,6 +108,7 @@ export async function agregarDetalle(
     zona_id: analisis.data.zona_id,
     cajas: analisis.data.cajas,
     costo_caja: analisis.data.costo_caja ?? null,
+    precio_venta_caja: analisis.data.precio_venta_caja ?? null,
   });
 
   if (error) return { error: mensajeError(error, 'detalle') };
@@ -106,15 +135,22 @@ export async function confirmarImportacion(
   }
 
   const supabase = await crearClienteServidor();
-  const { error } = await supabase.rpc('fn_confirmar_importacion', {
+  const { data, error } = await supabase.rpc('fn_confirmar_importacion', {
     p_importacion_id: analisis.data.importacion_id,
   });
 
   if (error) return { error: mensajeError(error, 'importación') };
 
+  // Confirmar mueve la importación de una pantalla a la otra: las dos cambian.
   revalidatePath('/compras/importaciones');
+  revalidatePath('/compras/confirmadas');
   revalidatePath('/inventario/stock');
   revalidatePath('/inventario/movimientos');
   revalidatePath('/articulos');
-  return { ok: 'Importación confirmada: mercadería ingresada a stock' };
+  // Los precios de venta pueden haberse publicado en la lista.
+  revalidatePath('/ventas/precios');
+
+  // La función devuelve qué pasó con los precios: si había lista en esa moneda
+  // y cuántos se publicaron. Es más útil que un mensaje fijo.
+  return { ok: typeof data === 'string' && data ? data : 'Importación confirmada' };
 }

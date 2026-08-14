@@ -25,23 +25,23 @@ export default async function Valorizacion({
     supabase
       .from('v_valorizacion')
       .select('*', { count: 'exact' })
-      .gt('cajas', 0)
+      .gt('cantidad', 0)
       .order('codigo')
       .range(desde, hasta),
-    supabase.from('v_valorizacion').select('cajas, valor_clp, costo_caja').gt('cajas', 0),
+    supabase.from('v_valorizacion').select('cantidad, valor_clp, costo_caja').gt('cantidad', 0),
   ]);
 
   if (error) return <Vacio>No se pudo cargar la valorización: {error.message}</Vacio>;
 
   const totalValor = (paraTotales ?? []).reduce((s, f) => s + Number(f.valor_clp ?? 0), 0);
-  const totalCajas = (paraTotales ?? []).reduce((s, f) => s + Number(f.cajas), 0);
+  const totalCantidad = (paraTotales ?? []).reduce((s, f) => s + Number(f.cantidad), 0);
   const sinCosto = (paraTotales ?? []).filter((f) => f.costo_caja === null).length;
 
   return (
     <>
       <Encabezado
         titulo="Valorización"
-        descripcion={`Stock a último costo de importación (REP-04) · ${numero(totalCajas)} cajas · $ ${numero(totalValor)} CLP`}
+        descripcion={`Stock a último costo de importación (REP-04) · ${numero(totalCantidad)} de cantidad · $ ${numero(totalValor)} CLP`}
       >
         {puedeExportar ? (
           <a
@@ -68,7 +68,7 @@ export default async function Valorizacion({
             <tr>
               <Th>Artículo</Th>
               <Th>Categoría</Th>
-              <Th numerico>Cajas</Th>
+              <Th numerico>Cantidad</Th>
               <Th numerico>Último costo caja</Th>
               <Th>Moneda</Th>
               <Th numerico>Valor CLP</Th>
@@ -84,7 +84,7 @@ export default async function Valorizacion({
                   </span>
                 </Td>
                 <Td tenue>{f.categoria}</Td>
-                <Td numerico>{numero(f.cajas)}</Td>
+                <Td numerico>{numero(f.cantidad)}</Td>
                 <Td numerico tenue>
                   {f.costo_caja === null ? '—' : numero(f.costo_caja)}
                 </Td>

@@ -1,8 +1,9 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
-import { Campo, FormularioDesplegable } from '@/components/formulario';
-import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { FormularioDesplegable } from '@/components/formulario';
+import { CamposTraspaso } from '@/components/campos-inventario';
+import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
 import { traspasarStock } from './acciones';
@@ -27,42 +28,33 @@ export default async function Traspasos({
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: movimientos, count, error }, { data: variantes }, { data: zonas }] =
-    await Promise.all([
-      supabase
-        .from('movimiento')
-        .select(
-          'id, tipo, cajas, fecha, motivo, zona:zona_id(codigo, bodega:bodega_id(codigo)), variante:variante_id(producto:producto_id(codigo)), usuario:usuario_id(nombre)',
-          { count: 'exact' },
-        )
-        .eq('documento_tipo', 'TRASPASO')
-        .order('fecha', { ascending: false })
-        .range(desde, hasta),
-      // Opciones del formulario, no listados: van completas.
-      supabase
-        .from('producto_variante')
-        .select('id, unidades_por_caja, producto:producto_id!inner(codigo, activo)')
-        .eq('activo', true)
-        .eq('producto.activo', true)
-        .limit(1000),
-      supabase
-        .from('zona')
-        .select('id, codigo, bodega:bodega_id(codigo)')
-        .eq('activo', true)
-        .order('codigo'),
-    ]);
+  const [{ data: movimientos, count, error }, { data: zonas }] = await Promise.all([
+    supabase
+      .from('movimiento')
+      .select(
+        'id, tipo, cajas, fecha, motivo, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo)), usuario:usuario_id(nombre)',
+        { count: 'exact' },
+      )
+      .eq('documento_tipo', 'TRASPASO')
+      .order('fecha', { ascending: false })
+      .range(desde, hasta),
+    // Solo las zonas: el artículo lo busca el selector contra la base, así que
+    // ya no se precarga el catálogo.
+    supabase
+      .from('zona')
+      .select('id, codigo, bodega:bodega_id(codigo, nombre, color)')
+      .eq('activo', true)
+      .order('codigo'),
+  ]);
 
   if (error) return <Vacio>No se pudieron cargar los traspasos: {error.message}</Vacio>;
 
-  const opcionesVariante = (variantes ?? [])
-    .sort((a, b) => a.producto.codigo.localeCompare(b.producto.codigo))
-    .map((v) => ({
-      valor: v.id,
-      texto: `${v.producto.codigo} — ${numero(v.unidades_por_caja)} u/caja`,
-    }));
   const opcionesZona = (zonas ?? []).map((z) => ({
-    valor: z.id,
-    texto: `${z.bodega?.codigo ?? '—'} · ${z.codigo}`,
+    id: z.id,
+    codigo: z.codigo,
+    bodega: z.bodega?.codigo ?? '—',
+    bodegaNombre: z.bodega?.nombre ?? null,
+    color: z.bodega?.color ?? 'gris',
   }));
 
   return (
@@ -73,26 +65,7 @@ export default async function Traspasos({
       >
         {puedeCrear ? (
           <FormularioDesplegable accion={traspasarStock} etiquetaNuevo="Nuevo traspaso">
-            <SeleccionBuscable
-              etiqueta="Artículo"
-              nombre="variante_id"
-              opciones={opcionesVariante}
-              requerido
-            />
-            <Campo etiqueta="Cajas" nombre="cajas" tipo="number" requerido ejemplo="10" />
-            <SeleccionBuscable
-              etiqueta="Zona de origen"
-              nombre="zona_origen"
-              opciones={opcionesZona}
-              requerido
-            />
-            <SeleccionBuscable
-              etiqueta="Zona de destino"
-              nombre="zona_destino"
-              opciones={opcionesZona}
-              requerido
-            />
-            <Campo etiqueta="Motivo" nombre="motivo" ancho="completo" />
+            <CamposTraspaso zonas={opcionesZona} />
           </FormularioDesplegable>
         ) : null}
       </Encabezado>
@@ -127,8 +100,15 @@ export default async function Traspasos({
                     {m.tipo === 'TRASPASO_ENTRADA' ? 'Entrada' : 'Salida'}
                   </Etiqueta>
                 </Td>
-                <Td tenue>
-                  {m.zona.bodega?.codigo ?? '—'} · {m.zona.codigo}
+                <Td>
+                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <DistintivoBodega
+                      codigo={m.zona.bodega?.codigo ?? '—'}
+                      color={m.zona.bodega?.color}
+                      titulo={m.zona.bodega?.nombre}
+                    />
+                    <code className="text-xs">{m.zona.codigo}</code>
+                  </span>
                 </Td>
                 <Td numerico>{numero(m.cajas)}</Td>
                 <Td tenue>{m.usuario?.nombre ?? '—'}</Td>

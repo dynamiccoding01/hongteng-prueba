@@ -30,11 +30,11 @@ let adminId: string;
 
 const n = (fila: Fila | undefined, campo: string): number => Number(fila?.[campo]);
 
-async function stockActual(zona: number): Promise<{ cajas: number; unidades: number }> {
+async function stockActual(zona: number): Promise<{ cantidad: number; totalUnidades: number }> {
   const filas = await consultar(
-    `select cajas, unidades from stock where variante_id = ${varianteId} and zona_id = ${zona}`,
+    `select cantidad, total_unidades from stock where variante_id = ${varianteId} and zona_id = ${zona}`,
   );
-  return { cajas: n(filas[0], 'cajas'), unidades: n(filas[0], 'unidades') };
+  return { cantidad: n(filas[0], 'cantidad'), totalUnidades: n(filas[0], 'total_unidades') };
 }
 
 /** fn_traspasar exige permiso desde el Sprint 6 (INV-07): se prueba con sesión de admin. */
@@ -122,8 +122,8 @@ describe.runIf(hayCredenciales)(
       expect(n(mov, 'saldo_cajas')).toBe(5);
 
       const stock = await stockActual(zonaId);
-      expect(stock.cajas).toBe(5);
-      expect(stock.unidades).toBe(60);
+      expect(stock.cantidad).toBe(5);
+      expect(stock.totalUnidades).toBe(60);
     });
 
     it('una SALIDA descuenta y deja el saldo en el kardex', async () => {
@@ -133,7 +133,7 @@ describe.runIf(hayCredenciales)(
       );
 
       expect(n(mov, 'saldo_cajas')).toBe(3);
-      expect((await stockActual(zonaId)).cajas).toBe(3);
+      expect((await stockActual(zonaId)).cantidad).toBe(3);
     });
 
     it('rechaza un sobregiro: no existe el stock negativo', async () => {
@@ -142,9 +142,9 @@ describe.runIf(hayCredenciales)(
           `insert into movimiento (variante_id, zona_id, tipo, cajas)
          values (${varianteId}, ${zonaId}, 'SALIDA', 100)`,
         ),
-      ).rejects.toThrow(/stock_cajas_check/);
+      ).rejects.toThrow(/stock_cantidad_check/);
 
-      expect((await stockActual(zonaId)).cajas).toBe(3);
+      expect((await stockActual(zonaId)).cantidad).toBe(3);
     });
 
     it('el kardex es append-only: UPDATE y DELETE fallan', async () => {
@@ -168,7 +168,7 @@ describe.runIf(hayCredenciales)(
       const exitos = resultados.filter((r) => r.status === 'fulfilled').length;
 
       expect(exitos).toBe(1);
-      expect((await stockActual(zonaId)).cajas).toBe(1);
+      expect((await stockActual(zonaId)).cantidad).toBe(1);
     });
 
     it('fn_traspasar mueve stock entre zonas sin alterar el total', async () => {
@@ -176,8 +176,8 @@ describe.runIf(hayCredenciales)(
         `select fn_traspasar(${varianteId}, ${zonaId}, ${zonaId2}, 1, 'test de traspaso')`,
       );
 
-      expect((await stockActual(zonaId)).cajas).toBe(0);
-      expect((await stockActual(zonaId2)).cajas).toBe(1);
+      expect((await stockActual(zonaId)).cantidad).toBe(0);
+      expect((await stockActual(zonaId2)).cantidad).toBe(1);
     });
 
     it('fn_anular_movimiento registra el inverso y restituye el stock', async () => {
@@ -185,13 +185,13 @@ describe.runIf(hayCredenciales)(
         `insert into movimiento (variante_id, zona_id, tipo, cajas)
        values (${varianteId}, ${zonaId2}, 'SALIDA', 1) returning id`,
       );
-      expect((await stockActual(zonaId2)).cajas).toBe(0);
+      expect((await stockActual(zonaId2)).cantidad).toBe(0);
 
       const [anulacion] = await consultar(
         `select fn_anular_movimiento(${n(mov, 'id')}, 'test de anulación') as id`,
       );
 
-      expect((await stockActual(zonaId2)).cajas).toBe(1);
+      expect((await stockActual(zonaId2)).cantidad).toBe(1);
 
       // El inverso queda enlazado al original y no se puede anular dos veces.
       const [inverso] = await consultar(
@@ -214,7 +214,7 @@ describe.runIf(hayCredenciales)(
       from movimiento where variante_id = ${varianteId}`);
 
       const [existencia] = await consultar(
-        `select coalesce(sum(cajas), 0) as total from stock where variante_id = ${varianteId}`,
+        `select coalesce(sum(cantidad), 0) as total from stock where variante_id = ${varianteId}`,
       );
 
       expect(n(kardex, 'neto')).toBe(n(existencia, 'total'));

@@ -160,14 +160,14 @@ describe.runIf(hayCredenciales)(
       );
 
       const [origen] = await consultar(
-        `select cajas from stock where variante_id = ${varianteId} and zona_id = ${zonaId}`,
+        `select cantidad from stock where variante_id = ${varianteId} and zona_id = ${zonaId}`,
       );
       const [destino] = await consultar(
-        `select cajas from stock where variante_id = ${varianteId} and zona_id = ${zonaId2}`,
+        `select cantidad from stock where variante_id = ${varianteId} and zona_id = ${zonaId2}`,
       );
       // 5 iniciales - 1 vendida - 2 traspasadas = 2 en origen; 2 en destino.
-      expect(n(origen, 'cajas')).toBe(2);
-      expect(n(destino, 'cajas')).toBe(2);
+      expect(n(origen, 'cantidad')).toBe(2);
+      expect(n(destino, 'cantidad')).toBe(2);
     });
 
     it('fn_aplicar_toma_inventario ajusta solo la diferencia (INV-06)', async () => {
@@ -186,13 +186,13 @@ describe.runIf(hayCredenciales)(
       await comoAdmin(`select fn_aplicar_toma_inventario(${tomaId})`);
 
       const [zona1] = await consultar(
-        `select cajas from stock where variante_id = ${varianteId} and zona_id = ${zonaId}`,
+        `select cantidad from stock where variante_id = ${varianteId} and zona_id = ${zonaId}`,
       );
       const [zona2] = await consultar(
-        `select cajas from stock where variante_id = ${varianteId} and zona_id = ${zonaId2}`,
+        `select cantidad from stock where variante_id = ${varianteId} and zona_id = ${zonaId2}`,
       );
-      expect(n(zona1, 'cajas')).toBe(5);
-      expect(n(zona2, 'cajas')).toBe(2);
+      expect(n(zona1, 'cantidad')).toBe(5);
+      expect(n(zona2, 'cantidad')).toBe(2);
 
       // Solo debe haber generado UN ajuste (la zona que cuadraba no genera movimiento).
       const [ajustes] = await consultar(

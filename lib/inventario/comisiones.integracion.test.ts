@@ -87,7 +87,9 @@ describe.runIf(hayCredenciales)(
        values (${varianteId}, ${zonaId}, 'ENTRADA', 10)`,
       );
 
-      // Venta en CLP (tipo_cambio null -> factor 1): 4 cajas x 1000 = 4000 CLP.
+      // Venta en CLP: el precio ya está en pesos, así que la base de la
+      // comisión no se convierte aunque la venta lleve tipo de cambio (0025).
+      // 4 cajas x 1000 = 4000 CLP.
       const [venta] = await consultar(
         `insert into venta (cliente_id, moneda_id, vendedor_id) values (${clienteId}, ${monedaId}, ${vendedorId}) returning id`,
       );

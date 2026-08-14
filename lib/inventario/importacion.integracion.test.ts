@@ -78,9 +78,11 @@ describe.runIf(hayCredenciales)('compras: confirmación de importación', { time
     const [mon] = await consultar(`select id from moneda where codigo = 'USD'`);
     monedaId = n(mon, 'id');
 
+    // Sin tipo de cambio: lo pone `fn_documento_tipo_cambio` con el oficial de
+    // la fecha (0025), y mandarle uno aquí no cambiaría nada.
     const [imp] = await consultar(
-      `insert into importacion (proveedor_id, moneda_id, tipo_cambio, documento_aduana)
-       values (${proveedorId}, ${monedaId}, 950.5, '203-TEST') returning id`,
+      `insert into importacion (proveedor_id, moneda_id, documento_aduana)
+       values (${proveedorId}, ${monedaId}, '203-TEST') returning id`,
     );
     importacionId = n(imp, 'id');
 
@@ -129,10 +131,10 @@ describe.runIf(hayCredenciales)('compras: confirmación de importación', { time
 
     // 4 cajas × 10 u/caja: el trigger del movimiento hizo la conversión.
     const [stock] = await consultar(
-      `select cajas, unidades from stock where variante_id = ${varianteId} and zona_id = ${zonaId}`,
+      `select cantidad, total_unidades from stock where variante_id = ${varianteId} and zona_id = ${zonaId}`,
     );
-    expect(n(stock, 'cajas')).toBe(4);
-    expect(n(stock, 'unidades')).toBe(40);
+    expect(n(stock, 'cantidad')).toBe(4);
+    expect(n(stock, 'total_unidades')).toBe(40);
 
     const [mov] = await consultar(
       `select count(*)::int as total from movimiento

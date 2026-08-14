@@ -67,9 +67,9 @@ export default async function Articulos({
               <Th>Código</Th>
               <Th>Categoría</Th>
               <Th>Tallas</Th>
-              <Th numerico>Por caja</Th>
-              <Th numerico>Cajas</Th>
-              <Th numerico>Unidades</Th>
+              <Th numerico>Cantidad unidades</Th>
+              <Th numerico>Cantidad</Th>
+              <Th numerico>Total unidades</Th>
               <Th>Ubicación</Th>
             </tr>
           </thead>
@@ -84,8 +84,8 @@ export default async function Articulos({
                 <Td numerico tenue>
                   {numero(a.unidades_por_caja)}
                 </Td>
-                <Td numerico>{numero(a.cajas)}</Td>
-                <Td numerico>{numero(a.unidades)}</Td>
+                <Td numerico>{numero(a.cantidad)}</Td>
+                <Td numerico>{numero(a.total_unidades)}</Td>
                 <Td tenue>{a.zonas ?? '—'}</Td>
               </tr>
             ))}

@@ -16,6 +16,10 @@ interface Toast {
  * Reemplazan al texto pequeño dentro del formulario, que se pierde al hacer
  * scroll: el toast aparece fijo arriba a la derecha y se va solo.
  *
+ * Va en `z-70`, la capa más alta del sistema (ver la escala en globals.css):
+ * casi todos los avisos nacen dentro de un modal abierto, y si el toast queda
+ * por debajo el usuario no ve por qué no se guardó.
+ *
  * El contexto trae por defecto una función vacía, así `useToast()` nunca
  * revienta aunque un componente quede fuera del proveedor.
  */
@@ -41,7 +45,7 @@ export function ProveedorToast({ children }: { children: React.ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed top-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"
+        className="pointer-events-none fixed top-4 right-4 z-[70] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"
       >
         {toasts.map((t) => (
           <div

@@ -23,6 +23,16 @@ export interface EstiloColor {
   borde: string;
   /** Realce de la opción elegida en el selector. */
   anillo: string;
+  /**
+   * La misma insignia para papel: sin variante `dark:` y con borde.
+   *
+   * No se puede reutilizar `distintivo` en las hojas impresas. El variante
+   * `dark:` alcanza a todo descendiente de `[data-theme='oscuro']`, que vive en
+   * `<html>`, así que una nota impresa por alguien con el tema oscuro puesto
+   * saldría con las insignias en su versión nocturna. El borde está porque en
+   * una impresora en blanco y negro los rellenos claros se pierden.
+   */
+  impreso: string;
 }
 
 export const COLORES_BODEGA = {
@@ -31,48 +41,56 @@ export const COLORES_BODEGA = {
     punto: 'bg-sky-500',
     borde: 'border-l-sky-500',
     anillo: 'ring-sky-500',
+    impreso: 'bg-sky-100 text-sky-900 border-sky-500',
   },
   verde: {
     distintivo: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
     punto: 'bg-emerald-500',
     borde: 'border-l-emerald-500',
     anillo: 'ring-emerald-500',
+    impreso: 'bg-emerald-100 text-emerald-900 border-emerald-500',
   },
   ambar: {
     distintivo: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
     punto: 'bg-amber-500',
     borde: 'border-l-amber-500',
     anillo: 'ring-amber-500',
+    impreso: 'bg-amber-100 text-amber-900 border-amber-500',
   },
   rojo: {
     distintivo: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
     punto: 'bg-red-500',
     borde: 'border-l-red-500',
     anillo: 'ring-red-500',
+    impreso: 'bg-red-100 text-red-900 border-red-500',
   },
   violeta: {
     distintivo: 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300',
     punto: 'bg-violet-500',
     borde: 'border-l-violet-500',
     anillo: 'ring-violet-500',
+    impreso: 'bg-violet-100 text-violet-900 border-violet-500',
   },
   cian: {
     distintivo: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300',
     punto: 'bg-cyan-500',
     borde: 'border-l-cyan-500',
     anillo: 'ring-cyan-500',
+    impreso: 'bg-cyan-100 text-cyan-900 border-cyan-500',
   },
   rosa: {
     distintivo: 'bg-pink-100 text-pink-800 dark:bg-pink-950 dark:text-pink-300',
     punto: 'bg-pink-500',
     borde: 'border-l-pink-500',
     anillo: 'ring-pink-500',
+    impreso: 'bg-pink-100 text-pink-900 border-pink-500',
   },
   gris: {
     distintivo: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
     punto: 'bg-zinc-400',
     borde: 'border-l-zinc-400',
     anillo: 'ring-zinc-400',
+    impreso: 'bg-zinc-100 text-zinc-900 border-zinc-500',
   },
 } as const satisfies Record<string, EstiloColor>;
 

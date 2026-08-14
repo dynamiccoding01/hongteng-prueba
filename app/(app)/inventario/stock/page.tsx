@@ -3,8 +3,10 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Buscador } from '@/components/buscador';
+import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
+import { estiloBodega } from '@/lib/colores-bodega';
 
 export const metadata = { title: 'Stock por zona · Inventario' };
 
@@ -28,10 +30,10 @@ export default async function StockPorZona({
   let consulta = supabase
     .from('stock')
     .select(
-      'id, cajas, unidades, zona:zona_id!inner(codigo, bodega:bodega_id(codigo)), variante:variante_id!inner(unidades_por_caja, producto:producto_id!inner(codigo, rango_tallas, categoria:categoria_id(nombre_es)))',
+      'id, cantidad, total_unidades, zona:zona_id!inner(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id!inner(unidades_por_caja, producto:producto_id!inner(codigo, descripcion_es, rango_tallas, categoria:categoria_id(nombre_es), unidad:unidad_medida_id(nombre_es)))',
       { count: 'exact' },
     )
-    .gt('cajas', 0)
+    .gt('cantidad', 0)
     // El orden va en la base de datos, no en TypeScript: ordenar después de
     // paginar solo reordenaría la página que tocó, no el listado.
     .order('zona_id')
@@ -45,8 +47,8 @@ export default async function StockPorZona({
   if (error) return <Vacio>No se pudo consultar el stock: {error.message}</Vacio>;
 
   const ordenadas = filas ?? [];
-  const totalCajas = ordenadas.reduce((s, f) => s + Number(f.cajas), 0);
-  const totalUnidades = ordenadas.reduce((s, f) => s + Number(f.unidades), 0);
+  const totalCantidad = ordenadas.reduce((s, f) => s + Number(f.cantidad), 0);
+  const totalUnidades = ordenadas.reduce((s, f) => s + Number(f.total_unidades), 0);
 
   return (
     <>
@@ -77,32 +79,41 @@ export default async function StockPorZona({
             <thead>
               <tr>
                 <Th>Código</Th>
+                <Th>Artículo</Th>
                 <Th>Categoría</Th>
                 <Th>Tallas</Th>
-                <Th>Bodega</Th>
-                <Th>Zona</Th>
-                <Th numerico>Por caja</Th>
-                <Th numerico>Cajas</Th>
-                <Th numerico>Unidades</Th>
+                <Th>Bodega · Zona</Th>
+                <Th>Se cuenta en</Th>
+                <Th numerico>Cantidad unidades</Th>
+                <Th numerico>Cantidad</Th>
+                <Th numerico>Total unidades</Th>
               </tr>
             </thead>
             <tbody>
               {ordenadas.map((f) => (
                 <tr key={f.id}>
-                  <Td>
+                  <Td className={`border-l-4 ${estiloBodega(f.zona.bodega?.color).borde}`}>
                     <code className="text-xs">{f.variante.producto.codigo}</code>
                   </Td>
+                  <Td>{f.variante.producto.descripcion_es ?? '—'}</Td>
                   <Td tenue>{f.variante.producto.categoria?.nombre_es ?? '—'}</Td>
                   <Td tenue>{f.variante.producto.rango_tallas ?? '—'}</Td>
-                  <Td tenue>{f.zona.bodega?.codigo ?? '—'}</Td>
                   <Td>
-                    <code className="text-xs">{f.zona.codigo}</code>
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                      <DistintivoBodega
+                        codigo={f.zona.bodega?.codigo ?? '—'}
+                        color={f.zona.bodega?.color}
+                        titulo={f.zona.bodega?.nombre}
+                      />
+                      <code className="text-xs">{f.zona.codigo}</code>
+                    </span>
                   </Td>
+                  <Td tenue>{f.variante.producto.unidad?.nombre_es ?? '—'}</Td>
                   <Td numerico tenue>
                     {numero(f.variante.unidades_por_caja)}
                   </Td>
-                  <Td numerico>{numero(f.cajas)}</Td>
-                  <Td numerico>{numero(f.unidades)}</Td>
+                  <Td numerico>{numero(f.cantidad)}</Td>
+                  <Td numerico>{numero(f.total_unidades)}</Td>
                 </tr>
               ))}
             </tbody>
@@ -111,7 +122,8 @@ export default async function StockPorZona({
           {/* Los totales son de esta página, no del listado completo: sumar
               todo exigiría traerlo entero, que es justo lo que evita paginar. */}
           <p className="mt-4 text-sm text-zinc-500">
-            En esta página: {numero(totalCajas)} cajas · {numero(totalUnidades)} unidades
+            En esta página: {numero(totalCantidad)} de cantidad · {numero(totalUnidades)} unidades
+            en total
           </p>
         </>
       )}

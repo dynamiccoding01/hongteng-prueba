@@ -9,6 +9,21 @@
 @custom-variant dark (&:where([data-theme='oscuro'], [data-theme='oscuro'] *));
 
 /*
+ * ESCALA DE CAPAS. Con el mismo z-index gana el último elemento del DOM, y el
+ * modal se monta con createPortal sobre document.body: siempre queda de último.
+ * Por eso las capas que deben verse POR ENCIMA del modal necesitan un número
+ * mayor, no basta con empatarlo.
+ *
+ *   z-40   velo del menú en móvil        components/marco.tsx
+ *   z-50   menú lateral en móvil         components/marco.tsx
+ *   z-60   modal de formulario           components/formulario.tsx
+ *   z-70   avisos (toast)                components/proveedor-toast.tsx
+ *
+ * El toast va arriba de todo porque casi siempre nace dentro de un modal
+ * abierto: si queda debajo, el usuario no ve por qué no se guardó.
+ */
+
+/*
  * Tokens de color como variables de tema de Tailwind v4: generan las clases
  * bg-fondo, bg-superficie, bg-menu, border-borde, text-texto, text-tenue,
  * bg-acento, etc. Los valores reales se fijan más abajo según el tema.
@@ -125,5 +140,73 @@ body {
     to {
       opacity: 1;
     }
+  }
+}
+
+/*
+ * IMPRESIÓN. Las páginas bajo app/(impresion) son documentos: salen a papel y
+ * a veces a las manos de un cliente, así que se rigen por reglas distintas a
+ * las de la pantalla.
+ *
+ * El tema oscuro NO se hereda aquí. `data-theme="oscuro"` vive en <html>, y el
+ * variante dark: de Tailwind también alcanza a los descendientes, así que no
+ * basta con marcar un contenedor como claro: esas páginas evitan las clases
+ * `dark:` y fijan sus colores. Una nota de venta impresa sobre fondo negro
+ * gastaría un cartucho y sería ilegible.
+ */
+@media print {
+  @page {
+    size: letter portrait;
+    /* Márgenes generosos abajo: muchas impresoras no llegan al borde. */
+    margin: 10mm 10mm 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Botones, barras y ayudas de pantalla que no van al papel. */
+  .no-imprimir {
+    display: none !important;
+  }
+
+  /*
+   * Cada copia es una hoja. `break-inside: avoid` en las filas evita que una
+   * línea del detalle quede partida entre dos páginas, que en un documento
+   * que alguien firma es un problema y no un detalle estético.
+   */
+  .hoja {
+    break-after: page;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;
+    min-height: 0 !important;
+  }
+
+  .hoja:last-of-type {
+    break-after: auto;
+  }
+
+  tr,
+  .sin-partir {
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  /*
+   * Los fondos de color de las insignias de bodega se imprimen. Es lo que
+   * pidió el cliente para la copia de despacho, y por eso mismo el código de
+   * la bodega va SIEMPRE escrito al lado: en una impresora en blanco y negro
+   * el color desaparece y el dato tiene que seguir estando.
+   */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

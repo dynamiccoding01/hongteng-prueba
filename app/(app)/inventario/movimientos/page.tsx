@@ -1,8 +1,9 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
-import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
-import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { Campo, FormularioDesplegable } from '@/components/formulario';
+import { CamposMovimiento } from '@/components/campos-inventario';
+import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
 import { anularMovimiento, registrarMovimiento } from './acciones';
@@ -37,25 +38,24 @@ export default async function Movimientos({
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: movimientos, count, error }, { data: variantes }, { data: zonas }] =
-    await Promise.all([
-      supabase
-        .from('movimiento')
-        .select(
-          'id, tipo, cajas, unidades, saldo_cajas, motivo, fecha, anulado_por, zona:zona_id(codigo), variante:variante_id(unidades_por_caja, producto:producto_id(codigo)), usuario:usuario_id(nombre)',
-          { count: 'exact' },
-        )
-        .order('fecha', { ascending: false })
-        .range(desde, hasta),
-      // Opciones del formulario, no listados: van completas.
-      supabase
-        .from('producto_variante')
-        .select('id, unidades_por_caja, producto:producto_id!inner(codigo, activo)')
-        .eq('activo', true)
-        .eq('producto.activo', true)
-        .limit(1000),
-      supabase.from('zona').select('id, codigo').eq('activo', true).order('codigo'),
-    ]);
+  const [{ data: movimientos, count, error }, { data: zonas }] = await Promise.all([
+    supabase
+      .from('movimiento')
+      .select(
+        'id, tipo, cajas, unidades, saldo_cajas, motivo, fecha, anulado_por, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, unidad:unidad_medida_id(nombre_es))), usuario:usuario_id(nombre)',
+        { count: 'exact' },
+      )
+      .order('fecha', { ascending: false })
+      .range(desde, hasta),
+    // Las zonas son pocas (una por ubicación física) y el formulario las
+    // necesita todas para una entrada. Los artículos ya no se precargan: el
+    // selector los busca contra la base.
+    supabase
+      .from('zona')
+      .select('id, codigo, bodega:bodega_id(codigo, nombre, color)')
+      .eq('activo', true)
+      .order('codigo'),
+  ]);
 
   if (error) return <Vacio>No se pudieron cargar los movimientos: {error.message}</Vacio>;
 
@@ -63,13 +63,13 @@ export default async function Movimientos({
     (movimientos ?? []).map((m) => m.anulado_por).filter((id): id is number => id !== null),
   );
 
-  const opcionesVariante = (variantes ?? [])
-    .sort((a, b) => a.producto.codigo.localeCompare(b.producto.codigo))
-    .map((v) => ({
-      valor: v.id,
-      texto: `${v.producto.codigo} — ${numero(v.unidades_por_caja)} u/caja`,
-    }));
-  const opcionesZona = (zonas ?? []).map((z) => ({ valor: z.id, texto: z.codigo }));
+  const opcionesZona = (zonas ?? []).map((z) => ({
+    id: z.id,
+    codigo: z.codigo,
+    bodega: z.bodega?.codigo ?? '—',
+    bodegaNombre: z.bodega?.nombre ?? null,
+    color: z.bodega?.color ?? 'gris',
+  }));
 
   return (
     <>
@@ -79,31 +79,7 @@ export default async function Movimientos({
       >
         {puedeCrear ? (
           <FormularioDesplegable accion={registrarMovimiento} etiquetaNuevo="Nuevo movimiento">
-            <SeleccionBuscable
-              etiqueta="Artículo"
-              nombre="variante_id"
-              opciones={opcionesVariante}
-              requerido
-            />
-            <SeleccionBuscable etiqueta="Zona" nombre="zona_id" opciones={opcionesZona} requerido />
-            <Seleccion
-              etiqueta="Tipo"
-              nombre="tipo"
-              opciones={[
-                { valor: 'ENTRADA', texto: 'Entrada' },
-                { valor: 'SALIDA', texto: 'Salida' },
-                { valor: 'AJUSTE_POSITIVO', texto: 'Ajuste positivo' },
-                { valor: 'AJUSTE_NEGATIVO', texto: 'Ajuste negativo' },
-              ]}
-              requerido
-            />
-            <Campo etiqueta="Cajas" nombre="cajas" tipo="number" requerido ejemplo="5" />
-            <Campo
-              etiqueta="Motivo"
-              nombre="motivo"
-              ancho="completo"
-              ejemplo="Obligatorio en ajustes"
-            />
+            <CamposMovimiento zonas={opcionesZona} />
           </FormularioDesplegable>
         ) : null}
       </Encabezado>
@@ -119,7 +95,7 @@ export default async function Movimientos({
             <tr>
               <Th>Fecha</Th>
               <Th>Artículo</Th>
-              <Th>Zona</Th>
+              <Th>Bodega · Zona</Th>
               <Th>Tipo</Th>
               <Th numerico>Cajas</Th>
               <Th numerico>Unidades</Th>
@@ -139,8 +115,21 @@ export default async function Movimientos({
                   <Td tenue>{fecha(m.fecha)}</Td>
                   <Td>
                     <code className="text-xs">{m.variante.producto.codigo}</code>
+                    <span className="ml-2 text-xs text-tenue">
+                      {numero(m.variante.unidades_por_caja)}{' '}
+                      {(m.variante.producto.unidad?.nombre_es ?? 'u').toLowerCase()}/caja
+                    </span>
                   </Td>
-                  <Td tenue>{m.zona.codigo}</Td>
+                  <Td>
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                      <DistintivoBodega
+                        codigo={m.zona.bodega?.codigo ?? '—'}
+                        color={m.zona.bodega?.color}
+                        titulo={m.zona.bodega?.nombre}
+                      />
+                      <code className="text-xs">{m.zona.codigo}</code>
+                    </span>
+                  </Td>
                   <Td>
                     <Etiqueta tono={t.tono}>{t.texto}</Etiqueta>
                     {esAnulacion ? (

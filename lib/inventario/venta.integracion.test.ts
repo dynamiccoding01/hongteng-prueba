@@ -137,10 +137,10 @@ describe.runIf(hayCredenciales)('ventas: confirmación y precios', { timeout: 60
 
     // 5 iniciales − 2 vendidas = 3 cajas (18 unidades con factor 6).
     const [stock] = await consultar(
-      `select cajas, unidades from stock where variante_id = ${varianteId} and zona_id = ${zonaId}`,
+      `select cantidad, total_unidades from stock where variante_id = ${varianteId} and zona_id = ${zonaId}`,
     );
-    expect(n(stock, 'cajas')).toBe(3);
-    expect(n(stock, 'unidades')).toBe(18);
+    expect(n(stock, 'cantidad')).toBe(3);
+    expect(n(stock, 'total_unidades')).toBe(18);
 
     const [mov] = await consultar(
       `select count(*)::int as total from movimiento
@@ -166,14 +166,14 @@ describe.runIf(hayCredenciales)('ventas: confirmación y precios', { timeout: 60
     );
 
     await expect(comoAdmin(`select fn_confirmar_venta(${otraId})`)).rejects.toThrow(
-      /stock_cajas_check/,
+      /stock_cantidad_check/,
     );
 
     // Todo o nada: ni siquiera la línea de 1 caja se descontó.
     const [stock] = await consultar(
-      `select cajas from stock where variante_id = ${varianteId} and zona_id = ${zonaId}`,
+      `select cantidad from stock where variante_id = ${varianteId} and zona_id = ${zonaId}`,
     );
-    expect(n(stock, 'cajas')).toBe(3);
+    expect(n(stock, 'cantidad')).toBe(3);
     const [venta] = await consultar(`select estado from venta where id = ${otraId}`);
     expect(venta?.estado).toBe('BORRADOR');
 

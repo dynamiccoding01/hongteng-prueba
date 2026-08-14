@@ -1,13 +1,24 @@
+import Link from 'next/link';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { CamposDetalleVenta, CamposLineaVenta } from '@/components/campos-venta';
+import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
-import { agregarDetalleVenta, confirmarVenta, crearVenta } from './acciones';
+import { unidadLegible, type ExistenciaZona } from '@/lib/inventario/articulo';
+import {
+  agregarDetalleVenta,
+  confirmarVenta,
+  crearVenta,
+  editarLineaVenta,
+  editarVenta,
+  eliminarLineaVenta,
+} from './acciones';
 
-export const metadata = { title: 'Notas de venta · Inventario' };
+export const metadata = { title: 'Notas de venta en borrador · Inventario' };
 
 function fecha(valor: string): string {
   return new Intl.DateTimeFormat('es-CL', { dateStyle: 'short' }).format(
@@ -15,7 +26,118 @@ function fecha(valor: string): string {
   );
 }
 
-/** VEN-01/02: notas de venta con descuento de stock al confirmar. */
+/** Clave de una existencia concreta: un empaque en una zona. */
+function clave(varianteId: number, zonaId: number): string {
+  return `${varianteId}-${zonaId}`;
+}
+
+interface Opcion {
+  valor: string | number;
+  texto: string;
+}
+
+/** Datos de la venta que se pueden corregir mientras sea borrador. */
+interface Cabecera {
+  id: number;
+  cliente_id: number;
+  moneda_id: number;
+  vendedor_id: number | null;
+  tipo_cambio: number;
+  fecha: string;
+  notas: string | null;
+  /** Cuántas líneas tiene ya: con detalle, la moneda queda sellada. */
+  lineas: number;
+}
+
+/**
+ * Campos de la cabecera, compartidos por el alta y la corrección.
+ *
+ * `estado` no está aquí a propósito: pasar de BORRADOR a CONFIRMADA es trabajo
+ * de `fn_confirmar_venta`, que además genera las SALIDAS.
+ *
+ * El tipo de cambio tampoco: ya no se teclea en la venta. Se mantiene en
+ * Maestros › Tipo de cambio y cada venta se lleva una copia del valor del día
+ * en que se creó. Aquí solo se muestra cuál le tocó.
+ */
+function CamposCabecera({
+  v,
+  clientes,
+  monedas,
+  vendedores,
+  cambioVigente,
+}: {
+  v?: Cabecera;
+  clientes: Opcion[];
+  monedas: Opcion[];
+  vendedores: Opcion[];
+  /** Pesos por dólar que va a tomar una venta creada hoy. */
+  cambioVigente: number | null;
+}) {
+  const cambio = v?.tipo_cambio ?? cambioVigente;
+  const conDetalle = (v?.lineas ?? 0) > 0;
+
+  return (
+    <>
+      {v ? <input type="hidden" name="id" value={v.id} /> : null}
+      <SeleccionBuscable
+        etiqueta="Cliente"
+        nombre="cliente_id"
+        valor={v?.cliente_id}
+        opciones={clientes}
+        requerido
+      />
+      <Seleccion
+        etiqueta="Moneda"
+        nombre="moneda_id"
+        valor={v?.moneda_id}
+        opciones={monedas}
+        requerido
+        ayuda={
+          conDetalle
+            ? 'No se puede cambiar: la venta ya tiene líneas con precios en esta moneda'
+            : 'En pesos, los precios de la lista se convierten con el tipo de cambio'
+        }
+      />
+      {vendedores.length > 0 ? (
+        <Seleccion
+          etiqueta="Vendedor (opcional)"
+          nombre="vendedor_id"
+          valor={v?.vendedor_id}
+          opciones={vendedores}
+        />
+      ) : null}
+      <Campo etiqueta="Fecha" nombre="fecha" valor={v?.fecha} tipo="date" />
+      <Campo etiqueta="Notas" nombre="notas" valor={v?.notas} ancho="completo" />
+      <p className="rounded-lg bg-zinc-100 px-3 py-2 text-xs text-tenue sm:col-span-2 dark:bg-zinc-800">
+        {cambio === null ? (
+          <>
+            <strong>No hay tipo de cambio cargado</strong>, así que esta venta no se va a poder
+            crear. Cárguelo en Maestros › Tipo de cambio.
+          </>
+        ) : v ? (
+          <>
+            Tipo de cambio de esta venta: <strong>$ {numero(cambio)}</strong> por dólar. Quedó
+            congelado al crearla y no se edita, porque los precios ya calculados dejarían de
+            cuadrar.
+          </>
+        ) : (
+          <>
+            Se va a grabar con el dólar a <strong>$ {numero(cambio)}</strong>, que es el vigente
+            hoy. Si vende en pesos, de ahí sale el precio de cada línea.
+          </>
+        )}
+      </p>
+    </>
+  );
+}
+
+/**
+ * VEN-01/02: notas de venta en preparación.
+ *
+ * Solo borradores, por lo mismo que en compras: una venta confirmada es un
+ * documento sellado —`tr_venta_confirmada_inmutable`— y mezclada aquí entierra
+ * lo que sí hay que terminar. El historial vive en /ventas/confirmadas.
+ */
 export default async function NotasDeVenta({
   searchParams,
 }: {
@@ -31,35 +153,82 @@ export default async function NotasDeVenta({
     { data: ventas, count, error },
     { data: clientes },
     { data: monedas },
-    { data: variantes },
-    { data: zonas },
     { data: vendedores },
+    { data: cambioVigente },
   ] = await Promise.all([
     supabase
       .from('venta')
       .select(
-        'id, fecha, tipo_cambio, estado, notas, comision_clp, comision_porcentaje, cliente:cliente_id(nombre, lista:lista_precio_id(nombre)), moneda:moneda_id(codigo, simbolo), vendedor:vendedor_id(usuario:usuario_id(nombre)), detalle:venta_detalle(id, cajas, precio_caja, zona:zona_id(codigo), variante:variante_id(unidades_por_caja, producto:producto_id(codigo)))',
+        'id, fecha, tipo_cambio, notas, comision_clp, comision_porcentaje, cliente_id, moneda_id, vendedor_id, cliente:cliente_id(nombre, lista:lista_precio_id(nombre)), moneda:moneda_id(codigo, simbolo), vendedor:vendedor_id(usuario:usuario_id(nombre)), detalle:venta_detalle(id, variante_id, zona_id, cajas, precio_caja, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, unidad:unidad_medida_id(nombre_es))))',
         { count: 'exact' },
       )
+      .eq('estado', 'BORRADOR')
       .order('id', { ascending: false })
       .range(desde, hasta),
     supabase.from('cliente').select('id, codigo, nombre').eq('activo', true).order('nombre'),
-    supabase.from('moneda').select('id, codigo, nombre').eq('activo', true).order('codigo'),
+    // Solo dólares y pesos: son las dos que el sistema sabe convertir, y es lo
+    // que impone `fn_venta_moneda` en la base. Ofrecer euros o UF aquí solo
+    // servía para dejar la venta a medias, con el precio escrito a mano.
     supabase
-      .from('producto_variante')
-      .select('id, unidades_por_caja, producto:producto_id!inner(codigo, activo)')
+      .from('moneda')
+      .select('id, codigo, nombre')
+      .in('codigo', ['USD', 'CLP'])
       .eq('activo', true)
-      .eq('producto.activo', true)
-      .limit(1000),
-    supabase.from('zona').select('id, codigo').eq('activo', true).order('codigo'),
+      .order('codigo'),
     supabase
       .from('vendedor')
       .select('id, usuario:usuario_id(nombre)')
       .eq('activo', true)
       .order('id'),
+    // El que va a quedar grabado en una venta creada hoy. Se pregunta a la
+    // base, que es quien lo pone, para que la pantalla no anuncie otro.
+    supabase.rpc('fn_tipo_cambio_vigente', { p_fecha: new Date().toISOString().slice(0, 10) }),
   ]);
 
   if (error) return <Vacio>No se pudieron cargar las ventas: {error.message}</Vacio>;
+
+  const borradores = ventas ?? [];
+
+  /*
+   * Cuánta existencia hay realmente donde cada línea dice que la hay.
+   *
+   * Un borrador se guarda sin comprobarlo —la barrera está al confirmar, en el
+   * trigger de stock—, así que una línea puede llevar meses apuntando a una
+   * zona vacía y solo delatarse cuando la venta entera falla. Esta consulta va
+   * acotada a las líneas que ya se están mostrando y permite avisarlo antes.
+   */
+  const existenciaPorLinea = new Map<string, number>();
+  /** Dónde tiene existencia cada empaque: alimenta el editor de la línea. */
+  const existenciasPorVariante = new Map<number, ExistenciaZona[]>();
+  const idsVariante = [...new Set(borradores.flatMap((v) => v.detalle.map((d) => d.variante_id)))];
+
+  if (idsVariante.length > 0) {
+    const { data: existencias } = await supabase
+      .from('stock')
+      .select(
+        'variante_id, zona_id, cantidad, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color))',
+      )
+      .in('variante_id', idsVariante)
+      .gt('cantidad', 0);
+
+    for (const s of existencias ?? []) {
+      existenciaPorLinea.set(clave(s.variante_id, s.zona_id), Number(s.cantidad));
+      const lista = existenciasPorVariante.get(s.variante_id) ?? [];
+      lista.push({
+        zonaId: s.zona_id,
+        zona: s.zona.codigo,
+        bodega: s.zona.bodega?.codigo ?? '—',
+        bodegaNombre: s.zona.bodega?.nombre ?? null,
+        color: s.zona.bodega?.color ?? 'gris',
+        cantidad: Number(s.cantidad),
+      });
+      existenciasPorVariante.set(s.variante_id, lista);
+    }
+
+    for (const lista of existenciasPorVariante.values()) {
+      lista.sort((a, b) => b.cantidad - a.cantidad);
+    }
+  }
 
   const opcionesCliente = (clientes ?? []).map((c) => ({
     valor: c.id,
@@ -69,13 +238,6 @@ export default async function NotasDeVenta({
     valor: m.id,
     texto: `${m.codigo} — ${m.nombre}`,
   }));
-  const opcionesVariante = (variantes ?? [])
-    .sort((a, b) => a.producto.codigo.localeCompare(b.producto.codigo))
-    .map((v) => ({
-      valor: v.id,
-      texto: `${v.producto.codigo} — ${numero(v.unidades_por_caja)} u/caja`,
-    }));
-  const opcionesZona = (zonas ?? []).map((z) => ({ valor: z.id, texto: z.codigo }));
   const opcionesVendedor = (vendedores ?? []).map((v) => ({
     valor: v.id,
     texto: v.usuario.nombre,
@@ -84,58 +246,58 @@ export default async function NotasDeVenta({
   return (
     <>
       <Encabezado
-        titulo="Notas de venta"
-        descripcion="Ventas a mayoristas con descuento de stock al confirmar (VEN-01, VEN-02)"
+        titulo="Notas de venta en borrador"
+        descripcion="Ventas en preparación: se editan hasta confirmarlas (VEN-01, VEN-02)"
       >
+        <Link
+          href="/ventas/confirmadas"
+          className="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-black/5 dark:border-zinc-700 dark:hover:bg-white/10"
+        >
+          Ver confirmadas
+        </Link>
         {puedeCrear ? (
           <FormularioDesplegable accion={crearVenta} etiquetaNuevo="Nueva venta">
-            <SeleccionBuscable
-              etiqueta="Cliente"
-              nombre="cliente_id"
-              opciones={opcionesCliente}
-              requerido
+            <CamposCabecera
+              clientes={opcionesCliente}
+              monedas={opcionesMoneda}
+              vendedores={opcionesVendedor}
+              cambioVigente={cambioVigente}
             />
-            <Seleccion etiqueta="Moneda" nombre="moneda_id" opciones={opcionesMoneda} requerido />
-            {opcionesVendedor.length > 0 ? (
-              <Seleccion
-                etiqueta="Vendedor (opcional)"
-                nombre="vendedor_id"
-                opciones={opcionesVendedor}
-              />
-            ) : null}
-            <Campo etiqueta="Tipo de cambio a CLP" nombre="tipo_cambio" tipo="number" />
-            <Campo etiqueta="Fecha" nombre="fecha" tipo="date" />
-            <Campo etiqueta="Notas" nombre="notas" ancho="completo" />
           </FormularioDesplegable>
         ) : null}
       </Encabezado>
 
-      {(ventas ?? []).length === 0 ? (
+      {borradores.length === 0 ? (
         <Vacio>
-          No hay ventas registradas.
-          {puedeCrear ? ' Use «Nueva venta» para crear el primer borrador.' : ''}
+          No hay notas de venta en borrador.
+          {puedeCrear ? ' Use «Nueva venta» para empezar una.' : ''} Las ya confirmadas están en{' '}
+          <Link href="/ventas/confirmadas">Ventas confirmadas</Link>.
         </Vacio>
       ) : (
         <div className="space-y-8">
-          {(ventas ?? []).map((venta) => {
+          {borradores.map((venta) => {
             const totalCajas = venta.detalle.reduce((s, d) => s + Number(d.cajas), 0);
             const totalMonto = venta.detalle.reduce(
               (s, d) => s + Number(d.cajas) * Number(d.precio_caja ?? 0),
               0,
             );
-            const esBorrador = venta.estado === 'BORRADOR';
+            // Líneas que hoy no se podrían despachar. Basta una para que la
+            // confirmación entera falle: es todo o nada en la base.
+            const lineasSinStock = venta.detalle.filter(
+              (d) =>
+                (existenciaPorLinea.get(clave(d.variante_id, d.zona_id)) ?? 0) < Number(d.cajas),
+            );
+
             return (
               <section key={venta.id} className="rounded-xl border border-borde bg-superficie p-4">
                 <div className="mb-3 flex flex-wrap items-center gap-3">
                   <h2 className="text-sm font-semibold">Venta #{venta.id}</h2>
-                  <Etiqueta tono={esBorrador ? 'ambar' : 'verde'}>
-                    {esBorrador ? 'Borrador' : 'Confirmada'}
-                  </Etiqueta>
+                  <Etiqueta tono="ambar">Borrador</Etiqueta>
                   <span className="text-sm text-zinc-500">
                     {fecha(venta.fecha)} · {venta.cliente.nombre}
                     {venta.cliente.lista ? ` (lista ${venta.cliente.lista.nombre})` : ''} ·{' '}
                     {venta.moneda.codigo}
-                    {venta.tipo_cambio ? ` (TC ${numero(venta.tipo_cambio)})` : ''}
+                    {` · dólar a $ ${numero(venta.tipo_cambio)}`}
                     {venta.vendedor ? ` · vendedor: ${venta.vendedor.usuario.nombre}` : ''}
                     {venta.comision_clp !== null
                       ? ` (comisión ${numero(venta.comision_porcentaje)} % = $ ${numero(venta.comision_clp)})`
@@ -144,7 +306,38 @@ export default async function NotasDeVenta({
                   <span className="ml-auto text-sm text-zinc-500">
                     {numero(totalCajas)} cajas · {venta.moneda.simbolo ?? ''} {numero(totalMonto)}
                   </span>
+                  {puedeCrear ? (
+                    <FormularioDesplegable accion={editarVenta} etiquetaNuevo="" esEdicion>
+                      <CamposCabecera
+                        v={{
+                          id: venta.id,
+                          cliente_id: venta.cliente_id,
+                          moneda_id: venta.moneda_id,
+                          vendedor_id: venta.vendedor_id,
+                          tipo_cambio: venta.tipo_cambio,
+                          fecha: venta.fecha,
+                          notas: venta.notas,
+                          lineas: venta.detalle.length,
+                        }}
+                        clientes={opcionesCliente}
+                        monedas={opcionesMoneda}
+                        vendedores={opcionesVendedor}
+                        cambioVigente={cambioVigente}
+                      />
+                    </FormularioDesplegable>
+                  ) : null}
                 </div>
+
+                {lineasSinStock.length > 0 ? (
+                  <p className="mb-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300">
+                    <strong>Esta venta no se puede confirmar todavía.</strong>{' '}
+                    {lineasSinStock.length === 1
+                      ? 'Una línea pide'
+                      : `${numero(lineasSinStock.length)} líneas piden`}{' '}
+                    más cajas de las que hay en la zona indicada. Corrija la zona o la cantidad:
+                    confirmar es todo o nada, así que una sola línea basta para que falle.
+                  </p>
+                ) : null}
 
                 {venta.detalle.length === 0 ? (
                   <p className="text-sm text-zinc-500">Sin detalle todavía.</p>
@@ -153,63 +346,147 @@ export default async function NotasDeVenta({
                     <thead>
                       <tr>
                         <Th>Artículo</Th>
-                        <Th>Zona origen</Th>
-                        <Th numerico>Cajas</Th>
+                        <Th>Zona de origen</Th>
+                        <Th numerico>Cantidad</Th>
+                        <Th numerico>Disponible</Th>
                         <Th numerico>Precio caja</Th>
                         <Th numerico>Subtotal</Th>
+                        {puedeCrear ? <Th> </Th> : null}
                       </tr>
                     </thead>
                     <tbody>
-                      {venta.detalle.map((d) => (
-                        <tr key={d.id}>
-                          <Td>
-                            <code className="text-xs">{d.variante.producto.codigo}</code>
-                            <span className="ml-2 text-xs text-zinc-500">
-                              {numero(d.variante.unidades_por_caja)} u/caja
-                            </span>
-                          </Td>
-                          <Td tenue>{d.zona.codigo}</Td>
-                          <Td numerico>{numero(d.cajas)}</Td>
-                          <Td numerico tenue>
-                            {d.precio_caja === null ? '—' : numero(d.precio_caja)}
-                          </Td>
-                          <Td numerico>
-                            {d.precio_caja === null
-                              ? '—'
-                              : numero(Number(d.cajas) * Number(d.precio_caja))}
-                          </Td>
-                        </tr>
-                      ))}
+                      {venta.detalle.map((d) => {
+                        const hay = existenciaPorLinea.get(clave(d.variante_id, d.zona_id)) ?? 0;
+                        const alcanza = hay >= Number(d.cajas);
+                        return (
+                          <tr key={d.id}>
+                            <Td>
+                              <code className="text-xs">{d.variante.producto.codigo}</code>
+                              <span className="ml-2 text-xs text-zinc-500">
+                                {numero(d.variante.unidades_por_caja)}{' '}
+                                {unidadLegible(d.variante.producto.unidad?.nombre_es ?? '')} por
+                                caja
+                              </span>
+                            </Td>
+                            <Td>
+                              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                <DistintivoBodega
+                                  codigo={d.zona.bodega?.codigo ?? '—'}
+                                  color={d.zona.bodega?.color}
+                                  titulo={d.zona.bodega?.nombre}
+                                />
+                                <code className="text-xs">{d.zona.codigo}</code>
+                              </span>
+                            </Td>
+                            <Td numerico>
+                              {numero(d.cajas)}
+                              {/* Lo que de verdad sale de bodega: el total en
+                                  unidades, que es como lo pide el cliente. */}
+                              <span className="block text-xs text-tenue">
+                                {numero(Number(d.cajas) * Number(d.variante.unidades_por_caja))}{' '}
+                                {unidadLegible(d.variante.producto.unidad?.nombre_es ?? '')}
+                              </span>
+                            </Td>
+                            <Td numerico>
+                              {alcanza ? (
+                                <span className="text-tenue">{numero(hay)}</span>
+                              ) : (
+                                <Etiqueta tono="rojo">
+                                  {hay === 0 ? 'nada aquí' : `solo ${numero(hay)}`}
+                                </Etiqueta>
+                              )}
+                            </Td>
+                            <Td numerico tenue>
+                              {d.precio_caja === null ? '—' : numero(d.precio_caja)}
+                            </Td>
+                            <Td numerico>
+                              {d.precio_caja === null
+                                ? '—'
+                                : numero(Number(d.cajas) * Number(d.precio_caja))}
+                            </Td>
+                            {puedeCrear ? (
+                              <Td>
+                                <div className="flex gap-3 whitespace-nowrap">
+                                  <FormularioDesplegable
+                                    accion={editarLineaVenta}
+                                    etiquetaNuevo=""
+                                    esEdicion
+                                  >
+                                    <CamposLineaVenta
+                                      ventaId={venta.id}
+                                      linea={{
+                                        id: d.id,
+                                        varianteId: d.variante_id,
+                                        zonaId: d.zona_id,
+                                        zona: d.zona.codigo,
+                                        bodega: d.zona.bodega?.codigo ?? '—',
+                                        bodegaNombre: d.zona.bodega?.nombre ?? null,
+                                        color: d.zona.bodega?.color ?? 'gris',
+                                        cajas: Number(d.cajas),
+                                        precioCaja:
+                                          d.precio_caja === null ? null : Number(d.precio_caja),
+                                        codigo: d.variante.producto.codigo,
+                                        unidadesPorCaja: Number(d.variante.unidades_por_caja),
+                                        unidad: d.variante.producto.unidad?.nombre_es ?? '',
+                                      }}
+                                      existencias={existenciasPorVariante.get(d.variante_id) ?? []}
+                                      moneda={venta.moneda.codigo}
+                                    />
+                                  </FormularioDesplegable>
+
+                                  <FormularioDesplegable
+                                    accion={eliminarLineaVenta}
+                                    etiquetaNuevo="Quitar"
+                                    esEdicion
+                                  >
+                                    <input type="hidden" name="id" value={d.id} />
+                                    <p className="text-sm text-zinc-600 sm:col-span-2 dark:text-zinc-400">
+                                      Se quitará{' '}
+                                      <code className="text-xs">{d.variante.producto.codigo}</code>{' '}
+                                      ({numero(d.cajas)} cajas desde{' '}
+                                      <code className="text-xs">{d.zona.codigo}</code>) del detalle
+                                      de la venta #{venta.id}. La venta sigue en borrador y la línea
+                                      se puede volver a agregar.
+                                    </p>
+                                  </FormularioDesplegable>
+                                </div>
+                              </Td>
+                            ) : null}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </Tabla>
                 )}
 
-                {esBorrador && puedeCrear ? (
+                {puedeCrear ? (
                   <div className="mt-4 flex flex-wrap items-start gap-4">
                     <FormularioDesplegable
                       accion={agregarDetalleVenta}
                       etiquetaNuevo="Agregar detalle"
                     >
                       <input type="hidden" name="venta_id" value={venta.id} />
-                      <SeleccionBuscable
-                        etiqueta="Artículo"
-                        nombre="variante_id"
-                        opciones={opcionesVariante}
-                        requerido
-                      />
-                      <SeleccionBuscable
-                        etiqueta="Zona de origen"
-                        nombre="zona_id"
-                        opciones={opcionesZona}
-                        requerido
-                      />
-                      <Campo etiqueta="Cajas" nombre="cajas" tipo="number" requerido ejemplo="2" />
-                      <Campo
-                        etiqueta={`Precio por caja (${venta.moneda.codigo}, vacío = lista del cliente)`}
-                        nombre="precio_caja"
-                        tipo="number"
-                      />
+                      <CamposDetalleVenta ventaId={venta.id} moneda={venta.moneda.codigo} />
                     </FormularioDesplegable>
+
+                    {/*
+                     * Se puede imprimir un borrador: bodega prepara el pedido
+                     * con el papel en la mano y recién después se confirma. Las
+                     * copias salen marcadas PRELIMINAR y sin folio.
+                     *
+                     * En pestaña nueva para no perder el borrador a medio
+                     * armar: al volver, la página sigue donde estaba.
+                     */}
+                    {venta.detalle.length > 0 ? (
+                      <a
+                        href={`/imprimir/venta/${venta.id}`}
+                        target="_blank"
+                        rel="noopener"
+                        className="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-black/5 dark:border-zinc-700 dark:hover:bg-white/10"
+                      >
+                        Imprimir nota
+                      </a>
+                    ) : null}
 
                     {venta.detalle.length > 0 ? (
                       <FormularioDesplegable
@@ -218,8 +495,11 @@ export default async function NotasDeVenta({
                       >
                         <input type="hidden" name="venta_id" value={venta.id} />
                         <p className="text-sm text-zinc-600 sm:col-span-2 dark:text-zinc-400">
-                          Se generará una SALIDA por cada línea ({numero(totalCajas)} cajas). Si
-                          alguna línea supera el stock disponible, la confirmación completa fallará.
+                          Se generará una SALIDA por cada línea ({numero(totalCajas)} cajas,{' '}
+                          {venta.moneda.simbolo ?? ''} {numero(totalMonto)} {venta.moneda.codigo}).
+                          {lineasSinStock.length > 0
+                            ? ' Ahora mismo hay líneas sin existencia suficiente, así que la confirmación va a fallar completa.'
+                            : ' Si alguna línea supera el stock disponible, la confirmación completa fallará.'}{' '}
                           No se puede deshacer desde aquí.
                         </p>
                       </FormularioDesplegable>

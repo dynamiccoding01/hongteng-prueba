@@ -110,6 +110,12 @@ const SECCIONES: {
         icono: 'Barcode',
         permiso: 'producto.ver',
       },
+      {
+        href: '/maestros/tipo-cambio',
+        clave: 'navTipoCambio',
+        icono: 'DollarSign',
+        permiso: 'moneda.editar',
+      },
     ],
   },
   {
@@ -122,6 +128,12 @@ const SECCIONES: {
         icono: 'Ship',
         permiso: 'importacion.ver',
       },
+      {
+        href: '/compras/confirmadas',
+        clave: 'navImportacionesConfirmadas',
+        icono: 'PackageCheck',
+        permiso: 'importacion.ver',
+      },
     ],
   },
   {
@@ -129,6 +141,12 @@ const SECCIONES: {
     icono: 'ShoppingBag',
     enlaces: [
       { href: '/ventas/notas', clave: 'navNotasVenta', icono: 'Receipt', permiso: 'venta.ver' },
+      {
+        href: '/ventas/confirmadas',
+        clave: 'navVentasConfirmadas',
+        icono: 'ReceiptText',
+        permiso: 'venta.ver',
+      },
       { href: '/ventas/precios', clave: 'navListasPrecios', icono: 'Tag', permiso: 'venta.ver' },
       {
         href: '/ventas/traspasos-aduana',

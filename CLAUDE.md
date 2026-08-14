@@ -107,11 +107,27 @@ Los Client Components son pocos y acotados; casi todo se renderiza en el servido
 - **Validación en el formulario**: `Campo` acepta `requerido`, `largoMax`, `minimo`/`maximo`, `patron` y `ayuda`; son ayuda inmediata para quien escribe, **no** la validación —esa es el esquema Zod del `acciones.ts`—, y los dos deben decir lo mismo. Si la acción normaliza el texto antes de guardar (mayúsculas, sin espacios), el campo lleva `transformar` para hacerlo mientras se escribe: un formulario no puede pintar en rojo lo que él mismo iba a corregir. El rojo es `user-invalid:`, nunca `invalid:`, que marcaría todo lo obligatorio al abrir.
 - **Baja lógica visible**: toda tabla con columna `activo` lleva su `Seleccion` de Estado en el formulario. Una fila que la interfaz muestra como «Inactivo» pero no deja desactivar es una columna muerta. `Seleccion` oculta la opción vacía cuando el campo es obligatorio y ya trae un valor válido, y la vuelve a mostrar si ese valor ya no está entre las opciones —el maestro se desactivó—, para que el navegador no reasigne solo a la primera de la lista.
 - **Avisos**: el `{ ok }` / `{ error }` de la acción se convierte en toast dentro de `FormularioDesplegable` vía `useToast()` ([components/proveedor-toast.tsx](components/proveedor-toast.tsx)). No renderizar mensajes de error inline en la página.
+- **Capas**: la escala está documentada en [app/globals.css](app/globals.css) — velo móvil `z-40`, menú `z-50`, modal `z-60`, toast `z-70`. Empatar el z-index del modal **no** alcanza: se monta con `createPortal` sobre `document.body`, así que con el mismo número queda encima por orden del DOM. Todo lo que deba verse sobre un modal necesita un número mayor.
 - **Carcasa**: [components/marco.tsx](components/marco.tsx) gobierna solo abrir/cerrar el menú en móvil. La navegación se calcula en el servidor —incluido el filtrado por permisos— y le llega ya renderizada como prop: `Marco` nunca conoce permisos.
 - **Colores**: usar siempre los tokens semánticos de [app/globals.css](app/globals.css) (`bg-fondo`, `bg-superficie`, `bg-menu`, `border-borde`, `text-tenue`, `bg-acento`). El variante `dark:` está reasignado a `[data-theme='oscuro']`, no al media query; los grises fijos de Tailwind rompen el cambio de tema.
 - **Color de bodega**: `bodega.color` (migraciones `0016`–`0018`) identifica cada recinto en pantalla. **No es un campo del formulario**: `fn_asignar_color_bodega` le da a cada alta el primer color libre de la paleta, y `fn_color_bodega_inmutable` impide cambiarlo después. Va en la base y no en el `acciones.ts` porque elegir «el primer color libre» en TypeScript sería leer y luego escribir, con una carrera en medio. `'gris'` es el default de la columna y significa _sin asignar_: el trigger lo reemplaza. La paleta es **cerrada** —`bodega_color_ck` en la base, [lib/colores-bodega.ts](lib/colores-bodega.ts) en la interfaz— porque un color libre desaparece en el tema oscuro. Las clases se guardan **completas** (`bg-sky-100 …`): Tailwind busca literales en el código, y un `bg-${color}-100` no llega al CSS generado. Se pinta con `DistintivoBodega` / `PuntoBodega` y se elige bodega con `SelectorBodega` de [components/color-bodega.tsx](components/color-bodega.tsx), Server Component: un grupo de `radio` con `peer-checked:`, sin estado ni JavaScript.
 
 `EstadoFormulario` está declarado dos veces con la misma forma: [lib/errores.ts](lib/errores.ts) es el que importan los `acciones.ts`; el de `components/formulario.tsx` existe para no arrastrar código de servidor al cliente.
+
+**Un solo modal.** `FormularioDesplegable` es el único componente con `role="dialog"` del sistema, así que su ancho y su aire se deciden ahí y alcanzan a todas las pantallas a la vez. No escribir otro.
+
+### Documentos impresos
+
+Las vistas para imprimir viven en el grupo de rutas `app/(impresion)/`, **aparte de `(app)`**: no llevan menú, ni cabecera, ni proveedores de tema o de avisos. La autorización sigue siendo la misma (`requerirPermiso` en la página, RLS en la base); lo que cambia es que no hay carcasa que después haya que acordarse de esconder al imprimir.
+
+Reglas de una hoja que va a papel:
+
+- **Nada de tokens de tema ni de `dark:`.** El variante está atado a `[data-theme='oscuro']` en `<html>` y alcanza a todo descendiente, así que un contenedor «claro» no lo apaga: una nota impresa por alguien con el tema oscuro saldría blanca sobre negro. Los colores se escriben explícitos (`bg-white`, `text-zinc-900`). Por eso `COLORES_BODEGA` tiene `impreso` además de `distintivo`.
+- **El color nunca es el único dato.** Las insignias de bodega llevan siempre el código escrito al lado: en una impresora en blanco y negro el relleno desaparece.
+- El bloque `@media print` de [app/globals.css](app/globals.css) gobierna tamaño de página, saltos (`.hoja`), lo que no se imprime (`.no-imprimir`) y lo que no se parte entre páginas (`.sin-partir`).
+- Imprimir se registra en la bitácora con `registrarEnBitacora('IMPRIMIR', …)`. Un documento impreso circula fuera del sistema; el registro es lo único que permite reconstruir después qué salió.
+
+`/imprimir/venta/[id]` son **cuatro copias en una sola vista**, y cada una existe porque la lee alguien distinto: vendedor (todo), cliente (sin ubicaciones, que son información interna), bodega (sin un solo precio, ordenada por recorrido de bodega y con casilla para marcar) y despacho (agrupada por bodega, con los datos del camión en blanco). Se elige cuáles salen y se imprimen juntas.
 
 ### Agregar una página nueva
 
@@ -126,17 +142,31 @@ Una ruta no queda visible solo con crear su `page.tsx`. El circuito completo toc
 ### Producto: dos conceptos que se confunden
 
 - `producto.unidad_medida_id` → maestro `unidad_medida` (MAE-07). **En qué se cuenta** el artículo: par, pieza, juego. Lo administra el cliente desde `/maestros/unidades`; era un enum fijo hasta la migración `0014`.
-- `producto_variante.unidades_por_caja` (MAE-02) → **cuántas unidades trae la caja**. No es descriptivo: es el factor con el que `fn_aplicar_movimiento` convierte cajas a unidades, así que un empaque con movimientos no se corrige, se agrega otro. Por eso el formulario solo lo pide al crear el artículo, y "Agregar empaque" es una acción aparte.
+- `producto_variante.unidades_por_caja` (MAE-02) → **cuántas unidades trae la caja**; en pantalla se llama «Cantidad unidades». No es descriptivo: es el factor con el que `fn_aplicar_movimiento` convierte cajas a unidades. Mientras el empaque no tenga kardex se puede corregir; en cuanto lo tiene queda sellado (`tr_variante_cantidad_inmutable`, `0019`) y la salida es agregar otra cantidad, no editar la existente. Un empaque se retira desactivándolo, y solo si ya no tiene existencia (`tr_variante_desactivar`, `0021`): con cajas dentro quedarían inalcanzables, porque un empaque inactivo no admite movimientos. Los cuatro datos del empaque —cantidad, código de barras, SKU y stock mínimo— se editan en el mismo formulario del listado de productos.
 
 ### Inventario: nunca se escribe `stock` directamente
 
 `stock` es una tabla derivada. Se modifica **solo** insertando en `movimiento`, y el trigger `fn_aplicar_movimiento` recalcula existencias, convierte cajas ⇄ unidades (`unidades_por_caja` de la variante) y deja el saldo para el kardex. Reglas que ya están en la base y no deben duplicarse en TypeScript:
+
+Sus columnas son `cantidad` (cuántos empaques hay) y `total_unidades` (`cantidad × unidades_por_caja`), renombradas en `0020`. **`movimiento.cajas` y `movimiento.unidades` no cambiaron**: ahí sí son las cajas movidas en esa operación, y el kardex es append-only. Al renombrar columnas hay que rehacer las funciones plpgsql —guardan su cuerpo como texto y no se actualizan solas— y las vistas que expongan esos nombres.
 
 - Sobregiro imposible (`check (cajas >= 0)`), la transacción falla completa.
 - Concurrencia serializada con `select ... for update` sobre la fila de `stock`.
 - Traspaso = una transacción con `TRASPASO_SALIDA` + `TRASPASO_ENTRADA`.
 - Anulación = movimiento inverso. **Jamás `UPDATE`/`DELETE` sobre `movimiento`.**
 - Documentos (importación, venta) van BORRADOR → CONFIRMADA; confirmar genera los movimientos y sella el documento a nivel de base de datos (`fn_confirmar_importacion`, `fn_confirmar_venta`).
+
+### Precios: se deciden en dólares, se cobran en la moneda de la venta
+
+La moneda de referencia es el **dólar**, porque es en la que se compra: es la única en la que costo y precio de venta son comparables sin arrastrar una conversión del día. De ahí las tres reglas, todas en la base y no en un formulario:
+
+- **Importación siempre en USD** (`tr_importacion_solo_usd`, `0024`). El costo y el precio de venta se registran juntos en `importacion_detalle` —por eso `importacion_detalle_margen_ck` puede exigir que la venta no sea menor al costo sin convertir nada— y al confirmar se publican en la lista de precios de esa moneda.
+- **Venta en USD o CLP** (`fn_venta_moneda`, `0025`), y la moneda **no cambia** mientras haya detalle: `venta_detalle.precio_caja` no guarda moneda propia —se lee en la de la cabecera—, así que cambiarla convertiría 38 dólares en 38 pesos sin tocar una fila del detalle.
+- **En pesos se convierte**: precio de lista × tipo de cambio de la venta, **subido a la centena** (`lib/ventas/conversion.ts`). Hacia arriba, no al más cercano: redondear hacia abajo vendería por menos de lo fijado en dólares, y ese descuento no lo decidió nadie.
+
+`tipo_cambio` en un documento significa **cuántos pesos vale un dólar en ese documento**, y está siempre (`not null`), vaya el documento en pesos o en dólares. Lo pone `fn_documento_tipo_cambio` con `fn_tipo_cambio_vigente(fecha)` al crearlo y queda congelado; nadie lo teclea, ni en la venta ni en la importación. Se mantiene en **Maestros › Tipo de cambio** (`moneda.editar`), un valor por fecha, y corregir una fila no reescribe documentos ya emitidos.
+
+Ese `not null` no es cosmética. Cuando la columna admitía nulos, las vistas de reportes convertían con `coalesce(tipo_cambio, 1)` usando el nulo como señal de «esto ya está en pesos», y una venta en dólares sin tipo de cambio se reportaba como si un dólar valiera un peso. **Al valorizar hay que preguntar por la moneda, nunca deducirla de un nulo** (`v_ventas_detalle`, `v_valorizacion`, `fn_confirmar_venta`).
 
 ### Bitácora — obligatoria, no opcional
 

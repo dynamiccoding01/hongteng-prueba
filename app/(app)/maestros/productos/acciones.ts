@@ -135,49 +135,103 @@ export async function editarProducto(
 }
 
 /**
- * MAE-02: corrige la cantidad de un empaque que todavía no tiene historial.
+ * Datos de un empaque, más allá de su cantidad. Antes había que recorrer tres
+ * pantallas para dejarlo completo: la cantidad aquí, el código de barras en
+ * /maestros/codigos y el mínimo en /inventario/alertas.
+ */
+const codigoEmpaque = z
+  .string()
+  .trim()
+  .max(40)
+  .regex(/^[0-9A-Za-z-]+$/, 'Use solo números, letras y guiones')
+  .optional()
+  .or(z.literal(''));
+
+const esquemaEmpaque = z.object({
+  codigo_barras: codigoEmpaque,
+  sku_interno: codigoEmpaque,
+  stock_minimo: z.coerce
+    .number()
+    .min(0, 'El mínimo no puede ser negativo')
+    .max(99999999, 'Mínimo fuera de rango'),
+});
+
+const cantidadEmpaque = z.coerce
+  .number()
+  .positive('Indique la cantidad de unidades por caja')
+  .max(99999999, 'Cantidad por caja fuera de rango');
+
+function valoresEmpaque(datos: z.infer<typeof esquemaEmpaque>) {
+  return {
+    // Vacío es null y no cadena vacía: las columnas son unique, y dos empaques
+    // con '' chocarían entre sí como si compartieran código.
+    codigo_barras: datos.codigo_barras?.toUpperCase() || null,
+    sku_interno: datos.sku_interno?.toUpperCase() || null,
+    stock_minimo: datos.stock_minimo,
+  };
+}
+
+/** Traduce los rechazos que vienen de la base sobre un empaque. */
+function errorEmpaque(error: { code: string; message: string }): string {
+  if (error.code === '23505') {
+    return 'Ya existe un empaque con esa cantidad, código de barras o SKU';
+  }
+  return mensajeError(error as Parameters<typeof mensajeError>[0], 'empaque');
+}
+
+/**
+ * MAE-02: edita un empaque completo.
  *
- * El límite lo pone la base (`tr_variante_cantidad_inmutable`, 0019): con
- * movimientos registrados el cambio se rechaza, porque el factor ya se aplicó
- * y el stock dejaría de cuadrar con el kardex. Aquí solo se traduce el rechazo.
+ * La cantidad solo viaja cuando el empaque no tiene kardex; con movimientos el
+ * formulario no la ofrece y la base la rechazaría igual
+ * (`tr_variante_cantidad_inmutable`, 0019). Desactivar con existencia también
+ * lo bloquea la base (`tr_variante_desactivar`, 0021).
  */
 export async function editarEmpaque(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  const analisis = z
-    .object({
+  const cantidadCruda = datos.get('unidades_por_caja');
+
+  const analisis = esquemaEmpaque
+    .extend({
       variante_id: z.coerce.number().int().positive(),
-      unidades_por_caja: z.coerce
-        .number()
-        .positive('Indique la cantidad de unidades por caja')
-        .max(99999999, 'Cantidad por caja fuera de rango'),
+      activo: z.enum(['1', '0']),
+      unidades_por_caja: cantidadEmpaque.optional(),
     })
     .safeParse({
       variante_id: datos.get('variante_id'),
-      unidades_por_caja: datos.get('unidades_por_caja'),
+      codigo_barras: datos.get('codigo_barras') || undefined,
+      sku_interno: datos.get('sku_interno') || undefined,
+      stock_minimo: datos.get('stock_minimo') || 0,
+      activo: datos.get('activo'),
+      unidades_por_caja: cantidadCruda || undefined,
     });
 
   if (!analisis.success) {
     return { error: analisis.error.issues[0]?.message ?? 'Datos no válidos' };
   }
 
+  const { variante_id, unidades_por_caja, activo, ...resto } = analisis.data;
+
   const supabase = await crearClienteServidor();
   const { error } = await supabase
     .from('producto_variante')
-    .update({ unidades_por_caja: analisis.data.unidades_por_caja })
-    .eq('id', analisis.data.variante_id);
+    .update({
+      ...valoresEmpaque(resto),
+      activo: activo === '1',
+      // Solo se manda si el formulario la ofreció: así un empaque con kardex
+      // no dispara el trigger de inmutabilidad por reenviar el mismo valor.
+      ...(unidades_por_caja === undefined ? {} : { unidades_por_caja }),
+    })
+    .eq('id', variante_id);
 
-  if (error) {
-    if (error.code === '23505') {
-      return { error: 'Este artículo ya tiene otro empaque con esa cantidad' };
-    }
-    return { error: mensajeError(error, 'empaque') };
-  }
+  if (error) return { error: errorEmpaque(error) };
 
   revalidatePath('/maestros/productos');
   revalidatePath('/maestros/codigos');
-  return { ok: 'Cantidad actualizada' };
+  revalidatePath('/inventario/alertas');
+  return { ok: 'Empaque actualizado' };
 }
 
 /**
@@ -191,33 +245,34 @@ export async function agregarEmpaque(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  const analisis = z
-    .object({
+  const analisis = esquemaEmpaque
+    .extend({
       producto_id: z.coerce.number().int().positive(),
-      unidades_por_caja: z.coerce
-        .number()
-        .positive('Indique cuántas unidades trae cada caja')
-        .max(99999999, 'Cantidad por caja fuera de rango'),
+      unidades_por_caja: cantidadEmpaque,
     })
     .safeParse({
       producto_id: datos.get('producto_id'),
       unidades_por_caja: datos.get('unidades_por_caja'),
+      codigo_barras: datos.get('codigo_barras') || undefined,
+      sku_interno: datos.get('sku_interno') || undefined,
+      stock_minimo: datos.get('stock_minimo') || 0,
     });
 
   if (!analisis.success) {
     return { error: analisis.error.issues[0]?.message ?? 'Datos no válidos' };
   }
 
-  const supabase = await crearClienteServidor();
-  const { error } = await supabase.from('producto_variante').insert(analisis.data);
+  const { producto_id, unidades_por_caja, ...resto } = analisis.data;
 
-  if (error) {
-    if (error.code === '23505') {
-      return { error: 'Este artículo ya tiene un empaque con esa cantidad' };
-    }
-    return { error: mensajeError(error, 'empaque') };
-  }
+  const supabase = await crearClienteServidor();
+  const { error } = await supabase
+    .from('producto_variante')
+    .insert({ producto_id, unidades_por_caja, ...valoresEmpaque(resto) });
+
+  if (error) return { error: errorEmpaque(error) };
 
   revalidatePath('/maestros/productos');
+  revalidatePath('/maestros/codigos');
+  revalidatePath('/inventario/alertas');
   return { ok: 'Empaque agregado' };
 }

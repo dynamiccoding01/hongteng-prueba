@@ -70,18 +70,36 @@ export function Td({
   numerico,
   tenue,
   className = '',
+  filas,
+  columnas,
+  bordeTenue,
 }: {
   children: React.ReactNode;
   numerico?: boolean;
   tenue?: boolean;
   /** Para casos puntuales, como la franja de color de la bodega en su fila. */
   className?: string;
+  /**
+   * Cuántas filas abarca la celda (`rowSpan`). Se usa cuando un registro ocupa
+   * varias filas —un artículo con varios empaques— y hay datos que son del
+   * registro entero, no de cada fila.
+   */
+  filas?: number;
+  /** Cuántas columnas abarca la celda (`colSpan`), para filas de detalle. */
+  columnas?: number;
+  /**
+   * Divisor más suave, para separar las filas de un mismo registro sin que
+   * parezcan registros distintos.
+   */
+  bordeTenue?: boolean;
 }) {
   return (
     <td
-      className={`border-b border-borde/60 px-3 py-2 ${
-        numerico ? 'text-right tabular-nums' : ''
-      } ${tenue ? 'text-tenue' : ''} ${className}`}
+      rowSpan={filas}
+      colSpan={columnas}
+      className={`${bordeTenue ? 'border-b border-borde/25' : 'border-b border-borde/60'} px-3 py-2 ${
+        filas && filas > 1 ? 'align-top' : ''
+      } ${numerico ? 'text-right tabular-nums' : ''} ${tenue ? 'text-tenue' : ''} ${className}`}
     >
       {children}
     </td>

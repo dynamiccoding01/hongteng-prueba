@@ -340,7 +340,7 @@ create table producto_variante (
 
 | Tabla                       | Descripción                             | Atributos                                                                                                                          |
 | --------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `stock`                     | Existencia por variante y zona          | id, variante_id, zona_id, cajas, unidades, updated_at                                                                              |
+| `stock`                     | Existencia por variante y zona          | id, variante_id, zona_id, cantidad, total_unidades, updated_at                                                                     |
 | `movimiento`                | Kardex append-only                      | id, variante_id, zona_id, tipo, cajas, unidades, saldo_cajas, documento_tipo, documento_id, motivo, fecha, usuario_id, anulado_por |
 | `inventario_fisico`         | Cabecera de toma de inventario (INV-06) | id, fecha, bodega_id, estado, usuario_id, observacion                                                                              |
 | `inventario_fisico_detalle` | Conteo por variante y zona              | id, inventario_id, variante_id, zona_id, cajas_sistema, cajas_contadas, diferencia                                                 |
@@ -464,6 +464,30 @@ create table venta_detalle (
 
 > Todo documento guarda `moneda_id` **y** `tipo_cambio` usados. Consultar la tabla de tipo de cambio al reimprimir un documento antiguo daría un valor distinto al que se firmó.
 
+#### El dólar es la moneda de referencia (migraciones 0024–0026)
+
+El sistema no es multi-moneda en el sentido de «cada documento en la que quiera». Se compra en dólares y se decide el precio en dólares, porque es la única moneda en la que costo y precio de venta son comparables sin depender de una conversión del día. De ahí:
+
+- **Importaciones: siempre USD** (`tr_importacion_solo_usd`). Costo, precio de venta y publicación en la lista viven en esa moneda.
+- **Ventas: USD o CLP** (`fn_venta_moneda`). Nada más: es lo único que el sistema sabe convertir. Y la moneda **no cambia** mientras la venta tenga detalle, porque `venta_detalle.precio_caja` no guarda moneda propia —se lee en la de la cabecera— y pasar de USD a CLP convertiría 38 dólares en 38 pesos sin tocar el detalle.
+- **Precio en pesos** = precio de lista en USD × tipo de cambio de la venta, **subido a la centena** (`lib/ventas/conversion.ts`). Hacia arriba y no al más cercano: redondear hacia abajo vendería por menos de lo fijado en dólares.
+
+##### `tipo_cambio` en un documento significa una sola cosa
+
+**Cuántos pesos vale un dólar en ese documento.** Está siempre —`not null`— sea el documento en pesos o en dólares. Lo pone `fn_documento_tipo_cambio` al crearlo, tomando `fn_tipo_cambio_vigente(fecha)`, y queda congelado: ni la aplicación ni un `update` posterior lo mueven. Nadie lo teclea en ningún punto.
+
+Antes era opcional y las vistas de reportes convertían con `coalesce(tipo_cambio, 1)`, usando el nulo como señal de «esto ya está en pesos». Una venta en dólares sin tipo de cambio se reportaba **como si un dólar valiera un peso**: una venta de 10 USD figuraba como 10 pesos. Por eso `v_ventas_detalle`, `v_valorizacion` y `fn_confirmar_venta` preguntan ahora por la moneda en vez de deducirla del nulo.
+
+Se mantiene en **Maestros › Tipo de cambio** (`moneda.editar`), un valor por fecha. Corregir una fila no reescribe ningún documento ya emitido.
+
+### 4.9 Folio de la nota de venta (migración 0027)
+
+`venta.folio` es el número del documento que sale impreso, serie anual con formato `202600001`. Lo da `fn_siguiente_correlativo('NOTA_VENTA')`, el mismo mecanismo que los traspasos ante Aduanas.
+
+**Se asigna al confirmar, no al crear.** Un borrador puede quedar en nada, y un correlativo con huecos no se puede defender ante nadie; confirmar es lo que emite el documento. Dentro de `fn_confirmar_venta` el folio se pide **después** de insertar los movimientos: si alguna línea sobregira, la transacción entera falla y el número no se consume.
+
+Un borrador se imprime igual —bodega prepara el pedido con el papel en la mano— pero sale marcado **PRELIMINAR** y sin folio, que es exactamente lo que es. `venta.id` sigue existiendo como referencia interna y aparece al pie de cada copia.
+
 ---
 
 ## 5. Diagrama entidad-relación
@@ -509,7 +533,7 @@ erDiagram
 | Regla                                                | Implementación                                                                                                                    |
 | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | Existencia = entradas − salidas (实存 = 入库 − 出库) | Trigger `after insert on movimiento` que hace `upsert` sobre `stock`                                                              |
-| Conversión caja ⇄ unidades                           | `unidades = cajas × producto_variante.unidades_por_caja`, calculado en el trigger                                                 |
+| Conversión caja ⇄ unidades                           | `total_unidades = cantidad × producto_variante.unidades_por_caja`, calculado en el trigger                                        |
 | No se puede despachar más de lo que hay              | `check (cajas >= 0)` en `stock` + validación previa en la función; la transacción falla antes de descuadrar                       |
 | Concurrencia                                         | `select ... for update` sobre la fila de `stock` dentro de la transacción: dos usuarios vendiendo el mismo artículo se serializan |
 | Traspaso entre zonas                                 | Una transacción con dos movimientos: `TRASPASO_SALIDA` en origen + `TRASPASO_ENTRADA` en destino                                  |
@@ -535,13 +559,14 @@ begin
 
   new.unidades := new.cajas * v_factor;
 
-  insert into stock (variante_id, zona_id, cajas, unidades)
-  values (new.variante_id, new.zona_id, v_signo * new.cajas, v_signo * new.unidades)
-  on conflict (variante_id, zona_id) do update
-    set cajas    = stock.cajas    + excluded.cajas,
-        unidades = stock.unidades + excluded.unidades,
-        updated_at = now()
-  returning cajas into new.saldo_cajas;   -- kardex con saldo resultante
+  -- UPDATE primero (0006): el CHECK se evalua sobre el saldo resultante.
+  update stock
+     set cantidad       = cantidad + v_signo * new.cajas,
+         total_unidades = total_unidades + v_signo * new.unidades,
+         updated_at     = now()
+   where variante_id = new.variante_id and zona_id = new.zona_id
+  returning cantidad into new.saldo_cajas;   -- kardex con saldo resultante
+  -- si no existia la fila, se inserta (ver 0006 y 0020)
 
   return new;
 end;

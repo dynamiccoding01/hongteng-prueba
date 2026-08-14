@@ -3,6 +3,7 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { SelectorArticulo } from '@/components/selector-articulo';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
 import { agregarConteo, aplicarToma, crearToma } from './acciones';
@@ -27,43 +28,40 @@ export default async function TomaDeInventario({
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: tomas, count, error }, { data: bodegas }, { data: variantes }, { data: zonas }] =
-    await Promise.all([
-      supabase
-        .from('toma_inventario')
-        .select(
-          'id, fecha, estado, notas, bodega:bodega_id(codigo, nombre), detalle:toma_inventario_detalle(id, cajas_contadas, zona:zona_id(id, codigo), variante:variante_id(id, unidades_por_caja, producto:producto_id(codigo)))',
-          { count: 'exact' },
-        )
-        .order('id', { ascending: false })
-        .range(desde, hasta),
-      supabase.from('bodega').select('id, codigo, nombre').eq('activo', true).order('codigo'),
-      supabase
-        .from('producto_variante')
-        .select('id, unidades_por_caja, producto:producto_id!inner(codigo, activo)')
-        .eq('activo', true)
-        .eq('producto.activo', true)
-        .limit(1000),
-      supabase.from('zona').select('id, codigo').eq('activo', true).order('codigo'),
-    ]);
+  const [{ data: tomas, count, error }, { data: bodegas }, { data: zonas }] = await Promise.all([
+    supabase
+      .from('toma_inventario')
+      .select(
+        'id, fecha, estado, notas, bodega:bodega_id(codigo, nombre), detalle:toma_inventario_detalle(id, cajas_contadas, zona:zona_id(id, codigo), variante:variante_id(id, unidades_por_caja, producto:producto_id(codigo)))',
+        { count: 'exact' },
+      )
+      .order('id', { ascending: false })
+      .range(desde, hasta),
+    supabase.from('bodega').select('id, codigo, nombre').eq('activo', true).order('codigo'),
+    supabase.from('zona').select('id, codigo').eq('activo', true).order('codigo'),
+  ]);
 
   if (error) return <Vacio>No se pudieron cargar las tomas: {error.message}</Vacio>;
 
-  const { data: stock } = await supabase.from('stock').select('variante_id, zona_id, cajas');
+  // Solo la existencia de los empaques que aparecen en las tomas visibles.
+  // Antes se traía la tabla `stock` entera para armar esta comparación.
+  const idsContados = [
+    ...new Set((tomas ?? []).flatMap((t) => t.detalle.map((d) => d.variante.id))),
+  ];
+  const { data: stock } = idsContados.length
+    ? await supabase
+        .from('stock')
+        .select('variante_id, zona_id, cantidad')
+        .in('variante_id', idsContados)
+    : { data: [] };
   const stockPorClave = new Map(
-    (stock ?? []).map((s) => [`${s.variante_id}-${s.zona_id}`, Number(s.cajas)]),
+    (stock ?? []).map((s) => [`${s.variante_id}-${s.zona_id}`, Number(s.cantidad)]),
   );
 
   const opcionesBodega = (bodegas ?? []).map((b) => ({
     valor: b.id,
     texto: `${b.codigo} — ${b.nombre}`,
   }));
-  const opcionesVariante = (variantes ?? [])
-    .sort((a, b) => a.producto.codigo.localeCompare(b.producto.codigo))
-    .map((v) => ({
-      valor: v.id,
-      texto: `${v.producto.codigo} — ${numero(v.unidades_por_caja)} u/caja`,
-    }));
   const opcionesZona = (zonas ?? []).map((z) => ({ valor: z.id, texto: z.codigo }));
 
   return (
@@ -157,12 +155,7 @@ export default async function TomaDeInventario({
                   <div className="mt-4 flex flex-wrap items-start gap-4">
                     <FormularioDesplegable accion={agregarConteo} etiquetaNuevo="Registrar conteo">
                       <input type="hidden" name="toma_id" value={toma.id} />
-                      <SeleccionBuscable
-                        etiqueta="Artículo"
-                        nombre="variante_id"
-                        opciones={opcionesVariante}
-                        requerido
-                      />
+                      <SelectorArticulo nombre="variante_id" requerido ancho="completo" />
                       <SeleccionBuscable
                         etiqueta="Zona"
                         nombre="zona_id"

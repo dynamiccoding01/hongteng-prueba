@@ -1,11 +1,13 @@
-import { Suspense } from 'react';
+import { Fragment, Suspense } from 'react';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { AreaTexto, Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
+import { DistintivoBodega } from '@/components/color-bodega';
 import { Buscador } from '@/components/buscador';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
+import { unidadLegible } from '@/lib/inventario/articulo';
 import { agregarEmpaque, crearProducto, editarEmpaque, editarProducto } from './acciones';
 
 export const metadata = { title: 'Productos · Inventario' };
@@ -32,6 +34,150 @@ const ESTADOS: Opcion[] = [
   { valor: '1', texto: 'Activo' },
   { valor: '0', texto: 'Inactivo' },
 ];
+
+/** Un empaque del artículo: la caja y todo lo que la identifica. */
+interface Empaque {
+  id: number;
+  unidades_por_caja: number;
+  codigo_barras: string | null;
+  sku_interno: string | null;
+  stock_minimo: number;
+  activo: boolean;
+}
+
+const ESTADOS_EMPAQUE: Opcion[] = [
+  { valor: '1', texto: 'Activo' },
+  { valor: '0', texto: 'Inactivo' },
+];
+
+/**
+ * Campos de un empaque, en un solo formulario.
+ *
+ * Antes estaban repartidos en tres pantallas: la cantidad aquí, el código de
+ * barras en /maestros/codigos y el mínimo en /inventario/alertas.
+ *
+ * `cantidadFija` es para los empaques que ya tienen kardex: su cantidad es el
+ * factor con el que se convirtieron los movimientos ya aplicados, así que no se
+ * ofrece el campo. La base lo rechaza igual (0019).
+ */
+function CamposEmpaque({
+  e,
+  cantidadFija,
+  unidad,
+}: {
+  e?: Empaque;
+  cantidadFija?: boolean;
+  unidad: string;
+}) {
+  return (
+    <>
+      {cantidadFija ? null : (
+        <Campo
+          etiqueta="Cantidad unidades"
+          nombre="unidades_por_caja"
+          valor={e?.unidades_por_caja}
+          tipo="number"
+          requerido
+          ejemplo="45"
+          minimo={0.01}
+          maximo={99999999}
+          ayuda={`Cuántos ${unidadLegible(unidad)} trae cada caja`}
+        />
+      )}
+      <Campo
+        etiqueta="Stock mínimo"
+        nombre="stock_minimo"
+        valor={e?.stock_minimo ?? 0}
+        tipo="number"
+        minimo={0}
+        maximo={99999999}
+        ejemplo="5"
+        ayuda="En cajas. 0 = sin alerta"
+      />
+      <Campo
+        etiqueta="Código de barras"
+        nombre="codigo_barras"
+        valor={e?.codigo_barras}
+        ejemplo="7801234567890"
+        largoMax={40}
+        patron="[0-9A-Za-z\-]+"
+        transformar="codigo"
+        ayuda="El impreso en la caja"
+      />
+      <Campo
+        etiqueta="SKU interno"
+        nombre="sku_interno"
+        valor={e?.sku_interno}
+        ejemplo="B7577E-48"
+        largoMax={40}
+        patron="[0-9A-Za-z\-]+"
+        transformar="codigo"
+        ayuda="Opcional, si imprimen etiqueta propia"
+      />
+      {e ? (
+        <Seleccion
+          etiqueta="Estado"
+          nombre="activo"
+          valor={e.activo ? '1' : '0'}
+          opciones={ESTADOS_EMPAQUE}
+          requerido
+        />
+      ) : null}
+    </>
+  );
+}
+
+/** Una fila de `stock`: existencia de un empaque en una zona concreta. */
+interface Existencia {
+  cantidad: number;
+  totalUnidades: number;
+  zona: string;
+  bodega: string;
+  bodegaNombre: string | null;
+  color: string | null;
+}
+
+/**
+ * Dónde está la existencia de UN empaque.
+ *
+ * La agrupación por empaque no es cosmética. Antes esta celda mezclaba las
+ * ubicaciones de todos los empaques del artículo ordenadas por zona, y pasaba
+ * lo de BT-4501: sus dos líneas del empaque de 8 (ARI AR-1 e IQQ ET-3) salían
+ * separadas por la del empaque de 10, que también está en ARI AR-1. La misma
+ * zona aparecía dos veces sin explicación —son cajas de distinto tamaño— y,
+ * como la columna de al lado apilaba los empaques, el ojo leía una
+ * correspondencia fila a fila que no existía.
+ *
+ * Al quedar cada empaque en su propia fila, la suma de cajas vuelve a tener
+ * sentido: aquí todas las cajas traen lo mismo. Es lo que antes obligaba a
+ * mostrar solo unidades.
+ */
+function CeldaStockEmpaque({ filas }: { filas: Existencia[] }) {
+  if (filas.length === 0) return <span className="text-xs text-tenue">sin stock</span>;
+
+  const cajas = filas.reduce((s, f) => s + f.cantidad, 0);
+  const unidades = filas.reduce((s, f) => s + f.totalUnidades, 0);
+
+  return (
+    <div className="flex flex-col gap-1">
+      {filas.map((f, i) => (
+        <span key={i} className="flex items-center gap-1.5 whitespace-nowrap">
+          <DistintivoBodega codigo={f.bodega} color={f.color} titulo={f.bodegaNombre} />
+          <code className="text-xs">{f.zona}</code>
+          <span className="tabular-nums">{numero(f.cantidad)}</span>
+        </span>
+      ))}
+      <span
+        className={`text-xs text-tenue tabular-nums ${
+          filas.length > 1 ? 'border-t border-borde/60 pt-1' : ''
+        }`}
+      >
+        {filas.length > 1 ? `${numero(cajas)} cajas · ` : ''}
+        {numero(unidades)} unidades
+      </span>
+    </div>
+  );
+}
 
 /**
  * Campos del artículo, agrupados: primero qué es, después cómo se cuenta,
@@ -154,7 +300,7 @@ export default async function Productos({
     // La cadena del select debe ser un literal: los tipos de Supabase la
     // analizan estáticamente y una concatenación los deja en `unknown`.
     .select(
-      'id, codigo, descripcion_es, descripcion_zh, rango_tallas, marca, activo, categoria_id, unidad_medida_id, proveedor_id, categoria:categoria_id(nombre_es), unidad:unidad_medida_id(nombre_es), proveedor:proveedor_id(nombre), variantes:producto_variante(id, unidades_por_caja)',
+      'id, codigo, descripcion_es, descripcion_zh, rango_tallas, marca, activo, categoria_id, unidad_medida_id, proveedor_id, categoria:categoria_id(nombre_es), unidad:unidad_medida_id(nombre_es), proveedor:proveedor_id(nombre), variantes:producto_variante(id, unidades_por_caja, codigo_barras, sku_interno, stock_minimo, activo)',
       { count: 'exact' },
     )
     .order('codigo')
@@ -178,19 +324,54 @@ export default async function Productos({
 
   if (error) return <Vacio>No se pudieron cargar los productos: {error.message}</Vacio>;
 
-  // Qué empaques de esta página ya tienen kardex. La cantidad por caja solo se
-  // corrige mientras no lo tengan (0019): con movimientos aplicados, cambiar el
-  // factor descuadraría el stock. Se cuenta en la base, no trayendo los
-  // movimientos.
+  // Dos consultas más, ambas acotadas a los empaques de ESTA página: no son
+  // listados, son el detalle de las filas que ya se están mostrando.
   const idsVariante = productos.flatMap((p) => p.variantes.map((v) => v.id));
+
   const conMovimientos = new Set<number>();
+  const existenciasPorVariante = new Map<number, Existencia[]>();
+
   if (idsVariante.length > 0) {
-    const { data: conteos } = await supabase
-      .from('producto_variante')
-      .select('id, movimientos:movimiento(count)')
-      .in('id', idsVariante);
+    const [{ data: conteos }, { data: existencias }] = await Promise.all([
+      // Qué empaques ya tienen kardex: su cantidad por caja queda sellada
+      // (0019). Se cuenta en la base, no trayendo los movimientos.
+      supabase
+        .from('producto_variante')
+        .select('id, movimientos:movimiento(count)')
+        .in('id', idsVariante),
+      // Dónde está la existencia. Una fila por empaque × zona, que es como
+      // `stock` guarda las cosas. Se agrupa por empaque, no por artículo.
+      supabase
+        .from('stock')
+        .select(
+          'variante_id, cantidad, total_unidades, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color))',
+        )
+        .in('variante_id', idsVariante)
+        .gt('cantidad', 0)
+        .order('zona_id'),
+    ]);
+
     for (const v of conteos ?? []) {
       if ((v.movimientos[0]?.count ?? 0) > 0) conMovimientos.add(v.id);
+    }
+
+    for (const s of existencias ?? []) {
+      const lista = existenciasPorVariante.get(s.variante_id) ?? [];
+      lista.push({
+        cantidad: Number(s.cantidad),
+        totalUnidades: Number(s.total_unidades),
+        zona: s.zona.codigo,
+        bodega: s.zona.bodega?.codigo ?? '—',
+        bodegaNombre: s.zona.bodega?.nombre ?? null,
+        color: s.zona.bodega?.color ?? null,
+      });
+      existenciasPorVariante.set(s.variante_id, lista);
+    }
+
+    // Dentro de cada empaque, por bodega y luego por zona: así las ubicaciones
+    // de una misma bodega quedan juntas y su color forma un bloque.
+    for (const lista of existenciasPorVariante.values()) {
+      lista.sort((a, b) => a.bodega.localeCompare(b.bodega) || a.zona.localeCompare(b.zona));
     }
   }
 
@@ -251,46 +432,141 @@ export default async function Productos({
                 <Th>Categoría</Th>
                 <Th>Proveedor</Th>
                 <Th>Tallas</Th>
-                <Th numerico>Cantidad unidades</Th>
                 <Th>Se cuenta en</Th>
+                {/* Las dos columnas del empaque van juntas y a la derecha de
+                    las del artículo: cada fila es un empaque, y su existencia
+                    es la de esa fila, no la del artículo entero. */}
+                <Th numerico>Cantidad unidades</Th>
+                <Th>Stock por ubicación</Th>
                 <Th>Estado</Th>
                 {puedeEditar ? <Th> </Th> : null}
               </tr>
             </thead>
             <tbody>
-              {productos.map((p) => (
-                <tr key={p.id}>
-                  <Td>
-                    <code className="text-xs">{p.codigo}</code>
-                  </Td>
-                  <Td>{p.descripcion_es ?? '—'}</Td>
-                  <Td tenue>{p.categoria?.nombre_es ?? '—'}</Td>
-                  <Td tenue>{p.proveedor?.nombre ?? '—'}</Td>
-                  <Td tenue>{p.rango_tallas ?? '—'}</Td>
-                  <Td numerico>
-                    {p.variantes.length === 0 ? (
-                      <Etiqueta tono="ambar">sin definir</Etiqueta>
+              {productos.map((p) => {
+                // Un artículo ocupa tantas filas como empaques tenga. Las
+                // columnas que son del artículo —código, categoría, estado…—
+                // se declaran una sola vez y las abarcan todas con `rowSpan`:
+                // así es la propia tabla la que garantiza que cada existencia
+                // quede en la fila de su empaque, y no el ojo del que mira.
+                const empaques = [...p.variantes].sort(
+                  (a, b) => a.unidades_por_caja - b.unidades_por_caja,
+                );
+                const filas = Math.max(empaques.length, 1);
+                const unidadesArticulo = empaques.reduce(
+                  (s, v) =>
+                    s +
+                    (existenciasPorVariante.get(v.id) ?? []).reduce(
+                      (t, e) => t + e.totalUnidades,
+                      0,
+                    ),
+                  0,
+                );
+
+                const celdasArticulo = (
+                  <>
+                    <Td filas={filas}>
+                      <code className="text-xs">{p.codigo}</code>
+                    </Td>
+                    <Td filas={filas}>
+                      {p.descripcion_es ?? '—'}
+                      {/* El total del artículo solo aparece cuando hay varios
+                          empaques: con uno solo repetiría el de su fila. Va en
+                          unidades porque es lo único comparable entre cajas de
+                          distinto contenido. */}
+                      {empaques.length > 1 ? (
+                        <span className="mt-1 block text-xs text-tenue">
+                          {empaques.length} empaques · {numero(unidadesArticulo)} unidades en total
+                        </span>
+                      ) : null}
+                    </Td>
+                    <Td filas={filas} tenue>
+                      {p.categoria?.nombre_es ?? '—'}
+                    </Td>
+                    <Td filas={filas} tenue>
+                      {p.proveedor?.nombre ?? '—'}
+                    </Td>
+                    <Td filas={filas} tenue>
+                      {p.rango_tallas ?? '—'}
+                    </Td>
+                    <Td filas={filas} tenue>
+                      {p.unidad?.nombre_es ?? '—'}
+                    </Td>
+                  </>
+                );
+
+                const celdasAcciones = (
+                  <>
+                    <Td filas={filas}>
+                      <Etiqueta tono={p.activo ? 'verde' : 'neutro'}>
+                        {p.activo ? 'Activo' : 'Inactivo'}
+                      </Etiqueta>
+                    </Td>
+                    {puedeEditar ? (
+                      <Td filas={filas}>
+                        <div className="flex gap-3 whitespace-nowrap">
+                          <FormularioDesplegable accion={editarProducto} etiquetaNuevo="" esEdicion>
+                            <CamposProducto
+                              p={p}
+                              categorias={opcionesCategoria}
+                              unidades={opcionesUnidad}
+                              proveedores={opcionesProveedor}
+                            />
+                          </FormularioDesplegable>
+                          <FormularioDesplegable
+                            accion={agregarEmpaque}
+                            etiquetaNuevo="Agregar cantidad"
+                            esEdicion
+                          >
+                            <input type="hidden" name="producto_id" value={p.id} />
+                            <p className="text-sm text-tenue sm:col-span-2">
+                              Artículo <code className="text-xs">{p.codigo}</code>. Úselo cuando el
+                              mismo artículo empiece a llegar en cajas de otra cantidad: se agrega
+                              junto a las que ya tiene, no las reemplaza.
+                              {empaques.length > 0
+                                ? ` Ya existe con ${empaques
+                                    .map((v) => numero(v.unidades_por_caja))
+                                    .join(', ')}.`
+                                : ''}
+                            </p>
+                            <CamposEmpaque unidad={p.unidad?.nombre_es ?? 'unidades'} />
+                          </FormularioDesplegable>
+                        </div>
+                      </Td>
+                    ) : null}
+                  </>
+                );
+
+                return (
+                  <Fragment key={p.id}>
+                    {empaques.length === 0 ? (
+                      <tr>
+                        {celdasArticulo}
+                        <Td numerico>
+                          <Etiqueta tono="ambar">sin definir</Etiqueta>
+                        </Td>
+                        <Td>
+                          <span className="text-xs text-tenue">sin stock</span>
+                        </Td>
+                        {celdasAcciones}
+                      </tr>
                     ) : (
-                      <div className="flex flex-col items-end gap-1">
-                        {[...p.variantes]
-                          .sort((a, b) => a.unidades_por_caja - b.unidades_por_caja)
-                          .map((v) => (
-                            <span
-                              key={v.id}
-                              className="inline-flex items-center gap-2 whitespace-nowrap"
-                            >
-                              {numero(v.unidades_por_caja)}
-                              {puedeEditar ? (
-                                conMovimientos.has(v.id) ? (
-                                  // Con kardex el dato queda sellado: se dice por
-                                  // qué, en vez de ofrecer un botón que va a fallar.
-                                  <span
-                                    className="text-xs text-tenue"
-                                    title="Este empaque ya tiene movimientos: su cantidad no se puede cambiar. Use «Agregar empaque»."
-                                  >
-                                    con movimientos
-                                  </span>
-                                ) : (
+                      empaques.map((v, i) => {
+                        // Entre empaques del mismo artículo el divisor es más
+                        // suave; el fuerte queda para el corte entre artículos.
+                        const intermedia = i < filas - 1;
+                        return (
+                          <tr key={v.id}>
+                            {i === 0 ? celdasArticulo : null}
+                            <Td numerico bordeTenue={intermedia}>
+                              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                                <span
+                                  className={v.activo ? 'font-medium' : 'text-tenue line-through'}
+                                >
+                                  {numero(v.unidades_por_caja)}
+                                </span>
+                                {v.activo ? null : <Etiqueta tono="neutro">inactivo</Etiqueta>}
+                                {puedeEditar ? (
                                   <FormularioDesplegable
                                     accion={editarEmpaque}
                                     etiquetaNuevo=""
@@ -299,74 +575,31 @@ export default async function Productos({
                                     <input type="hidden" name="variante_id" value={v.id} />
                                     <p className="text-sm text-tenue sm:col-span-2">
                                       Artículo <code className="text-xs">{p.codigo}</code>, que se
-                                      cuenta en <strong>{p.unidad?.nombre_es ?? '—'}</strong>. Este
-                                      empaque todavía no tiene movimientos, así que su cantidad se
-                                      puede corregir.
+                                      cuenta en <strong>{p.unidad?.nombre_es ?? '—'}</strong>.{' '}
+                                      {conMovimientos.has(v.id)
+                                        ? `La cantidad (${numero(v.unidades_por_caja)}) ya no se puede cambiar: tiene movimientos y es el factor con el que se convirtieron. Para otra cantidad, agregue un empaque nuevo.`
+                                        : 'Todavía no tiene movimientos, así que su cantidad se puede corregir.'}
                                     </p>
-                                    <Campo
-                                      etiqueta="Cantidad unidades"
-                                      nombre="unidades_por_caja"
-                                      valor={v.unidades_por_caja}
-                                      tipo="number"
-                                      requerido
-                                      ancho="completo"
-                                      minimo={0.01}
-                                      maximo={99999999}
-                                      ayuda="Cuántas trae cada caja"
+                                    <CamposEmpaque
+                                      e={v}
+                                      cantidadFija={conMovimientos.has(v.id)}
+                                      unidad={p.unidad?.nombre_es ?? 'unidades'}
                                     />
                                   </FormularioDesplegable>
-                                )
-                              ) : null}
-                            </span>
-                          ))}
-                      </div>
+                                ) : null}
+                              </span>
+                            </Td>
+                            <Td bordeTenue={intermedia}>
+                              <CeldaStockEmpaque filas={existenciasPorVariante.get(v.id) ?? []} />
+                            </Td>
+                            {i === 0 ? celdasAcciones : null}
+                          </tr>
+                        );
+                      })
                     )}
-                  </Td>
-                  <Td tenue>{p.unidad?.nombre_es ?? '—'}</Td>
-                  <Td>
-                    <Etiqueta tono={p.activo ? 'verde' : 'neutro'}>
-                      {p.activo ? 'Activo' : 'Inactivo'}
-                    </Etiqueta>
-                  </Td>
-                  {puedeEditar ? (
-                    <Td>
-                      <div className="flex gap-3 whitespace-nowrap">
-                        <FormularioDesplegable accion={editarProducto} etiquetaNuevo="" esEdicion>
-                          <CamposProducto
-                            p={p}
-                            categorias={opcionesCategoria}
-                            unidades={opcionesUnidad}
-                            proveedores={opcionesProveedor}
-                          />
-                        </FormularioDesplegable>
-                        <FormularioDesplegable
-                          accion={agregarEmpaque}
-                          etiquetaNuevo="Agregar empaque"
-                          esEdicion
-                        >
-                          <input type="hidden" name="producto_id" value={p.id} />
-                          <p className="text-sm text-tenue sm:col-span-2">
-                            Artículo <code className="text-xs">{p.codigo}</code>. Use esto solo
-                            cuando el mismo artículo empiece a llegar en cajas de otra cantidad. La
-                            cantidad de un empaque que ya tiene movimientos no se corrige.
-                          </p>
-                          <Campo
-                            etiqueta="Cantidad unidades"
-                            nombre="unidades_por_caja"
-                            tipo="number"
-                            requerido
-                            ejemplo="24"
-                            ancho="completo"
-                            minimo={0.01}
-                            maximo={99999999}
-                            ayuda="Debe ser distinta de los empaques que el artículo ya tiene"
-                          />
-                        </FormularioDesplegable>
-                      </div>
-                    </Td>
-                  ) : null}
-                </tr>
-              ))}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </Tabla>
         </>

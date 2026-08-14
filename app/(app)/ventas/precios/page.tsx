@@ -2,7 +2,7 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
-import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { SelectorArticulo } from '@/components/selector-articulo';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
 import { asignarListaACliente, crearLista, fijarPrecio } from './acciones';
@@ -27,7 +27,6 @@ export default async function ListasDePrecios({
   const [
     { data: listas, count: totalListas, error },
     { data: monedas },
-    { data: variantes },
     { data: clientes, count: totalClientes },
     { data: todasLasListas },
   ] = await Promise.all([
@@ -40,12 +39,6 @@ export default async function ListasDePrecios({
       .order('nombre')
       .range(pgListas.desde, pgListas.hasta),
     supabase.from('moneda').select('id, codigo, nombre').eq('activo', true).order('codigo'),
-    supabase
-      .from('producto_variante')
-      .select('id, unidades_por_caja, producto:producto_id!inner(codigo, activo)')
-      .eq('activo', true)
-      .eq('producto.activo', true)
-      .limit(1000),
     supabase
       .from('cliente')
       .select('id, codigo, nombre, lista:lista_precio_id(nombre)', { count: 'exact' })
@@ -62,12 +55,6 @@ export default async function ListasDePrecios({
     valor: m.id,
     texto: `${m.codigo} — ${m.nombre}`,
   }));
-  const opcionesVariante = (variantes ?? [])
-    .sort((a, b) => a.producto.codigo.localeCompare(b.producto.codigo))
-    .map((v) => ({
-      valor: v.id,
-      texto: `${v.producto.codigo} — ${numero(v.unidades_por_caja)} u/caja`,
-    }));
   const opcionesLista = (todasLasListas ?? []).map((l) => ({ valor: l.id, texto: l.nombre }));
 
   return (
@@ -103,12 +90,7 @@ export default async function ListasDePrecios({
                   <div className="ml-auto">
                     <FormularioDesplegable accion={fijarPrecio} etiquetaNuevo="Fijar precio">
                       <input type="hidden" name="lista_id" value={lista.id} />
-                      <SeleccionBuscable
-                        etiqueta="Artículo"
-                        nombre="variante_id"
-                        opciones={opcionesVariante}
-                        requerido
-                      />
+                      <SelectorArticulo nombre="variante_id" requerido ancho="completo" />
                       <Campo
                         etiqueta={`Precio por caja (${lista.moneda.codigo})`}
                         nombre="precio_caja"

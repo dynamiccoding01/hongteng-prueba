@@ -2,7 +2,7 @@ import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
-import { SeleccionBuscable } from '@/components/seleccion-buscable';
+import { SelectorArticulo } from '@/components/selector-articulo';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
 import { fijarStockMinimo } from './acciones';
@@ -21,52 +21,46 @@ export default async function AlertasDeStock({
 
   const supabase = await crearClienteServidor();
 
-  const [{ data: alertas, count, error }, { data: variantes }] = await Promise.all([
+  const [{ data: alertas, count, error }, { count: conMinimo }] = await Promise.all([
     supabase
       .from('v_alertas_stock')
       .select('*', { count: 'exact' })
       .order('codigo')
       .range(desde, hasta),
-    // Opciones del formulario, no un listado: va completa.
+    // Cuántos empaques tienen mínimo definido. Se cuenta en la base: antes se
+    // traía el catálogo entero solo para medir el largo de una lista.
     supabase
       .from('producto_variante')
-      .select('id, unidades_por_caja, stock_minimo, producto:producto_id!inner(codigo, activo)')
+      .select('id, producto:producto_id!inner(activo)', { count: 'exact', head: true })
       .eq('activo', true)
       .eq('producto.activo', true)
-      .limit(1000),
+      .gt('stock_minimo', 0),
   ]);
 
   if (error) return <Vacio>No se pudieron cargar las alertas: {error.message}</Vacio>;
-
-  const opcionesVariante = (variantes ?? [])
-    .sort((a, b) => a.producto.codigo.localeCompare(b.producto.codigo))
-    .map((v) => ({
-      valor: v.id,
-      texto: `${v.producto.codigo} — ${numero(v.unidades_por_caja)} u/caja (mín. actual: ${numero(v.stock_minimo)})`,
-    }));
-
-  const conMinimo = (variantes ?? []).filter((v) => Number(v.stock_minimo) > 0).length;
 
   return (
     <>
       <Encabezado
         titulo="Alertas de stock"
-        descripcion={`Artículos en o bajo su mínimo (INV-05) · ${numero(conMinimo)} con mínimo definido`}
+        descripcion={`Artículos en o bajo su mínimo (INV-05) · ${numero(conMinimo ?? 0)} con mínimo definido`}
       >
         {puedeEditar ? (
           <FormularioDesplegable accion={fijarStockMinimo} etiquetaNuevo="Definir mínimo">
-            <SeleccionBuscable
-              etiqueta="Artículo"
-              nombre="variante_id"
-              opciones={opcionesVariante}
-              requerido
-            />
+            <p className="text-sm text-tenue sm:col-span-2">
+              El mínimo es por empaque y se mide en cajas. Cuando la existencia total del empaque
+              cae en ese número o por debajo, aparece en esta lista.
+            </p>
+            <SelectorArticulo nombre="variante_id" requerido ancho="completo" />
             <Campo
-              etiqueta="Stock mínimo (cajas, 0 = sin alerta)"
+              etiqueta="Stock mínimo"
               nombre="stock_minimo"
               tipo="number"
               requerido
               ejemplo="5"
+              minimo={0}
+              maximo={99999999}
+              ayuda="En cajas. 0 quita la alerta"
             />
           </FormularioDesplegable>
         ) : null}
@@ -75,7 +69,7 @@ export default async function AlertasDeStock({
       {(alertas ?? []).length === 0 ? (
         <Vacio>
           Ningún artículo está bajo su mínimo.
-          {conMinimo === 0
+          {(conMinimo ?? 0) === 0
             ? ' Todavía no se ha definido ningún mínimo: use «Definir mínimo» para la primera alerta.'
             : ''}
         </Vacio>
@@ -92,7 +86,7 @@ export default async function AlertasDeStock({
           </thead>
           <tbody>
             {(alertas ?? []).map((a) => {
-              const agotado = Number(a.cajas) === 0;
+              const agotado = Number(a.cantidad) === 0;
               return (
                 <tr key={a.variante_id}>
                   <Td>
@@ -102,7 +96,7 @@ export default async function AlertasDeStock({
                     </span>
                   </Td>
                   <Td tenue>{a.categoria}</Td>
-                  <Td numerico>{numero(a.cajas)}</Td>
+                  <Td numerico>{numero(a.cantidad)}</Td>
                   <Td numerico tenue>
                     {numero(a.stock_minimo)}
                   </Td>

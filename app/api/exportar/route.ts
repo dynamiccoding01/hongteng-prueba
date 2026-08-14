@@ -37,9 +37,9 @@ export async function GET(peticion: Request): Promise<Response> {
     const { data, error } = await supabase
       .from('v_valorizacion')
       .select(
-        'codigo, categoria, unidades_por_caja, cajas, costo_caja, moneda, tipo_cambio, valor_clp',
+        'codigo, categoria, unidades_por_caja, cantidad, costo_caja, moneda, tipo_cambio, valor_clp',
       )
-      .gt('cajas', 0)
+      .gt('cantidad', 0)
       .order('codigo');
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     filas = data;

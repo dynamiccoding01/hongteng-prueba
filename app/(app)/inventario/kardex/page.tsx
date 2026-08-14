@@ -115,19 +115,19 @@ export default async function Kardex({
       .order('id', { ascending: true })
       .range(desde, hasta),
     // La existencia actual sale de `stock`, no de sumar la página del kardex.
-    supabase.from('stock').select('cajas, unidades').eq('variante_id', v.id),
+    supabase.from('stock').select('cantidad, total_unidades').eq('variante_id', v.id),
   ]);
 
   if (error) return <Vacio>No se pudo cargar el kardex: {error.message}</Vacio>;
 
-  const totalCajas = (stock ?? []).reduce((s, f) => s + Number(f.cajas), 0);
-  const totalUnidades = (stock ?? []).reduce((s, f) => s + Number(f.unidades), 0);
+  const totalCantidad = (stock ?? []).reduce((s, f) => s + Number(f.cantidad), 0);
+  const totalUnidades = (stock ?? []).reduce((s, f) => s + Number(f.total_unidades), 0);
 
   return (
     <>
       <Encabezado
         titulo={`Kardex · ${v.producto.codigo}`}
-        descripcion={`${numero(v.unidades_por_caja)} u/caja · existencia actual: ${numero(totalCajas)} cajas (${numero(totalUnidades)} unidades)`}
+        descripcion={`${numero(v.unidades_por_caja)} por caja · existencia actual: ${numero(totalCantidad)} (${numero(totalUnidades)} unidades)`}
       >
         <Suspense fallback={null}>
           <Buscador marcador="Código de artículo…" />

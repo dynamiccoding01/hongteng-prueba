@@ -91,20 +91,31 @@ export function FormularioDesplegable({
   const panel =
     abierto && montado
       ? createPortal(
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div
               className="absolute inset-0 bg-black/50 [animation:aparecer_.15s_ease-out]"
               onClick={() => setAbierto(false)}
               aria-hidden
             />
+            {/*
+             * Este es el único modal del sistema: todo formulario de alta,
+             * edición y confirmación pasa por aquí, así que el ancho y el aire
+             * se deciden en un solo sitio.
+             *
+             * `max-w-4xl` y no `2xl`: con dos columnas de campos, cada uno de
+             * los cuales lleva su etiqueta arriba y su texto de ayuda debajo,
+             * a 672 px la información quedaba amontonada y costaba distinguir
+             * qué ayuda pertenece a qué campo. El aire entre filas (`gap-y-6`)
+             * hace más por la legibilidad que el ancho.
+             */}
             <div
               role="dialog"
               aria-modal="true"
               aria-label={titulo}
-              className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-borde bg-superficie shadow-2xl [animation:aparecer-modal_.15s_ease-out]"
+              className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-borde bg-superficie shadow-2xl [animation:aparecer-modal_.15s_ease-out]"
             >
-              <div className="flex items-center justify-between border-b border-borde px-6 py-4">
-                <h2 className="text-base font-semibold">{titulo}</h2>
+              <div className="flex items-center justify-between border-b border-borde px-8 py-5">
+                <h2 className="text-lg font-semibold">{titulo}</h2>
                 <button
                   type="button"
                   onClick={() => setAbierto(false)}
@@ -121,10 +132,10 @@ export function FormularioDesplegable({
                  * contenedor flexible reparte el alto sobrante entre las filas y
                  * los campos quedan separados por huecos enormes.
                  */}
-                <div className="grid content-start gap-x-5 gap-y-4 overflow-y-auto px-6 py-5 sm:grid-cols-2">
+                <div className="grid content-start gap-x-8 gap-y-6 overflow-y-auto px-8 py-7 sm:grid-cols-2">
                   {children}
                 </div>
-                <div className="flex justify-end gap-2 border-t border-borde px-6 py-4">
+                <div className="flex justify-end gap-3 border-t border-borde px-8 py-5">
                   <button
                     type="button"
                     onClick={() => setAbierto(false)}
@@ -160,7 +171,7 @@ export function FormularioDesplegable({
 
 // `user-invalid` y no `invalid`: marca en rojo solo después de que la persona
 // interactuó con el campo. Con `invalid` todo obligatorio nace en rojo.
-const CLASE_CONTROL =
+export const CLASE_CONTROL =
   'rounded-md border border-zinc-300 px-3 py-2 outline-none focus-visible:border-acento focus-visible:ring-2 focus-visible:ring-acento/30 user-invalid:border-red-500 dark:border-zinc-700 dark:bg-zinc-900';
 
 /**
@@ -331,6 +342,7 @@ export function Seleccion({
   opciones,
   requerido,
   ancho,
+  ayuda,
 }: {
   etiqueta: string;
   nombre: string;
@@ -338,6 +350,8 @@ export function Seleccion({
   opciones: { valor: string | number; texto: string }[];
   requerido?: boolean;
   ancho?: 'completo';
+  /** Se muestra bajo el campo, igual que en `Campo`. */
+  ayuda?: string;
 }) {
   const idioma = useIdioma();
   const sinValor = valor === undefined || valor === null || valor === '';
@@ -371,6 +385,7 @@ export function Seleccion({
           </option>
         ))}
       </select>
+      {ayuda ? <span className="text-xs text-tenue">{ayuda}</span> : null}
     </label>
   );
 }

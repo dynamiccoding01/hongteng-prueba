@@ -145,10 +145,15 @@ Antes de crear nada, comprobar que lo cargado se ve bien.
 
 Este es el flujo que carga el stock. **Nunca se escribe stock a mano.**
 
-- [ ] Crear importación: proveedor **Fujian Xingda Shoes Co.**, moneda **USD**, tipo de cambio 947,30, documento de aduana `DIN-2026-0155`.
+- [ ] Crear importación: proveedor **Fujian Xingda Shoes Co.**, documento de aduana `DIN-2026-0155`.
+- [ ] No hay dónde elegir moneda ni tipo de cambio: el formulario dice que la compra va en **USD** y anuncia con qué dólar se va a grabar. Los dos datos los pone la base.
 - [ ] Queda en estado **BORRADOR**.
-- [ ] Agregar detalle: `ZD-8803` → zona `2-6`, **80** cajas, costo 31 USD/caja.
-- [ ] Agregar detalle: `BT-4501` → zona `2-5`, **50** cajas, costo 25 USD/caja.
+- [ ] Agregar detalle y elegir `ZN-6103`: los dos precios **se rellenan solos** (19 y 38 USD) y debajo de cada uno dice de dónde salieron — última compra con su fecha e importación, y la lista de precios vigente.
+- [ ] Elegir `JC-CORO`, que nunca se ha comprado: los precios quedan **vacíos** y lo dice («Primera compra de este artículo»).
+- [ ] Elegir el empaque de **8 por caja** de `BT-4501`: también queda vacío, porque su única compra fue en pesos y ese costo no se puede proponer como dólares.
+- [ ] Agregar detalle: `ZD-8803` → zona `2-6`, **80** cajas, compra 31 USD/caja, venta 45 USD/caja.
+- [ ] Intentar un precio de venta **menor** al de compra → lo rechaza (`importacion_detalle_margen_ck`).
+- [ ] Agregar detalle: `BT-4501` → zona `2-5`, **50** cajas, compra 25 USD/caja, venta 38 USD/caja.
 - [ ] **Confirmar** la importación.
 - [ ] Stock por zona: `BT-4501` pasó de 250 a **300** cajas, y aparece `ZD-8803` en la 2-6.
 - [ ] La importación confirmada ya **no se puede editar** ni volver a confirmar.
@@ -171,9 +176,39 @@ La lista **Mayorista USD** ya tiene precio para los 8 artículos y los 4 cliente
 la tienen asignada.
 
 - [ ] En Listas de precios, revisar los precios cargados (ej. `ZD-8801` a 45 USD/caja) y cambiar uno.
-- [ ] En Notas de venta, crear una nota para **Comercial Andina Ltda.** → al agregar `ZD-8801` el **precio sugerido sale solo** de la lista del cliente.
+- [ ] En Notas de venta, crear una nota para **Comercial Andina Ltda.** en **USD** → al agregar `ZD-8801` el precio sale solo de la lista y el campo está **bloqueado**.
+- [ ] En el buscador de artículos de esa misma ventana, un artículo **sin existencia** aparece en gris, en rojo dice «no hay nada que sacar de bodega» y **no se deja elegir**.
+- [ ] La cantidad arranca en **1** y las flechas cuentan 1, 2, 3 (no 0,01 → 1,01). Debajo se lee la equivalencia: `2 cajas × 5 par = 10 par`.
 - [ ] Vender **40 cajas** desde la zona 1-2 y confirmar.
 - [ ] Stock: la zona 1-2 baja a 380. En Movimientos hay una SALIDA con documento VENTA.
+
+#### 7.1 La misma venta, pero en pesos
+
+- [ ] Crear otra nota para **Comercial Andina Ltda.**, esta vez en **CLP**. El formulario no pide tipo de cambio: anuncia con cuál se va a grabar.
+- [ ] Solo se ofrecen **USD y CLP**: euros, UF y UTM no están en la lista.
+- [ ] Agregar `ZN-6103` (38 USD en la lista) → el precio sale **bloqueado en pesos** y debajo se lee la cuenta entera: `38 × 947,3 = 35.997,4, subido a 36.000`.
+- [ ] Intentar cambiar la moneda de esa venta con la línea ya cargada → lo rechaza y explica que hay precios en la moneda actual.
+- [ ] Confirmar y comprobar en **Reportes › Ventas por período** que el monto en pesos es 2 × 36.000 y no 76.
+
+#### 7.1.1 Imprimir la nota — botón «Imprimir nota»
+
+Antes de empezar: cargar **RUT y teléfono** en Administración › Empresa. Salen en el encabezado de las cuatro copias y hoy están vacíos.
+
+- [ ] Con la venta **en borrador**, pulsar «Imprimir nota»: se abre una pestaña con las cuatro copias y una banda negra **PRELIMINAR** en cada una, sin folio.
+- [ ] Confirmar la venta y volver a imprimir: la banda desaparece y arriba a la derecha aparece el folio (`202600003` y siguientes).
+- [ ] **Vendedor**: cliente completo, ubicaciones, precio unitario y subtotal por línea, total, y al pie los cuadros de régimen (REEXP / S.R.F. / TRASP. / REG. GEN. / OTROS) y del camión, en blanco.
+- [ ] **Cliente**: no aparece **ninguna** zona ni bodega. Sí el precio unitario, el subtotal por línea y el TOTAL.
+- [ ] **Bodega**: no aparece **ningún** precio. Las líneas van ordenadas por bodega y zona, con casilla para ir marcando.
+- [ ] **Despacho**: agrupada por bodega, con la insignia de color y el subtotal de bultos de cada una.
+- [ ] Desmarcar «Cliente» en la barra de arriba y comprobar en la vista previa del navegador que salen **3** hojas, no 4.
+- [ ] Con el **tema oscuro** puesto, la hoja sigue siendo negra sobre blanco.
+- [ ] En Bitácora queda un registro **IMPRIMIR** por cada vez que se abrió la vista.
+
+#### 7.2 El tipo de cambio — `/maestros/tipo-cambio`
+
+- [ ] Entrar como **Administrador**: se ve el dólar vigente en grande y la serie por fecha. Como **Ventas** el enlace no aparece.
+- [ ] Cargar el dólar de hoy con otro valor (por ejemplo 960) y fuente «Banco Central de Chile».
+- [ ] Volver a Notas de venta: una nota **nueva** en pesos usa 960; las anteriores **conservan** el suyo y sus precios no se movieron.
 
 ### 8. Toma de inventario — `/inventario/toma`
 

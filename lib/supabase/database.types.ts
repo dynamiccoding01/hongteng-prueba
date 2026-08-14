@@ -377,7 +377,7 @@ export type Database = {
           moneda_id: number;
           notas: string | null;
           proveedor_id: number;
-          tipo_cambio: number | null;
+          tipo_cambio: number;
           updated_at: string;
         };
         Insert: {
@@ -391,7 +391,7 @@ export type Database = {
           moneda_id: number;
           notas?: string | null;
           proveedor_id: number;
-          tipo_cambio?: number | null;
+          tipo_cambio?: number;
           updated_at?: string;
         };
         Update: {
@@ -405,7 +405,7 @@ export type Database = {
           moneda_id?: number;
           notas?: string | null;
           proveedor_id?: number;
-          tipo_cambio?: number | null;
+          tipo_cambio?: number;
           updated_at?: string;
         };
         Relationships: [
@@ -439,6 +439,7 @@ export type Database = {
           created_at: string;
           id: number;
           importacion_id: number;
+          precio_venta_caja: number | null;
           variante_id: number;
           zona_id: number;
         };
@@ -448,6 +449,7 @@ export type Database = {
           created_at?: string;
           id?: never;
           importacion_id: number;
+          precio_venta_caja?: number | null;
           variante_id: number;
           zona_id: number;
         };
@@ -457,6 +459,7 @@ export type Database = {
           created_at?: string;
           id?: never;
           importacion_id?: number;
+          precio_venta_caja?: number | null;
           variante_id?: number;
           zona_id?: number;
         };
@@ -1052,25 +1055,25 @@ export type Database = {
       };
       stock: {
         Row: {
-          cajas: number;
+          cantidad: number;
           id: number;
-          unidades: number;
+          total_unidades: number;
           updated_at: string;
           variante_id: number;
           zona_id: number;
         };
         Insert: {
-          cajas?: number;
+          cantidad?: number;
           id?: never;
-          unidades?: number;
+          total_unidades?: number;
           updated_at?: string;
           variante_id: number;
           zona_id: number;
         };
         Update: {
-          cajas?: number;
+          cantidad?: number;
           id?: never;
-          unidades?: number;
+          total_unidades?: number;
           updated_at?: string;
           variante_id?: number;
           zona_id?: number;
@@ -1420,10 +1423,11 @@ export type Database = {
           created_at: string;
           estado: string;
           fecha: string;
+          folio: string | null;
           id: number;
           moneda_id: number;
           notas: string | null;
-          tipo_cambio: number | null;
+          tipo_cambio: number;
           updated_at: string;
           vendedor_id: number | null;
         };
@@ -1436,10 +1440,11 @@ export type Database = {
           created_at?: string;
           estado?: string;
           fecha?: string;
+          folio?: string | null;
           id?: never;
           moneda_id: number;
           notas?: string | null;
-          tipo_cambio?: number | null;
+          tipo_cambio?: number;
           updated_at?: string;
           vendedor_id?: number | null;
         };
@@ -1452,10 +1457,11 @@ export type Database = {
           created_at?: string;
           estado?: string;
           fecha?: string;
+          folio?: string | null;
           id?: never;
           moneda_id?: number;
           notas?: string | null;
-          tipo_cambio?: number | null;
+          tipo_cambio?: number;
           updated_at?: string;
           vendedor_id?: number | null;
         };
@@ -1640,7 +1646,7 @@ export type Database = {
     Views: {
       v_alertas_stock: {
         Row: {
-          cajas: number | null;
+          cantidad: number | null;
           categoria: string | null;
           codigo: string | null;
           stock_minimo: number | null;
@@ -1689,11 +1695,11 @@ export type Database = {
       v_resumen_categoria: {
         Row: {
           articulos: number | null;
-          cajas: number | null;
+          cantidad: number | null;
           categoria: string | null;
           categoria_id: number | null;
           nombre_zh: string | null;
-          unidades: number | null;
+          total_unidades: number | null;
         };
         Relationships: [];
       };
@@ -1711,13 +1717,13 @@ export type Database = {
       };
       v_stock_variante: {
         Row: {
-          cajas: number | null;
+          cantidad: number | null;
           categoria: string | null;
           codigo: string | null;
           producto_id: number | null;
           rango_tallas: string | null;
+          total_unidades: number | null;
           unidad_medida: string | null;
-          unidades: number | null;
           unidades_por_caja: number | null;
           variante_id: number | null;
           zonas: string | null;
@@ -1726,7 +1732,7 @@ export type Database = {
       };
       v_valorizacion: {
         Row: {
-          cajas: number | null;
+          cantidad: number | null;
           categoria: string | null;
           codigo: string | null;
           costo_caja: number | null;
@@ -1774,7 +1780,7 @@ export type Database = {
       };
       fn_confirmar_importacion: {
         Args: { p_importacion_id: number };
-        Returns: undefined;
+        Returns: string;
       };
       fn_confirmar_venta: { Args: { p_venta_id: number }; Returns: undefined };
       fn_emitir_documento_traspaso: {
@@ -1791,6 +1797,7 @@ export type Database = {
         Args: { p_tipo_documento: string };
         Returns: string;
       };
+      fn_tipo_cambio_vigente: { Args: { p_fecha?: string }; Returns: number };
       fn_traspasar: {
         Args: {
           p_cajas: number;

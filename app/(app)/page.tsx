@@ -110,8 +110,8 @@ export default async function Resumen() {
       : Promise.resolve({ count: null }),
   ]);
 
-  const totalCajas = (categorias ?? []).reduce((s, c) => s + Number(c.cajas ?? 0), 0);
-  const totalUnidades = (categorias ?? []).reduce((s, c) => s + Number(c.unidades ?? 0), 0);
+  const totalCantidad = (categorias ?? []).reduce((s, c) => s + Number(c.cantidad ?? 0), 0);
+  const totalUnidades = (categorias ?? []).reduce((s, c) => s + Number(c.total_unidades ?? 0), 0);
   const totalArticulos = (categorias ?? []).reduce((s, c) => s + Number(c.articulos ?? 0), 0);
   const valorTotal = (valorizacion.data ?? []).reduce((s, f) => s + Number(f.valor_clp ?? 0), 0);
 
@@ -234,8 +234,8 @@ export default async function Resumen() {
               <tr>
                 <Th>Categoría</Th>
                 <Th numerico>Artículos</Th>
-                <Th numerico>Cajas</Th>
-                <Th numerico>Unidades</Th>
+                <Th numerico>Cantidad</Th>
+                <Th numerico>Total unidades</Th>
               </tr>
             </thead>
             <tbody>
@@ -248,14 +248,14 @@ export default async function Resumen() {
                     ) : null}
                   </Td>
                   <Td numerico>{numero(c.articulos)}</Td>
-                  <Td numerico>{numero(c.cajas)}</Td>
-                  <Td numerico>{numero(c.unidades)}</Td>
+                  <Td numerico>{numero(c.cantidad)}</Td>
+                  <Td numerico>{numero(c.total_unidades)}</Td>
                 </tr>
               ))}
               <tr className="font-medium">
                 <Td>Total</Td>
                 <Td numerico>{numero(totalArticulos)}</Td>
-                <Td numerico>{numero(totalCajas)}</Td>
+                <Td numerico>{numero(totalCantidad)}</Td>
                 <Td numerico>{numero(totalUnidades)}</Td>
               </tr>
             </tbody>

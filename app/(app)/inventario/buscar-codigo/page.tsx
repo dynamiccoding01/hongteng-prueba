@@ -115,12 +115,12 @@ export default async function BuscarCodigo({
 
   const { data: stock } = await supabase
     .from('stock')
-    .select('cajas, unidades, zona:zona_id(codigo, bodega:bodega_id(codigo))')
+    .select('cantidad, total_unidades, zona:zona_id(codigo, bodega:bodega_id(codigo))')
     .eq('variante_id', v.id)
-    .gt('cajas', 0);
+    .gt('cantidad', 0);
 
-  const totalCajas = (stock ?? []).reduce((s, f) => s + Number(f.cajas), 0);
-  const totalUnidades = (stock ?? []).reduce((s, f) => s + Number(f.unidades), 0);
+  const totalCantidad = (stock ?? []).reduce((s, f) => s + Number(f.cantidad), 0);
+  const totalUnidades = (stock ?? []).reduce((s, f) => s + Number(f.total_unidades), 0);
 
   return (
     <>
@@ -139,7 +139,7 @@ export default async function BuscarCodigo({
           <p className="text-sm text-zinc-500">{v.producto.descripcion_es}</p>
         ) : null}
         <p className="mt-2 text-sm text-zinc-500">
-          {numero(v.unidades_por_caja)} u/caja · existencia total: {numero(totalCajas)} cajas (
+          {numero(v.unidades_por_caja)} por caja · existencia total: {numero(totalCantidad)} (
           {numero(totalUnidades)} unidades)
         </p>
         <div className="mt-3 flex gap-4 text-sm">
@@ -163,8 +163,8 @@ export default async function BuscarCodigo({
             <tr>
               <Th>Bodega</Th>
               <Th>Zona</Th>
-              <Th numerico>Cajas</Th>
-              <Th numerico>Unidades</Th>
+              <Th numerico>Cantidad</Th>
+              <Th numerico>Total unidades</Th>
             </tr>
           </thead>
           <tbody>
@@ -174,9 +174,9 @@ export default async function BuscarCodigo({
                 <Td>
                   <code className="text-xs">{f.zona.codigo}</code>
                 </Td>
-                <Td numerico>{numero(f.cajas)}</Td>
+                <Td numerico>{numero(f.cantidad)}</Td>
                 <Td numerico tenue>
-                  {numero(f.unidades)}
+                  {numero(f.total_unidades)}
                 </Td>
               </tr>
             ))}
