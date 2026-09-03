@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { CLASE_CONTROL } from './formulario';
-import { CampoCantidad } from './campo-cantidad';
+import { CAJAS_POR_DEFECTO, CampoCantidad } from './campo-cantidad';
 import { SelectorArticulo } from './selector-articulo';
 import { SelectorZona, type ZonaOpcion } from './selector-zona';
 import { DistintivoBodega } from './color-bodega';
 import { Etiqueta, numero } from './ui';
 import { precioDeLista, type PrecioDeLista } from '@/lib/ventas/precio-lista';
+import { redondearDinero, subtotalBruto } from '@/lib/ventas/descuento';
 import {
   unidadLegible,
   type ArticuloEncontrado,
@@ -28,6 +29,9 @@ import {
  * dólar. Copiar el número de dólares sin convertir no es una opción:
  * `venta_detalle.precio_caja` no guarda moneda propia —se lee en la de la
  * cabecera— así que 38 dólares se facturarían como 38 pesos.
+ *
+ * Rebajar el importe acordado con el cliente **no** se hace aquí: para eso
+ * está el subtotal, más abajo. Este número es el de la lista y así se queda.
  */
 function PrecioVenta({
   hayArticulo,
@@ -35,6 +39,7 @@ function PrecioVenta({
   moneda,
   valorActual,
   claveCampo,
+  alEscribir,
 }: {
   hayArticulo: boolean;
   lista: PrecioDeLista | null;
@@ -43,6 +48,12 @@ function PrecioVenta({
   valorActual?: number | null;
   /** Cambia para rehacer el campo cuando cambia el artículo o el precio. */
   claveCampo: string;
+  /**
+   * Avisa el precio tecleado, que hace falta para calcular el subtotal. Solo
+   * se usa cuando el campo está libre: si lo fija la lista, el formulario que
+   * contiene este componente ya tiene ese número.
+   */
+  alEscribir?: (precio: number | null) => void;
 }) {
   const fijado = lista !== null && lista.precioVenta !== null;
   const descuadre = lista !== null && lista.precioVenta === null;
@@ -62,6 +73,10 @@ function PrecioVenta({
           // valor por defecto del artículo anterior se quedaría escrito.
           key={claveCampo}
           defaultValue={fijado ? (lista.precioVenta ?? '') : (valorActual ?? '')}
+          onChange={(e) => {
+            const n = e.target.value.trim() === '' ? null : Number(e.target.value);
+            alEscribir?.(n !== null && Number.isFinite(n) ? n : null);
+          }}
           readOnly={fijado}
           required={descuadre}
           min={0}
@@ -95,6 +110,81 @@ function PrecioVenta({
 }
 
 /**
+ * VEN-07: el subtotal de la línea, que se puede dejar en otra cifra.
+ *
+ * Es el campo que pidió el cliente en la reunión. En el mostrador nadie
+ * negocia el precio por caja ni un porcentaje: se mira el total de la línea
+ * —«son 5.950»— y se pide una cifra redonda, «déjemelo en 5.900». Por eso lo
+ * que se escribe aquí es el subtotal ya acordado, y la rebaja la deduce el
+ * servidor restando contra el precio que él mismo resolvió.
+ *
+ * El campo vuelve al bruto en cuanto cambian las cajas o el precio. Un
+ * subtotal acordado lo fue para una cantidad concreta: si la línea pasa de 7
+ * cajas a 10, los 5.900 que se hablaron ya no significan nada, y arrastrarlos
+ * convertiría un cambio de cantidad en un descuento enorme que nadie pidió.
+ */
+function CampoSubtotal({
+  bruto,
+  moneda,
+  descuentoInicial,
+}: {
+  /** Lo que costaría a precio de lista. Nulo mientras no haya precio. */
+  bruto: number | null;
+  moneda: string;
+  /** La rebaja ya guardada, al corregir una línea existente. */
+  descuentoInicial?: number;
+}) {
+  const [texto, setTexto] = useState(
+    bruto === null ? '' : String(redondearDinero(bruto - (descuentoInicial ?? 0))),
+  );
+
+  // Estado derivado de props: cuando cambia el bruto, el campo vuelve a él.
+  // Se hace en el render y no en un efecto —el patrón que documenta React—
+  // para que no se alcance a ver un instante la cifra vieja.
+  const [brutoPrevio, setBrutoPrevio] = useState(bruto);
+  if (bruto !== brutoPrevio) {
+    setBrutoPrevio(bruto);
+    setTexto(bruto === null ? '' : String(bruto));
+  }
+
+  const pedido = texto.trim() === '' ? null : Number(texto);
+  const valido = pedido !== null && Number.isFinite(pedido);
+  const descuento = bruto !== null && valido ? redondearDinero(bruto - pedido) : 0;
+  const excede = descuento < 0;
+
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      <span className="font-medium">
+        Subtotal ({moneda})<span className="ml-1 text-zinc-400">(opcional)</span>
+      </span>
+      <input
+        name="subtotal"
+        type="number"
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        disabled={bruto === null}
+        min={0}
+        max={bruto ?? undefined}
+        step="any"
+        inputMode="decimal"
+        className={`${CLASE_CONTROL} ${excede ? 'border-red-500' : ''} ${
+          bruto === null ? 'cursor-not-allowed bg-zinc-100 dark:bg-zinc-800' : ''
+        }`}
+      />
+      <span className={`text-xs ${excede ? 'text-red-600 dark:text-red-400' : 'text-tenue'}`}>
+        {bruto === null
+          ? 'Se calcula al poner la cantidad y el precio'
+          : excede
+            ? `No puede pasar de ${numero(bruto)}: esto es para rebajar, no para subir el precio`
+            : descuento > 0
+              ? `${numero(bruto)} a precio de lista · descuento de ${numero(descuento)}`
+              : `Son ${numero(bruto)}. Cámbielo si acordó otra cifra con el cliente`}
+      </span>
+    </label>
+  );
+}
+
+/**
  * VEN-02: una línea del detalle de una nota de venta.
  *
  * Al revés que en una importación, aquí la zona **no** es libre: una venta
@@ -119,6 +209,9 @@ export function CamposDetalleVenta({
   const [articulo, setArticulo] = useState<ArticuloEncontrado | null>(null);
   const [zonaId, setZonaId] = useState('');
   const [lista, setLista] = useState<PrecioDeLista | null>(null);
+  // Cajas y precio se siguen aquí porque el subtotal se calcula con los dos.
+  const [cajas, setCajas] = useState<number | null>(CAJAS_POR_DEFECTO);
+  const [precioEscrito, setPrecioEscrito] = useState<number | null>(null);
 
   // Al cambiar de artículo: si solo hay existencia en una zona, esa queda
   // puesta; con varias decide la persona, y sin ninguna no hay nada que vender.
@@ -200,6 +293,7 @@ export function CamposDetalleVenta({
         unidad={articulo?.unidad ?? null}
         maximo={elegida?.cantidad}
         nota={articulo && !elegida ? 'Elija la zona' : undefined}
+        alCambiar={setCajas}
       />
 
       {/*
@@ -213,6 +307,12 @@ export function CamposDetalleVenta({
         lista={lista}
         moneda={moneda}
         claveCampo={`${articulo?.id ?? 0}-${lista?.precioVenta ?? 'libre'}`}
+        alEscribir={setPrecioEscrito}
+      />
+
+      <CampoSubtotal
+        bruto={cajas === null ? null : subtotalBruto(cajas, lista?.precioVenta ?? precioEscrito)}
+        moneda={moneda}
       />
 
       {elegida ? (
@@ -244,6 +344,8 @@ export interface LineaVenta {
   color: string;
   cajas: number;
   precioCaja: number | null;
+  /** VEN-07: lo que ya se rebajó en esta línea. */
+  descuento: number;
   codigo: string;
   unidadesPorCaja: number;
   unidad: string;
@@ -274,6 +376,8 @@ export function CamposLineaVenta({
 }) {
   const [zonaId, setZonaId] = useState(String(linea.zonaId));
   const [lista, setLista] = useState<PrecioDeLista | null>(null);
+  const [cajas, setCajas] = useState<number | null>(linea.cajas);
+  const [precioEscrito, setPrecioEscrito] = useState<number | null>(linea.precioCaja);
 
   // El precio de lista rige igual al corregir: si no se consultara aquí, el
   // campo bloqueado en el alta se podría rodear entrando a editar.
@@ -353,6 +457,7 @@ export function CamposLineaVenta({
         valorInicial={linea.cajas}
         unidadesPorCaja={linea.unidadesPorCaja}
         unidad={linea.unidad}
+        alCambiar={setCajas}
         maximo={elegida && elegida.cantidad > 0 ? elegida.cantidad : undefined}
         nota={
           !elegida
@@ -369,6 +474,13 @@ export function CamposLineaVenta({
         moneda={moneda}
         valorActual={linea.precioCaja}
         claveCampo={`${linea.id}-${lista?.precioVenta ?? 'libre'}`}
+        alEscribir={setPrecioEscrito}
+      />
+
+      <CampoSubtotal
+        bruto={cajas === null ? null : subtotalBruto(cajas, lista?.precioVenta ?? precioEscrito)}
+        moneda={moneda}
+        descuentoInicial={linea.descuento}
       />
 
       {elegida ? (

@@ -27,7 +27,7 @@ Plan de trabajo con metodología **SCRUM** (sprints de 2 semanas). La **Fase 1 (
 | Sprint   | Requerimientos                 | Entregable                                                                                 | Estado       |
 | -------- | ------------------------------ | ------------------------------------------------------------------------------------------ | ------------ |
 | Sprint 6 | VEN-03, ADM-03, INV-06, INV-07 | Documentos de traspaso/Aduanas, correlativos, toma de inventario y traspasos entre bodegas | ✅ Terminado |
-| Sprint 7 | INV-08, VEN-05                 | Código de barras/QR, comisiones, dashboards y afinamientos                                 | ✅ Terminado |
+| Sprint 7 | INV-08, ~~VEN-05~~             | Código de barras/QR, dashboards y afinamientos (comisiones retiradas, ver `0028`)          | ✅ Terminado |
 
 **🏁 Hito: Release 3 — Zona franca y valor agregado.**
 
@@ -157,14 +157,13 @@ base de datos, y el stock solo se toca vía movimientos.
 
 ## Checklist Sprint 7 (detalle de trabajo)
 
-- [x] ~~Migración `0012_comisiones.sql` (VEN-05): tabla `vendedor`, `venta` congela vendedor/% al confirmar, `fn_confirmar_venta` calcula `comision_clp`, vista `v_comisiones`~~ (aplicada el 2026-07-23; tipos regenerados)
-- [x] ~~Página «Vendedores» (VEN-05): alta y edición del % de comisión por usuario~~ (`app/(app)/ventas/vendedores`)
-- [x] ~~Página «Comisiones» (VEN-05): reporte por vendedor y período~~ (`app/(app)/reportes/comisiones`)
-- [x] ~~Nota de venta: seleccionar vendedor al crearla~~ (`app/(app)/ventas/notas`, campo opcional; se muestra el % y el monto de comisión en cada venta)
+- [~] ~~VEN-05 (migración `0012`, páginas «Vendedores» y «Comisiones», campo vendedor en la nota de venta)~~ — **retirado el 2026-09-03** por `0028_quitar_comisiones.sql`: el cliente confirmó que no trabaja con comisión por vendedor. Ver la nota de alcance abajo
 - [x] ~~Página «Códigos de barras» (INV-08): asignar `codigo_barras`/`sku_interno` a cada empaque existente~~ (`app/(app)/maestros/codigos`)
 - [x] ~~Página «Buscar por código» (INV-08): lectura rápida (lector USB/Bluetooth) que ubica el artículo y su stock~~ (`app/(app)/inventario/buscar-codigo`; no incluye generación de etiqueta gráfica de barras/QR — ver nota abajo)
 - [x] ~~Dashboard: indicadores en el Resumen (valor de inventario, alertas activas, movimientos del día)~~ (tarjetas nuevas en `app/(app)/page.tsx`)
-- [x] ~~Tests de integración: comisión calculada y congelada al confirmar~~ (3 tests: cálculo, vista `v_comisiones`, inmutabilidad ante cambio posterior del %)
+- [~] ~~Tests de integración: comisión calculada y congelada al confirmar~~ — eliminados con la funcionalidad (`lib/inventario/comisiones.integracion.test.ts`)
+
+> **Nota de alcance — VEN-05 (retirado):** en la reunión del 2026-09-03 el cliente confirmó que **no trabaja con comisión por vendedor**: la venta la toma quien esté en el mostrador y no se liquida nada sobre ella. La migración `0028_quitar_comisiones.sql` retira la funcionalidad entera —tabla `vendedor`, las tres columnas de `venta`, la vista `v_comisiones`, los tres permisos y la rama de comisión de `fn_confirmar_venta`— en vez de dejarla escondida. Se pudo borrar sin perder nada: ninguna venta referenciaba un vendedor. Los registros de bitácora de la tabla se conservan, que para eso es append-only. Si vuelve a hacer falta, se reconstruye desde `0012`.
 
 > **Nota de alcance — INV-08:** se implementó la asignación de código de barras/SKU por empaque y la lectura rápida (compatible con lector USB/Bluetooth, que escribe como si fuera un teclado). **No** se generó una imagen de código de barras/QR para imprimir etiquetas: es prioridad Baja en el PRD, y un generador mal implementado podría producir etiquetas que no escanean sin forma de detectarlo sin un lector físico a mano. Si se necesita, mejor evaluarlo con una librería probada cuando haya cómo verificarlo contra un lector real.
 
@@ -241,6 +240,8 @@ cambios en Server Actions ni consultas de negocio.
 | 2026-07-23 | Sprint 9  | Nivel 1 de UX (conversado con el dueño). #1 Buscador con autocompletado (`seleccion-buscable.tsx`) reemplaza los `<select>` de listas largas en 8 páginas. #2 Resumen como centro de acción: accesos rápidos por rol + panel «Requiere atención». Rama `feat/nivel1-buscador-resumen`                                                                                                                                                                    |
 | 2026-07-23 | Sprint 9  | #3 Notificaciones «toast» (`proveedor-toast.tsx`): aviso flotante para guardado/error en vez del texto inline. Con esto el Nivel 1 de UX queda completo. Falta (para otro momento) el Nivel 2/3. Rama `feat/nivel1-toasts`                                                                                                                                                                                                                               |
 | 2026-07-23 | Seguridad | Rol **Superadmin** (desarrollo/TI): migración `0013` con banderas `acceso_total`/`protegido`, `es_superadmin()`, `es_rol_protegido()` y RLS de jerarquía (un Administrador no ve ni puede asignarse el rol protegido, ni por id literal — hueco de escalada detectado y cerrado con `security definer`). Matriz `/admin/roles` ahora **editable** (marcar/desmarcar permisos) y alta de roles. 7 tests de integración de RLS. Rama `feat/rol-superadmin` |
+| 2026-09-03 | Cliente   | Reunión: el cliente descarta comisiones por vendedor. Migración `0028_quitar_comisiones.sql` (tabla `vendedor`, columnas `vendedor_id`/`comision_porcentaje`/`comision_clp`, vista `v_comisiones`, 3 permisos y la rama de comisión de `fn_confirmar_venta`). Se retiran las páginas «Vendedores» y «Comisiones», el campo de la nota de venta, la columna de ventas confirmadas y el dato de la copia impresa. Rama `feat/quitar-comisiones`            |
+| 2026-09-03 | Cliente   | Misma reunión, VEN-07: descuento por artículo. Migración `0029_descuento_por_linea.sql` (`venta_detalle.descuento`, columna generada `subtotal`, `venta_detalle_descuento_ck`, `v_ventas_detalle` pasa a informar lo cobrado). Campo «Subtotal» en el alta y en la corrección de línea; descuento visible en borradores, confirmadas y en las copias impresas. 12 tests unitarios de `lib/ventas/descuento.ts` y 1 de integración                        |
 
 ## Hallazgo abierto que requiere decisión del cliente
 

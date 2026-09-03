@@ -41,7 +41,6 @@ interface Cabecera {
   id: number;
   cliente_id: number;
   moneda_id: number;
-  vendedor_id: number | null;
   tipo_cambio: number;
   fecha: string;
   notas: string | null;
@@ -63,13 +62,11 @@ function CamposCabecera({
   v,
   clientes,
   monedas,
-  vendedores,
   cambioVigente,
 }: {
   v?: Cabecera;
   clientes: Opcion[];
   monedas: Opcion[];
-  vendedores: Opcion[];
   /** Pesos por dólar que va a tomar una venta creada hoy. */
   cambioVigente: number | null;
 }) {
@@ -98,14 +95,6 @@ function CamposCabecera({
             : 'En pesos, los precios de la lista se convierten con el tipo de cambio'
         }
       />
-      {vendedores.length > 0 ? (
-        <Seleccion
-          etiqueta="Vendedor (opcional)"
-          nombre="vendedor_id"
-          valor={v?.vendedor_id}
-          opciones={vendedores}
-        />
-      ) : null}
       <Campo etiqueta="Fecha" nombre="fecha" valor={v?.fecha} tipo="date" />
       <Campo etiqueta="Notas" nombre="notas" valor={v?.notas} ancho="completo" />
       <p className="rounded-lg bg-zinc-100 px-3 py-2 text-xs text-tenue sm:col-span-2 dark:bg-zinc-800">
@@ -153,13 +142,12 @@ export default async function NotasDeVenta({
     { data: ventas, count, error },
     { data: clientes },
     { data: monedas },
-    { data: vendedores },
     { data: cambioVigente },
   ] = await Promise.all([
     supabase
       .from('venta')
       .select(
-        'id, fecha, tipo_cambio, notas, comision_clp, comision_porcentaje, cliente_id, moneda_id, vendedor_id, cliente:cliente_id(nombre, lista:lista_precio_id(nombre)), moneda:moneda_id(codigo, simbolo), vendedor:vendedor_id(usuario:usuario_id(nombre)), detalle:venta_detalle(id, variante_id, zona_id, cajas, precio_caja, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, unidad:unidad_medida_id(nombre_es))))',
+        'id, fecha, tipo_cambio, notas, cliente_id, moneda_id, cliente:cliente_id(nombre, lista:lista_precio_id(nombre)), moneda:moneda_id(codigo, simbolo), detalle:venta_detalle(id, variante_id, zona_id, cajas, precio_caja, descuento, subtotal, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, unidad:unidad_medida_id(nombre_es))))',
         { count: 'exact' },
       )
       .eq('estado', 'BORRADOR')
@@ -175,11 +163,6 @@ export default async function NotasDeVenta({
       .in('codigo', ['USD', 'CLP'])
       .eq('activo', true)
       .order('codigo'),
-    supabase
-      .from('vendedor')
-      .select('id, usuario:usuario_id(nombre)')
-      .eq('activo', true)
-      .order('id'),
     // El que va a quedar grabado en una venta creada hoy. Se pregunta a la
     // base, que es quien lo pone, para que la pantalla no anuncie otro.
     supabase.rpc('fn_tipo_cambio_vigente', { p_fecha: new Date().toISOString().slice(0, 10) }),
@@ -238,10 +221,6 @@ export default async function NotasDeVenta({
     valor: m.id,
     texto: `${m.codigo} — ${m.nombre}`,
   }));
-  const opcionesVendedor = (vendedores ?? []).map((v) => ({
-    valor: v.id,
-    texto: v.usuario.nombre,
-  }));
 
   return (
     <>
@@ -260,7 +239,6 @@ export default async function NotasDeVenta({
             <CamposCabecera
               clientes={opcionesCliente}
               monedas={opcionesMoneda}
-              vendedores={opcionesVendedor}
               cambioVigente={cambioVigente}
             />
           </FormularioDesplegable>
@@ -277,10 +255,11 @@ export default async function NotasDeVenta({
         <div className="space-y-8">
           {borradores.map((venta) => {
             const totalCajas = venta.detalle.reduce((s, d) => s + Number(d.cajas), 0);
-            const totalMonto = venta.detalle.reduce(
-              (s, d) => s + Number(d.cajas) * Number(d.precio_caja ?? 0),
-              0,
-            );
+            // El subtotal lo calcula la base (columna generada, migración
+            // 0029) y ya viene con el descuento aplicado: sumarlo aquí a mano
+            // sería una segunda definición de lo mismo, lista para discrepar.
+            const totalMonto = venta.detalle.reduce((s, d) => s + Number(d.subtotal ?? 0), 0);
+            const totalDescuento = venta.detalle.reduce((s, d) => s + Number(d.descuento), 0);
             // Líneas que hoy no se podrían despachar. Basta una para que la
             // confirmación entera falle: es todo o nada en la base.
             const lineasSinStock = venta.detalle.filter(
@@ -298,13 +277,10 @@ export default async function NotasDeVenta({
                     {venta.cliente.lista ? ` (lista ${venta.cliente.lista.nombre})` : ''} ·{' '}
                     {venta.moneda.codigo}
                     {` · dólar a $ ${numero(venta.tipo_cambio)}`}
-                    {venta.vendedor ? ` · vendedor: ${venta.vendedor.usuario.nombre}` : ''}
-                    {venta.comision_clp !== null
-                      ? ` (comisión ${numero(venta.comision_porcentaje)} % = $ ${numero(venta.comision_clp)})`
-                      : ''}
                   </span>
                   <span className="ml-auto text-sm text-zinc-500">
                     {numero(totalCajas)} cajas · {venta.moneda.simbolo ?? ''} {numero(totalMonto)}
+                    {totalDescuento > 0 ? ` (${numero(totalDescuento)} de descuento)` : ''}
                   </span>
                   {puedeCrear ? (
                     <FormularioDesplegable accion={editarVenta} etiquetaNuevo="" esEdicion>
@@ -313,7 +289,6 @@ export default async function NotasDeVenta({
                           id: venta.id,
                           cliente_id: venta.cliente_id,
                           moneda_id: venta.moneda_id,
-                          vendedor_id: venta.vendedor_id,
                           tipo_cambio: venta.tipo_cambio,
                           fecha: venta.fecha,
                           notas: venta.notas,
@@ -321,7 +296,6 @@ export default async function NotasDeVenta({
                         }}
                         clientes={opcionesCliente}
                         monedas={opcionesMoneda}
-                        vendedores={opcionesVendedor}
                         cambioVigente={cambioVigente}
                       />
                     </FormularioDesplegable>
@@ -400,9 +374,16 @@ export default async function NotasDeVenta({
                               {d.precio_caja === null ? '—' : numero(d.precio_caja)}
                             </Td>
                             <Td numerico>
-                              {d.precio_caja === null
-                                ? '—'
-                                : numero(Number(d.cajas) * Number(d.precio_caja))}
+                              {d.subtotal === null ? '—' : numero(d.subtotal)}
+                              {/* VEN-07: de dónde salió la cifra rebajada. Sin
+                                  esto, el subtotal no cuadra con cajas ×
+                                  precio y parece un error de cálculo. */}
+                              {Number(d.descuento) > 0 ? (
+                                <span className="block text-xs text-tenue">
+                                  antes {numero(Number(d.cajas) * Number(d.precio_caja ?? 0))} ·
+                                  desc. {numero(d.descuento)}
+                                </span>
+                              ) : null}
                             </Td>
                             {puedeCrear ? (
                               <Td>
@@ -425,6 +406,7 @@ export default async function NotasDeVenta({
                                         cajas: Number(d.cajas),
                                         precioCaja:
                                           d.precio_caja === null ? null : Number(d.precio_caja),
+                                        descuento: Number(d.descuento),
                                         codigo: d.variante.producto.codigo,
                                         unidadesPorCaja: Number(d.variante.unidades_por_caja),
                                         unidad: d.variante.producto.unidad?.nombre_es ?? '',

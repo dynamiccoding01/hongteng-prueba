@@ -12,7 +12,7 @@ import { Filtros } from './filtros';
 export const metadata = { title: 'Ventas confirmadas · Inventario' };
 
 /** Cuántas columnas tiene la tabla: lo necesita el `colSpan` del detalle. */
-const COLUMNAS = 10;
+const COLUMNAS = 9;
 
 function fecha(valor: string): string {
   return new Intl.DateTimeFormat('es-CL', { dateStyle: 'short' }).format(
@@ -59,7 +59,7 @@ export default async function VentasConfirmadas({
   let consulta = supabase
     .from('venta')
     .select(
-      'id, folio, fecha, tipo_cambio, notas, confirmada_en, comision_clp, comision_porcentaje, cliente:cliente_id(nombre), moneda:moneda_id(codigo, simbolo), vendedor:vendedor_id(usuario:usuario_id(nombre)), confirmada:confirmada_por(nombre), detalle:venta_detalle(id, cajas, precio_caja, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, descripcion_es, unidad:unidad_medida_id(nombre_es))))',
+      'id, folio, fecha, tipo_cambio, notas, confirmada_en, cliente:cliente_id(nombre), moneda:moneda_id(codigo, simbolo), confirmada:confirmada_por(nombre), detalle:venta_detalle(id, cajas, precio_caja, descuento, subtotal, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, descripcion_es, unidad:unidad_medida_id(nombre_es))))',
       { count: 'exact' },
     )
     .eq('estado', 'CONFIRMADA')
@@ -91,7 +91,8 @@ export default async function VentasConfirmadas({
    */
   function montos(v: (typeof filas)[number]) {
     const completo = v.detalle.every((d) => d.precio_caja !== null);
-    const total = v.detalle.reduce((s, d) => s + Number(d.cajas) * Number(d.precio_caja ?? 0), 0);
+    // Ya viene con el descuento por línea restado (columna generada, 0029).
+    const total = v.detalle.reduce((s, d) => s + Number(d.subtotal ?? 0), 0);
     const clp =
       v.moneda.codigo === 'CLP' ? total : v.tipo_cambio ? total * Number(v.tipo_cambio) : null;
     return { total, clp, completo };
@@ -141,7 +142,6 @@ export default async function VentasConfirmadas({
                 <Th>N°</Th>
                 <Th>Fecha</Th>
                 <Th>Cliente</Th>
-                <Th>Vendedor</Th>
                 <Th numerico>Líneas</Th>
                 <Th numerico>Cajas</Th>
                 <Th numerico>Total</Th>
@@ -169,14 +169,6 @@ export default async function VentasConfirmadas({
                       </Td>
                       <Td>{fecha(v.fecha)}</Td>
                       <Td>{v.cliente.nombre}</Td>
-                      <Td tenue>
-                        {v.vendedor?.usuario.nombre ?? '—'}
-                        {v.comision_clp !== null ? (
-                          <span className="block text-xs text-tenue">
-                            comisión {numero(v.comision_porcentaje)} % · $ {numero(v.comision_clp)}
-                          </span>
-                        ) : null}
-                      </Td>
                       <Td numerico tenue>
                         {numero(v.detalle.length)}
                       </Td>
@@ -284,11 +276,16 @@ export default async function VentasConfirmadas({
                                         : `${v.moneda.simbolo ?? ''} ${numero(d.precio_caja)}`}
                                     </Td>
                                     <Td numerico>
-                                      {d.precio_caja === null
+                                      {d.subtotal === null
                                         ? '—'
-                                        : `${v.moneda.simbolo ?? ''} ${numero(
-                                            Number(d.cajas) * Number(d.precio_caja),
-                                          )}`}
+                                        : `${v.moneda.simbolo ?? ''} ${numero(d.subtotal)}`}
+                                      {Number(d.descuento) > 0 ? (
+                                        <span className="block text-xs text-tenue">
+                                          antes{' '}
+                                          {numero(Number(d.cajas) * Number(d.precio_caja ?? 0))} ·
+                                          desc. {numero(d.descuento)}
+                                        </span>
+                                      ) : null}
                                     </Td>
                                   </tr>
                                 ))}

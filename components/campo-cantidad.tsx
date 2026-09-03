@@ -20,12 +20,15 @@ import { unidadLegible } from '@/lib/inventario/articulo';
  * un número entero. Empezando en 1 las flechas cuentan 1, 2, 3, y quien
  * necesite media caja la escribe.
  */
+export const CAJAS_POR_DEFECTO = 1;
+
 export function CampoCantidad({
   valorInicial,
   unidadesPorCaja,
   unidad,
   maximo,
   nota,
+  alCambiar,
 }: {
   /** Las cajas ya guardadas, al corregir una línea. Sin esto arranca en 1. */
   valorInicial?: number;
@@ -37,8 +40,16 @@ export function CampoCantidad({
   maximo?: number;
   /** Reemplaza la equivalencia cuando hay algo más urgente que decir. */
   nota?: string;
+  /**
+   * Avisa la cantidad al formulario que contiene el campo. Lo necesita quien
+   * tenga que mostrar algo calculado con ella —el subtotal de una venta— sin
+   * esperar a que se envíe.
+   */
+  alCambiar?: (cajas: number | null) => void;
 }) {
-  const [texto, setTexto] = useState(valorInicial === undefined ? '1' : String(valorInicial));
+  const [texto, setTexto] = useState(
+    valorInicial === undefined ? String(CAJAS_POR_DEFECTO) : String(valorInicial),
+  );
 
   const cantidad = texto.trim() === '' ? null : Number(texto);
   const valida = cantidad !== null && Number.isFinite(cantidad) && cantidad > 0;
@@ -52,7 +63,11 @@ export function CampoCantidad({
         name="cajas"
         type="number"
         value={texto}
-        onChange={(e) => setTexto(e.target.value)}
+        onChange={(e) => {
+          setTexto(e.target.value);
+          const n = e.target.value.trim() === '' ? null : Number(e.target.value);
+          alCambiar?.(n !== null && Number.isFinite(n) ? n : null);
+        }}
         required
         min={0.01}
         max={maximo}

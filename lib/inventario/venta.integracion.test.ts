@@ -183,6 +183,59 @@ describe.runIf(hayCredenciales)('ventas: confirmación y precios', { timeout: 60
     `);
   });
 
+  it('VEN-07: el subtotal sale de la base y el descuento tiene límites', async () => {
+    // Venta propia, sin confirmar: así estas comprobaciones no dependen del
+    // orden en que corran los demás tests de este archivo.
+    const [propia] = await consultar(
+      `insert into venta (cliente_id, moneda_id) values (${clienteId}, ${monedaId}) returning id`,
+    );
+    const propiaId = n(propia, 'id');
+
+    // 2 cajas a 30 = 60, sin rebajar.
+    const [sinRebaja] = await consultar(
+      `insert into venta_detalle (venta_id, variante_id, zona_id, cajas, precio_caja)
+       values (${propiaId}, ${varianteId}, ${zonaId}, 2, 30) returning id, descuento, subtotal`,
+    );
+    expect(n(sinRebaja, 'descuento')).toBe(0);
+    expect(n(sinRebaja, 'subtotal')).toBe(60);
+
+    // «Déjemelo en 55»: se guarda la rebaja y el subtotal se recalcula solo.
+    const [rebajada] = await consultar(
+      `update venta_detalle set descuento = 5 where id = ${n(sinRebaja, 'id')}
+       returning descuento, subtotal`,
+    );
+    expect(n(rebajada, 'descuento')).toBe(5);
+    expect(n(rebajada, 'subtotal')).toBe(55);
+
+    // Rebajar más que el importe dejaría la línea en negativo.
+    await expect(
+      consultar(`update venta_detalle set descuento = 61 where id = ${n(sinRebaja, 'id')}`),
+    ).rejects.toThrow(/descuento_ck/);
+
+    // Un descuento negativo sería un recargo encubierto.
+    await expect(
+      consultar(`update venta_detalle set descuento = -1 where id = ${n(sinRebaja, 'id')}`),
+    ).rejects.toThrow(/descuento_ck/);
+
+    // Sin precio no hay nada que rebajar.
+    await expect(
+      consultar(
+        `insert into venta_detalle (venta_id, variante_id, zona_id, cajas, descuento)
+         values (${propiaId}, ${varianteId}, ${zonaId}, 1, 5)`,
+      ),
+    ).rejects.toThrow(/descuento_ck/);
+
+    // El subtotal es generado: no se escribe ni se puede falsear.
+    await expect(
+      consultar(`update venta_detalle set subtotal = 1 where id = ${n(sinRebaja, 'id')}`),
+    ).rejects.toThrow(/generated column|columna generada/i);
+
+    await consultar(`
+      delete from venta_detalle where venta_id = ${propiaId};
+      delete from venta where id = ${propiaId};
+    `);
+  });
+
   it('el detalle de una venta confirmada no se modifica', async () => {
     await expect(
       consultar(

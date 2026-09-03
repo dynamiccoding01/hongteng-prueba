@@ -154,12 +154,6 @@ const SECCIONES: {
         icono: 'Stamp',
         permiso: 'documento_traspaso.ver',
       },
-      {
-        href: '/ventas/vendedores',
-        clave: 'navVendedores',
-        icono: 'Handshake',
-        permiso: 'vendedor.ver',
-      },
     ],
   },
   {
@@ -183,12 +177,6 @@ const SECCIONES: {
         clave: 'navVentasPorPeriodo',
         icono: 'BarChart3',
         permiso: 'reporte.ver',
-      },
-      {
-        href: '/reportes/comisiones',
-        clave: 'navComisiones',
-        icono: 'Percent',
-        permiso: 'comision.ver',
       },
     ],
   },

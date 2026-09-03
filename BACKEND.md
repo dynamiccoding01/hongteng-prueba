@@ -420,15 +420,14 @@ create table importacion (
 
 Atributos derivados de la nota de venta real (`COTIZACION.xlsx`) y de la pantalla de Galpón:
 
-| Tabla                                   | Descripción                                                | Atributos                                                                                                                                                                                                      |
-| --------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cliente`                               | Mayorista (mayoría boliviano)                              | id, codigo, razon_social, nombre_fantasia, documento_tipo, documento_numero, ciudad, pais, direccion, telefono, email, marca_embarque, lista_precio_id, credito_limite, activo                                 |
-| `venta`                                 | Nota de venta / factura / traspaso                         | id, folio, tipo_documento_id, fecha, cliente_id, facturar_a_id, vendedor_id, moneda_id, tipo_cambio, forma_pago, estado, destino, bultos, peso_kg, volumen_mt3, subtotal, descuento, total, saldo, observacion |
-| `venta_detalle`                         | Ítems vendidos                                             | id, venta_id, item, variante_id, zona_id, ubicacion_zeta_id, cajas, unidades, precio_unitario, precio_docena, total_linea                                                                                      |
-| `tipo_documento`                        | Nota de venta, Factura, Traspaso 203, Reexpedición, S.R.F. | id, codigo, nombre, afecta_stock, requiere_aduana, activo                                                                                                                                                      |
-| `lista_precio` / `lista_precio_detalle` | Precios por cliente/volumen (VEN-04)                       | id, nombre, moneda_id, vigencia_desde/hasta · variante_id, precio_unitario, cantidad_minima                                                                                                                    |
-| `vendedor`                              | Con comisión (VEN-05)                                      | id, usuario_id, nombre, porcentaje_comision, activo                                                                                                                                                            |
-| `transportista`                         | Manifiesto de transporte                                   | id, nombre, rut, chofer, patente, telefono, activo                                                                                                                                                             |
+| Tabla                                   | Descripción                                                | Atributos                                                                                                                                                                                         |
+| --------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cliente`                               | Mayorista (mayoría boliviano)                              | id, codigo, razon_social, nombre_fantasia, documento_tipo, documento_numero, ciudad, pais, direccion, telefono, email, marca_embarque, lista_precio_id, credito_limite, activo                    |
+| `venta`                                 | Nota de venta / factura / traspaso                         | id, folio, tipo_documento_id, fecha, cliente_id, facturar_a_id, moneda_id, tipo_cambio, forma_pago, estado, destino, bultos, peso_kg, volumen_mt3, subtotal, descuento, total, saldo, observacion |
+| `venta_detalle`                         | Ítems vendidos                                             | id, venta_id, item, variante_id, zona_id, ubicacion_zeta_id, cajas, unidades, precio_unitario, precio_docena, descuento, subtotal, total_linea                                                    |
+| `tipo_documento`                        | Nota de venta, Factura, Traspaso 203, Reexpedición, S.R.F. | id, codigo, nombre, afecta_stock, requiere_aduana, activo                                                                                                                                         |
+| `lista_precio` / `lista_precio_detalle` | Precios por cliente/volumen (VEN-04)                       | id, nombre, moneda_id, vigencia_desde/hasta · variante_id, precio_unitario, cantidad_minima                                                                                                       |
+| `transportista`                         | Manifiesto de transporte                                   | id, nombre, rut, chofer, patente, telefono, activo                                                                                                                                                |
 
 ```sql
 create table venta_detalle (
@@ -490,6 +489,20 @@ Un borrador se imprime igual —bodega prepara el pedido con el papel en la mano
 
 ---
 
+### 4.10 Descuento por artículo (migración 0029)
+
+En el mostrador la negociación no es sobre la nota entera sino sobre cada línea: el subtotal da 5.950 y el cliente pide «déjemelo en 5.900». `venta_detalle.descuento` guarda esa rebaja, en la moneda de la venta.
+
+**Se guarda la rebaja, no el subtotal final**, aunque en pantalla se escriba el subtotal. `precio_caja` sigue siendo el precio de lista —es lo que hace comparable una venta con otra y lo que lee `precios-previos.ts` para avisar a cuánto se vendió la última vez—, y así el descuento queda explícito y sumable. Si la rebaja se aplicara bajando el precio, lista y cobro se confundirían en una sola cifra y no habría cómo saber cuánto se rebajó.
+
+`venta_detalle.subtotal` es una **columna generada** (`cajas × precio_caja − descuento`, `stored`): una sola definición de la resta, en vez de una copia por página y por vista. Nula cuando la línea todavía no tiene precio, que no es lo mismo que cero.
+
+`venta_detalle_descuento_ck` impone los límites: no negativo (eso sería un recargo, y subir un precio se hace cambiando `precio_caja`), no mayor que el importe de la línea (un subtotal negativo sería devolverle plata al cliente), y 0 mientras no haya precio.
+
+`v_ventas_detalle.monto_clp` sale de `subtotal`, así que el reporte de ventas y la exportación a Excel muestran **lo cobrado y no lo listado**; la vista expone además `descuento` y `descuento_clp` para poder responder cuánto se rebajó en un período.
+
+---
+
 ## 5. Diagrama entidad-relación
 
 ```mermaid
@@ -518,7 +531,6 @@ erDiagram
 
     cliente ||--o{ venta : compra
     tipo_documento ||--o{ venta : clasifica
-    vendedor ||--o{ venta : atiende
     venta ||--|{ venta_detalle : contiene
     producto_variante ||--o{ venta_detalle : incluye
     venta ||--o| documento_aduana : declara

@@ -48,7 +48,7 @@ export async function GET(peticion: Request): Promise<Response> {
     let consulta = supabase
       .from('v_ventas_detalle')
       .select(
-        'fecha, cliente_codigo, cliente, producto, cajas, precio_caja, moneda, tipo_cambio, monto_clp',
+        'fecha, cliente_codigo, cliente, producto, cajas, precio_caja, descuento, subtotal, moneda, tipo_cambio, descuento_clp, monto_clp',
       )
       .order('fecha', { ascending: false })
       .limit(10000);

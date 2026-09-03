@@ -310,13 +310,6 @@ export type Database = {
             foreignKeyName: 'documento_traspaso_venta_id_fkey';
             columns: ['venta_id'];
             isOneToOne: true;
-            referencedRelation: 'v_comisiones';
-            referencedColumns: ['venta_id'];
-          },
-          {
-            foreignKeyName: 'documento_traspaso_venta_id_fkey';
-            columns: ['venta_id'];
-            isOneToOne: true;
             referencedRelation: 'v_ventas_detalle';
             referencedColumns: ['venta_id'];
           },
@@ -1378,46 +1371,9 @@ export type Database = {
           },
         ];
       };
-      vendedor: {
-        Row: {
-          activo: boolean;
-          created_at: string;
-          id: number;
-          porcentaje_comision: number;
-          updated_at: string;
-          usuario_id: string;
-        };
-        Insert: {
-          activo?: boolean;
-          created_at?: string;
-          id?: never;
-          porcentaje_comision?: number;
-          updated_at?: string;
-          usuario_id: string;
-        };
-        Update: {
-          activo?: boolean;
-          created_at?: string;
-          id?: never;
-          porcentaje_comision?: number;
-          updated_at?: string;
-          usuario_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'vendedor_usuario_id_fkey';
-            columns: ['usuario_id'];
-            isOneToOne: true;
-            referencedRelation: 'usuario';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
       venta: {
         Row: {
           cliente_id: number;
-          comision_clp: number | null;
-          comision_porcentaje: number | null;
           confirmada_en: string | null;
           confirmada_por: string | null;
           created_at: string;
@@ -1429,12 +1385,9 @@ export type Database = {
           notas: string | null;
           tipo_cambio: number;
           updated_at: string;
-          vendedor_id: number | null;
         };
         Insert: {
           cliente_id: number;
-          comision_clp?: number | null;
-          comision_porcentaje?: number | null;
           confirmada_en?: string | null;
           confirmada_por?: string | null;
           created_at?: string;
@@ -1446,12 +1399,9 @@ export type Database = {
           notas?: string | null;
           tipo_cambio?: number;
           updated_at?: string;
-          vendedor_id?: number | null;
         };
         Update: {
           cliente_id?: number;
-          comision_clp?: number | null;
-          comision_porcentaje?: number | null;
           confirmada_en?: string | null;
           confirmada_por?: string | null;
           created_at?: string;
@@ -1463,7 +1413,6 @@ export type Database = {
           notas?: string | null;
           tipo_cambio?: number;
           updated_at?: string;
-          vendedor_id?: number | null;
         };
         Relationships: [
           {
@@ -1494,28 +1443,16 @@ export type Database = {
             referencedRelation: 'moneda';
             referencedColumns: ['id'];
           },
-          {
-            foreignKeyName: 'venta_vendedor_id_fkey';
-            columns: ['vendedor_id'];
-            isOneToOne: false;
-            referencedRelation: 'v_comisiones';
-            referencedColumns: ['vendedor_id'];
-          },
-          {
-            foreignKeyName: 'venta_vendedor_id_fkey';
-            columns: ['vendedor_id'];
-            isOneToOne: false;
-            referencedRelation: 'vendedor';
-            referencedColumns: ['id'];
-          },
         ];
       };
       venta_detalle: {
         Row: {
           cajas: number;
           created_at: string;
+          descuento: number;
           id: number;
           precio_caja: number | null;
+          subtotal: number | null;
           variante_id: number;
           venta_id: number;
           zona_id: number;
@@ -1523,8 +1460,10 @@ export type Database = {
         Insert: {
           cajas: number;
           created_at?: string;
+          descuento?: number;
           id?: never;
           precio_caja?: number | null;
+          subtotal?: number | null;
           variante_id: number;
           venta_id: number;
           zona_id: number;
@@ -1532,8 +1471,10 @@ export type Database = {
         Update: {
           cajas?: number;
           created_at?: string;
+          descuento?: number;
           id?: never;
           precio_caja?: number | null;
+          subtotal?: number | null;
           variante_id?: number;
           venta_id?: number;
           zona_id?: number;
@@ -1573,13 +1514,6 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'v_valorizacion';
             referencedColumns: ['variante_id'];
-          },
-          {
-            foreignKeyName: 'venta_detalle_venta_id_fkey';
-            columns: ['venta_id'];
-            isOneToOne: false;
-            referencedRelation: 'v_comisiones';
-            referencedColumns: ['venta_id'];
           },
           {
             foreignKeyName: 'venta_detalle_venta_id_fkey';
@@ -1680,18 +1614,6 @@ export type Database = {
           },
         ];
       };
-      v_comisiones: {
-        Row: {
-          cliente: string | null;
-          comision_clp: number | null;
-          comision_porcentaje: number | null;
-          fecha: string | null;
-          vendedor: string | null;
-          vendedor_id: number | null;
-          venta_id: number | null;
-        };
-        Relationships: [];
-      };
       v_resumen_categoria: {
         Row: {
           articulos: number | null;
@@ -1750,12 +1672,15 @@ export type Database = {
           cliente: string | null;
           cliente_codigo: string | null;
           cliente_id: number | null;
+          descuento: number | null;
+          descuento_clp: number | null;
           detalle_id: number | null;
           fecha: string | null;
           moneda: string | null;
           monto_clp: number | null;
           precio_caja: number | null;
           producto: string | null;
+          subtotal: number | null;
           tipo_cambio: number | null;
           unidades_por_caja: number | null;
           venta_id: number | null;

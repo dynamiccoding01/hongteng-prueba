@@ -51,7 +51,7 @@ export default async function ImprimirVenta({ params }: { params: Promise<{ id: 
       // Una sola cadena literal, sin concatenar: los tipos del `select` los
       // deduce Supabase del literal, y un `'a' + 'b'` los degrada a `string`.
       .select(
-        'id, folio, estado, fecha, tipo_cambio, notas, confirmada_en, cliente:cliente_id(codigo, nombre, rut, contacto, telefono, direccion, ciudad, pais, lista:lista_precio_id(nombre)), moneda:moneda_id(codigo, simbolo, decimales), vendedor:vendedor_id(usuario:usuario_id(nombre)), detalle:venta_detalle(id, cajas, precio_caja, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, descripcion_es, rango_tallas, unidad:unidad_medida_id(nombre_es))))',
+        'id, folio, estado, fecha, tipo_cambio, notas, confirmada_en, cliente:cliente_id(codigo, nombre, rut, contacto, telefono, direccion, ciudad, pais, lista:lista_precio_id(nombre)), moneda:moneda_id(codigo, simbolo, decimales), detalle:venta_detalle(id, cajas, precio_caja, descuento, subtotal, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, descripcion_es, rango_tallas, unidad:unidad_medida_id(nombre_es))))',
       )
       .eq('id', ventaId)
       .maybeSingle(),
@@ -106,7 +106,10 @@ export default async function ImprimirVenta({ params }: { params: Promise<{ id: 
       // El talonario pide el precio POR UNIDAD, no por caja. No se guarda: se
       // deriva, para que los dos números nunca puedan contradecirse.
       precioUnitario: precioCaja === null || porCaja <= 0 ? null : precioCaja / porCaja,
-      total: precioCaja === null ? null : bultos * precioCaja,
+      // VEN-07: el total es el subtotal que calcula la base, ya con el
+      // descuento acordado restado. Lo que va al papel es lo que se cobra.
+      descuento: Number(d.descuento),
+      total: d.subtotal === null ? null : Number(d.subtotal),
       zona: d.zona.codigo,
       bodega: d.zona.bodega?.codigo ?? '—',
       bodegaNombre: d.zona.bodega?.nombre ?? null,
@@ -117,6 +120,7 @@ export default async function ImprimirVenta({ params }: { params: Promise<{ id: 
   const totalBultos = lineas.reduce((s, l) => s + l.bultos, 0);
   const totalUnidades = lineas.reduce((s, l) => s + l.unidades, 0);
   const total = lineas.reduce((s, l) => s + (l.total ?? 0), 0);
+  const totalDescuento = lineas.reduce((s, l) => s + l.descuento, 0);
   const hayLineaSinPrecio = lineas.some((l) => l.total === null);
 
   // Orden de recorrido de bodega: se camina una vez, bodega por bodega y zona
@@ -186,7 +190,6 @@ export default async function ImprimirVenta({ params }: { params: Promise<{ id: 
               etiqueta="Ciudad"
               valor={[venta.cliente.ciudad, venta.cliente.pais].filter(Boolean).join(', ')}
             />
-            <Dato etiqueta="Vendedor" valor={venta.vendedor?.usuario.nombre} />
             <Dato
               etiqueta="Moneda"
               valor={`${codigoMoneda} · dólar a $ ${cantidad(Number(venta.tipo_cambio))}`}
@@ -241,6 +244,14 @@ export default async function ImprimirVenta({ params }: { params: Promise<{ id: 
                 <Td numerico>{l.precioUnitario === null ? '—' : dinero(l.precioUnitario)}</Td>
                 <Td numerico fuerte>
                   {l.total === null ? '—' : dinero(l.total)}
+                  {/* VEN-07: sin esta línea el subtotal no cuadra con el
+                      precio unitario por las unidades, y en un papel no hay
+                      forma de preguntar de dónde salió la diferencia. */}
+                  {l.descuento > 0 ? (
+                    <span className="block text-[9px] font-normal">
+                      desc. {dinero(l.descuento)}
+                    </span>
+                  ) : null}
                 </Td>
               </tr>
             ))}
@@ -265,6 +276,13 @@ export default async function ImprimirVenta({ params }: { params: Promise<{ id: 
         {hayLineaSinPrecio ? (
           <p className="mt-1 text-[10px] font-semibold">
             Atención: hay líneas sin precio; el total no las incluye.
+          </p>
+        ) : null}
+
+        {totalDescuento > 0 ? (
+          <p className="mt-1 text-[10px]">
+            Descuentos por artículo: {dinero(totalDescuento)} {codigoMoneda}. El total ya está
+            rebajado.
           </p>
         ) : null}
 
@@ -328,6 +346,11 @@ export default async function ImprimirVenta({ params }: { params: Promise<{ id: 
                 <Td numerico>{l.precioUnitario === null ? '—' : dinero(l.precioUnitario)}</Td>
                 <Td numerico fuerte>
                   {l.total === null ? '—' : dinero(l.total)}
+                  {l.descuento > 0 ? (
+                    <span className="block text-[9px] font-normal">
+                      desc. {dinero(l.descuento)}
+                    </span>
+                  ) : null}
                 </Td>
               </tr>
             ))}
@@ -345,6 +368,12 @@ export default async function ImprimirVenta({ params }: { params: Promise<{ id: 
                 <Td>Total unidades</Td>
                 <Td numerico>{cantidad(totalUnidades)}</Td>
               </tr>
+              {totalDescuento > 0 ? (
+                <tr>
+                  <Td>Descuentos</Td>
+                  <Td numerico>− {dinero(totalDescuento)}</Td>
+                </tr>
+              ) : null}
               <tr>
                 <Td fuerte>TOTAL {codigoMoneda}</Td>
                 <Td numerico fuerte>

@@ -251,9 +251,9 @@ Los permisos por rol hoy son:
 | Rol           | Permisos     | Alcance                                                   |
 | ------------- | ------------ | --------------------------------------------------------- |
 | Administrador | 38           | Todo el sistema                                           |
-| Ventas        | 17           | Clientes, precios, notas de venta, comisiones, reportes   |
-| Bodeguero     | 16           | Stock, movimientos, traspasos, tomas, productos, reportes |
-| Consulta      | 7            | Solo lectura de catálogo y stock                          |
+| Bodeguero     | 17           | Stock, movimientos, traspasos, tomas, productos, reportes |
+| Ventas        | 16           | Clientes, precios, notas de venta, reportes               |
+| Consulta      | 8            | Solo lectura de catálogo y stock                          |
 | Superadmin    | acceso total | Desarrollo / TI                                           |
 
 ### Prueba automatizada (opcional, para respaldar lo anterior)
@@ -295,7 +295,9 @@ Arica. El total de la empresa no cambió, solo cambió de lugar, y quedaron dos
 movimientos trazables.
 
 **5. Se vende (4 min).** Nota de venta a Comercial Andina: el precio lo propone
-la lista de ese cliente. Confirmar → el stock baja solo.
+la lista de ese cliente. Rebajar una línea escribiendo el subtotal acordado
+—«son 5.950, déjemelo en 5.900»— y mostrar que la nota anota el descuento en vez
+de esconderlo en el precio. Confirmar → el stock baja solo.
 
 **6. Lo que no se puede hacer (4 min). El momento importante.** Intentar vender
 5.000 cajas cuando hay 380: el sistema rechaza la operación entera. _«No existe

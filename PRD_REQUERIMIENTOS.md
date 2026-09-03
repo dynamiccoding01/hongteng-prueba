@@ -53,13 +53,15 @@ Prioridad: **Alta** (núcleo) · **Media** (operación completa) · **Baja** (va
 
 ## Ventas / Despachos
 
-| Código | Requerimiento                                                            | Prioridad |
-| ------ | ------------------------------------------------------------------------ | --------- |
-| VEN-01 | Notas de venta y facturación a clientes mayoristas, en múltiples monedas | Alta      |
-| VEN-02 | Venta por caja o por unidades/pares, con descuento de stock automático   | Alta      |
-| VEN-03 | Documentos de traspaso de mercancías para Aduanas (formato zona franca)  | Media     |
-| VEN-04 | Gestión de precios y listas de precios por cliente/volumen               | Media     |
-| VEN-05 | Comisiones de vendedor                                                   | Baja      |
+| Código     | Requerimiento                                                                                             | Prioridad |
+| ---------- | --------------------------------------------------------------------------------------------------------- | --------- |
+| VEN-01     | Notas de venta y facturación a clientes mayoristas, en múltiples monedas                                  | Alta      |
+| VEN-02     | Venta por caja o por unidades/pares, con descuento de stock automático                                    | Alta      |
+| VEN-03     | Documentos de traspaso de mercancías para Aduanas (formato zona franca)                                   | Media     |
+| VEN-04     | Gestión de precios y listas de precios por cliente/volumen                                                | Media     |
+| ~~VEN-05~~ | ~~Comisiones de vendedor~~ — retirado: el cliente no trabaja con comisión por vendedor (migración `0028`) | —         |
+| VEN-06     | Folio propio de la nota de venta, serie anual, asignado al confirmar                                      | Alta      |
+| VEN-07     | Descuento por artículo: dejar el subtotal de una línea en la cifra acordada con el cliente                | Alta      |
 
 ## Reportes / Estadísticas
 

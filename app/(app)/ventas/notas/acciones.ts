@@ -5,11 +5,11 @@ import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
 import { precioDeLista, type PrecioDeLista } from '@/lib/ventas/precio-lista';
+import { descuentoParaSubtotal } from '@/lib/ventas/descuento';
 
 const esquemaCabecera = z.object({
   cliente_id: z.coerce.number().int().positive('Seleccione el cliente'),
   moneda_id: z.coerce.number().int().positive('Seleccione la moneda'),
-  vendedor_id: z.coerce.number().int().positive().optional(),
   fecha: z.string().trim().optional(),
   notas: z.string().trim().optional(),
 });
@@ -29,7 +29,6 @@ export async function crearVenta(
   const analisis = esquemaCabecera.safeParse({
     cliente_id: datos.get('cliente_id'),
     moneda_id: datos.get('moneda_id'),
-    vendedor_id: datos.get('vendedor_id') || undefined,
     fecha: datos.get('fecha') || undefined,
     notas: datos.get('notas') || undefined,
   });
@@ -42,7 +41,6 @@ export async function crearVenta(
   const { error } = await supabase.from('venta').insert({
     cliente_id: analisis.data.cliente_id,
     moneda_id: analisis.data.moneda_id,
-    vendedor_id: analisis.data.vendedor_id ?? null,
     fecha: analisis.data.fecha || undefined,
     notas: analisis.data.notas ?? null,
   });
@@ -76,7 +74,6 @@ export async function editarVenta(
     id: datos.get('id'),
     cliente_id: datos.get('cliente_id'),
     moneda_id: datos.get('moneda_id'),
-    vendedor_id: datos.get('vendedor_id') || undefined,
     fecha: datos.get('fecha') || undefined,
     notas: datos.get('notas') || undefined,
   });
@@ -91,7 +88,6 @@ export async function editarVenta(
     .update({
       cliente_id: analisis.data.cliente_id,
       moneda_id: analisis.data.moneda_id,
-      vendedor_id: analisis.data.vendedor_id ?? null,
       fecha: analisis.data.fecha || undefined,
       notas: analisis.data.notas ?? null,
     })
@@ -109,6 +105,12 @@ const esquemaDetalle = z.object({
   zona_id: z.coerce.number().int().positive('Seleccione la zona de origen'),
   cajas: z.coerce.number().positive('Las cajas deben ser mayores que cero'),
   precio_caja: z.coerce.number().min(0, 'Precio no válido').optional(),
+  /*
+   * VEN-07: lo que se escribió en «Subtotal». Llega el subtotal acordado y no
+   * la rebaja porque es lo que se habla en el mostrador; el descuento se saca
+   * de la resta, ya con el precio que manda el servidor.
+   */
+  subtotal: z.coerce.number().min(0, 'Subtotal no válido').optional(),
 });
 
 /**
@@ -125,6 +127,7 @@ export async function agregarDetalleVenta(
     zona_id: datos.get('zona_id'),
     cajas: datos.get('cajas'),
     precio_caja: datos.get('precio_caja') || undefined,
+    subtotal: datos.get('subtotal') || undefined,
   });
 
   if (!analisis.success) {
@@ -145,18 +148,32 @@ export async function agregarDetalleVenta(
    * campo se muestra bloqueado, y por eso tampoco se acepta otro aunque
    * alguien manipule el envío.
    */
+  const precio = lista?.precioVenta ?? analisis.data.precio_caja ?? null;
+
+  /*
+   * VEN-07: el descuento se calcula aquí, contra el precio que acaba de
+   * resolverse, y no se acepta ya calculado desde el formulario. Si se
+   * confiara en lo que llega, un subtotal enviado a mano rebajaría una línea
+   * cuyo precio el servidor resolvió más alto.
+   */
+  const rebaja = descuentoParaSubtotal(analisis.data.cajas, precio, analisis.data.subtotal);
+  if ('error' in rebaja) return { error: rebaja.error };
+
   const { error } = await supabase.from('venta_detalle').insert({
     venta_id: analisis.data.venta_id,
     variante_id: analisis.data.variante_id,
     zona_id: analisis.data.zona_id,
     cajas: analisis.data.cajas,
-    precio_caja: lista?.precioVenta ?? analisis.data.precio_caja ?? null,
+    precio_caja: precio,
+    descuento: rebaja.descuento,
+    // `subtotal` no se escribe: es una columna generada (migración 0029). Los
+    // tipos la dejan pasar como opcional, pero PostgreSQL rechaza el insert.
   });
 
   if (error) return { error: mensajeError(error, 'detalle') };
 
   revalidatePath('/ventas/notas');
-  return { ok: mensajeDePrecio(lista) };
+  return { ok: conDescuento(mensajeDePrecio(lista), rebaja.descuento) };
 }
 
 /**
@@ -190,11 +207,20 @@ function mensajeDePrecio(lista: PrecioDeLista | null): string {
   return `Detalle agregado a ${lista.precioVenta} según la lista «${lista.lista}»`;
 }
 
+/**
+ * VEN-07: si se rebajó algo, se dice. Un descuento que se aplica en silencio
+ * es justo el que después nadie recuerda haber autorizado.
+ */
+function conDescuento(mensaje: string, descuento: number): string {
+  return descuento > 0 ? `${mensaje}. Con ${descuento} de descuento` : mensaje;
+}
+
 const esquemaLinea = z.object({
   id: z.coerce.number().int().positive(),
   zona_id: z.coerce.number().int().positive('Seleccione la zona de origen'),
   cajas: z.coerce.number().positive('Las cajas deben ser mayores que cero'),
   precio_caja: z.coerce.number().min(0, 'Precio no válido').optional(),
+  subtotal: z.coerce.number().min(0, 'Subtotal no válido').optional(),
 });
 
 /**
@@ -218,6 +244,7 @@ export async function editarLineaVenta(
     zona_id: datos.get('zona_id'),
     cajas: datos.get('cajas'),
     precio_caja: datos.get('precio_caja') || undefined,
+    subtotal: datos.get('subtotal') || undefined,
   });
 
   if (!analisis.success) {
@@ -242,19 +269,25 @@ export async function editarLineaVenta(
 
   if (fallo && analisis.data.precio_caja === undefined) return { error: fallo };
 
+  const precio = lista?.precioVenta ?? analisis.data.precio_caja ?? null;
+
+  const rebaja = descuentoParaSubtotal(analisis.data.cajas, precio, analisis.data.subtotal);
+  if ('error' in rebaja) return { error: rebaja.error };
+
   const { error } = await supabase
     .from('venta_detalle')
     .update({
       zona_id: analisis.data.zona_id,
       cajas: analisis.data.cajas,
-      precio_caja: lista?.precioVenta ?? analisis.data.precio_caja ?? null,
+      precio_caja: precio,
+      descuento: rebaja.descuento,
     })
     .eq('id', analisis.data.id);
 
   if (error) return { error: mensajeError(error, 'detalle') };
 
   revalidatePath('/ventas/notas');
-  return { ok: 'Línea actualizada' };
+  return { ok: conDescuento('Línea actualizada', rebaja.descuento) };
 }
 
 /**
