@@ -10,6 +10,13 @@ export interface UsuarioSesion {
   email: string;
   rol: string;
   permisos: Set<string>;
+  /**
+   * VEN-07: porcentaje maximo de descuento por linea que admite su rol.
+   * `null` = sin tope. Lo hace cumplir un trigger de la base
+   * (`fn_venta_detalle_tope_descuento`, 0035); aqui viaja para poder avisar
+   * antes de guardar y para escribirlo en el formulario.
+   */
+  descuentoMaximo: number | null;
 }
 
 /**
@@ -26,7 +33,7 @@ export const obtenerUsuario = cache(async (): Promise<UsuarioSesion | null> => {
 
   const { data: perfil } = await supabase
     .from('usuario')
-    .select('id, nombre, email, activo, rol:rol_id(nombre)')
+    .select('id, nombre, email, activo, rol:rol_id(nombre, descuento_maximo)')
     .eq('id', user.id)
     .single();
 
@@ -40,6 +47,10 @@ export const obtenerUsuario = cache(async (): Promise<UsuarioSesion | null> => {
     email: perfil.email,
     rol: perfil.rol?.nombre ?? '—',
     permisos: new Set(permisos ?? []),
+    descuentoMaximo:
+      perfil.rol?.descuento_maximo === null || perfil.rol?.descuento_maximo === undefined
+        ? null
+        : Number(perfil.rol.descuento_maximo),
   };
 });
 

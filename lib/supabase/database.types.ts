@@ -1007,6 +1007,7 @@ export type Database = {
           activo: boolean;
           created_at: string;
           descripcion: string | null;
+          descuento_maximo: number | null;
           id: number;
           nombre: string;
           protegido: boolean;
@@ -1017,6 +1018,7 @@ export type Database = {
           activo?: boolean;
           created_at?: string;
           descripcion?: string | null;
+          descuento_maximo?: number | null;
           id?: never;
           nombre: string;
           protegido?: boolean;
@@ -1027,6 +1029,7 @@ export type Database = {
           activo?: boolean;
           created_at?: string;
           descripcion?: string | null;
+          descuento_maximo?: number | null;
           id?: never;
           nombre?: string;
           protegido?: boolean;
@@ -1744,6 +1747,33 @@ export type Database = {
       fn_aplicar_toma_inventario: {
         Args: { p_toma_id: number };
         Returns: undefined;
+      };
+      fn_compras_detalle: {
+        Args: { p_desde?: string; p_hasta?: string };
+        Returns: {
+          cajas: number | null;
+          costo_caja: number | null;
+          detalle_id: number | null;
+          documento_aduana: string | null;
+          fecha: string | null;
+          importacion_id: number | null;
+          moneda: string | null;
+          monto_clp: number | null;
+          precio_venta_caja: number | null;
+          producto: string | null;
+          proveedor: string | null;
+          proveedor_codigo: string | null;
+          proveedor_id: number | null;
+          subtotal: number | null;
+          tipo_cambio: number | null;
+          unidades_por_caja: number | null;
+        }[];
+        SetofOptions: {
+          from: '*';
+          to: 'v_compras_detalle';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
       };
       fn_compras_resumen: {
         Args: { p_desde?: string; p_hasta?: string };

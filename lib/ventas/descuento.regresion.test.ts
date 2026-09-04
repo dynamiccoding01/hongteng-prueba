@@ -15,6 +15,8 @@ import {
   descuentoVigente,
   subtotalBruto,
   subtotalConDescuento,
+  subtotalMinimo,
+  superaElTope,
 } from './descuento';
 
 /**
@@ -157,12 +159,51 @@ describe('D-07 · corregir una línea no puede borrar la rebaja acordada', () =>
   });
 });
 
-describe('D-08 · el 100 % de descuento no tiene tope ni autorización', () => {
+describe('D-08 · el tope de descuento del rol (VEN-07, migración 0035)', () => {
   /*
-   * `descuento(7, 850, 0)` = 5950: la línea se regala. Es coherente con la
-   * base (`descuento <= cajas * precio_caja`) y hoy está tomado como decisión,
-   * pero no hay tope por rol ni segunda firma: cualquiera con `venta.crear`
-   * puede dejar una nota en cero. Queda pendiente confirmarlo con el cliente.
+   * Era el único pendiente de la revisión: un descuento del 100 % era legal y
+   * cualquiera con `venta.crear` podía dejar una nota en cero. Se resolvió con
+   * un tope por rol —y no con uno global— porque el punto es distinguir: un
+   * vendedor cierra hasta cierto margen y de ahí para arriba lo autoriza quien
+   * puede. La barrera de verdad es `fn_venta_detalle_tope_descuento`; esto es
+   * lo que permite decirlo con una frase antes de intentar guardar.
    */
-  it.todo('D-08: decidir si hay un tope de descuento por rol y aplicarlo');
+
+  it('D-08a: sin tope no se estorba a nadie', () => {
+    expect(superaElTope(7, 850, 5950, null)).toBeNull();
+  });
+
+  it('D-08b: una rebaja dentro del tope pasa', () => {
+    // 7 × 850 = 5.950; el 10 % son 595.
+    expect(superaElTope(7, 850, 595, 10)).toBeNull();
+    expect(superaElTope(7, 850, 50, 10)).toBeNull();
+  });
+
+  it('D-08c: pasarse del tope se explica con la cifra de esta línea', () => {
+    const fallo = superaElTope(7, 850, 596, 10);
+    expect(fallo).not.toBeNull();
+    // La frase lleva el máximo en dinero, no solo el porcentaje: es lo que hay
+    // que poder decir en el mostrador sin hacer la cuenta de cabeza.
+    expect(fallo).toContain('595');
+    expect(fallo).toContain('10 %');
+  });
+
+  it('D-08d: el tope se recorta a la baja, nunca al alza', () => {
+    // 3 × 19,90 = 59,70; el 7 % son 4,179 exactos. El máximo admitido es 4,1790
+    // y no 4,18: un tope que redondea hacia arriba deja de ser un tope.
+    expect(superaElTope(3, 19.9, 4.179, 7)).toBeNull();
+    expect(superaElTope(3, 19.9, 4.1791, 7)).not.toBeNull();
+  });
+
+  it('D-08e: un tope de 0 deja al rol sin poder rebajar nada', () => {
+    expect(superaElTope(7, 850, 1, 0)).not.toBeNull();
+    expect(superaElTope(7, 850, 0, 0)).toBeNull();
+  });
+
+  it('D-08f: el mínimo que se puede cobrar sale en la moneda de la venta', () => {
+    // Es lo que se escribe en el campo Subtotal: «puede bajarlo hasta 5.355».
+    expect(subtotalMinimo(7, 850, 10)).toBe(5355);
+    expect(subtotalMinimo(7, 850, null)).toBeNull();
+    expect(subtotalMinimo(7, null, 10)).toBeNull();
+  });
 });

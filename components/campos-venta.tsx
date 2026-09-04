@@ -8,7 +8,13 @@ import { SelectorZona, type ZonaOpcion } from './selector-zona';
 import { DistintivoBodega } from './color-bodega';
 import { Etiqueta, numero } from './ui';
 import { precioDeLista, type PrecioDeLista } from '@/lib/ventas/precio-lista';
-import { descuentoParaSubtotal, subtotalBruto, subtotalConDescuento } from '@/lib/ventas/descuento';
+import {
+  descuentoParaSubtotal,
+  subtotalBruto,
+  subtotalConDescuento,
+  subtotalMinimo,
+  superaElTope,
+} from '@/lib/ventas/descuento';
 import {
   unidadLegible,
   type ArticuloEncontrado,
@@ -145,6 +151,7 @@ function CampoSubtotal({
   precio,
   moneda,
   descuentoInicial,
+  tope,
 }: {
   /** Cantidad tecleada. Nula mientras el campo esté vacío. */
   cajas: number | null;
@@ -153,6 +160,13 @@ function CampoSubtotal({
   moneda: string;
   /** La rebaja ya guardada, al corregir una línea existente. */
   descuentoInicial?: number;
+  /**
+   * VEN-07: porcentaje máximo de descuento del rol de quien vende, o `null` si
+   * no tiene tope. Se escribe como una cifra —«hasta 5.355»— y no como el
+   * porcentaje: es lo que hay que decirle al cliente sin hacer la cuenta de
+   * cabeza delante suyo.
+   */
+  tope?: number | null;
 }) {
   const bruto = cajas === null ? null : subtotalBruto(cajas, precio);
   const rebajaPrevia = descuentoInicial ?? 0;
@@ -175,8 +189,13 @@ function CampoSubtotal({
 
   const pedido = texto.trim() === '' ? undefined : Number(texto);
   const calculo = cajas === null ? null : descuentoParaSubtotal(cajas, precio, pedido);
-  const fallo = calculo !== null && 'error' in calculo ? calculo.error : null;
+  const errorCalculo = calculo !== null && 'error' in calculo ? calculo.error : null;
   const descuento = calculo !== null && 'descuento' in calculo ? calculo.descuento : 0;
+
+  const topeAplicado = tope ?? null;
+  const minimo = cajas === null ? null : subtotalMinimo(cajas, precio, topeAplicado);
+  const fallo =
+    errorCalculo ?? (cajas === null ? null : superaElTope(cajas, precio, descuento, topeAplicado));
 
   return (
     <label className="flex flex-col gap-1 text-sm">
@@ -189,7 +208,7 @@ function CampoSubtotal({
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
         disabled={bruto === null}
-        min={0}
+        min={minimo ?? 0}
         max={bruto ?? undefined}
         step="any"
         inputMode="decimal"
@@ -203,7 +222,9 @@ function CampoSubtotal({
           : (fallo ??
             (descuento > 0
               ? `${numero(bruto)} a precio de lista · descuento de ${numero(descuento)}`
-              : `Son ${numero(bruto)}. Cámbielo si acordó otra cifra con el cliente`))}
+              : minimo !== null
+                ? `Son ${numero(bruto)}. Puede bajarlo hasta ${numero(minimo)} (${tope} % de descuento)`
+                : `Son ${numero(bruto)}. Cámbielo si acordó otra cifra con el cliente`))}
       </span>
     </label>
   );
@@ -226,10 +247,13 @@ function CampoSubtotal({
 export function CamposDetalleVenta({
   ventaId,
   moneda,
+  topeDescuento,
 }: {
   ventaId: number;
   /** Código de la moneda de la venta, para rotular el precio. */
   moneda: string;
+  /** VEN-07: tope de descuento del rol de quien vende. `null` = sin tope. */
+  topeDescuento?: number | null;
 }) {
   const [articulo, setArticulo] = useState<ArticuloEncontrado | null>(null);
   const [zonaId, setZonaId] = useState('');
@@ -335,7 +359,12 @@ export function CamposDetalleVenta({
         alEscribir={setPrecioEscrito}
       />
 
-      <CampoSubtotal cajas={cajas} precio={lista?.precioVenta ?? precioEscrito} moneda={moneda} />
+      <CampoSubtotal
+        cajas={cajas}
+        precio={lista?.precioVenta ?? precioEscrito}
+        moneda={moneda}
+        tope={topeDescuento}
+      />
 
       {elegida ? (
         <p className="flex items-center gap-2 text-xs text-tenue sm:col-span-2">
@@ -389,12 +418,15 @@ export function CamposLineaVenta({
   linea,
   existencias,
   moneda,
+  topeDescuento,
 }: {
   ventaId: number;
   linea: LineaVenta;
   /** Todas las zonas donde ese empaque tiene existencia hoy. */
   existencias: ExistenciaZona[];
   moneda: string;
+  /** VEN-07: tope de descuento del rol de quien vende. `null` = sin tope. */
+  topeDescuento?: number | null;
 }) {
   const [zonaId, setZonaId] = useState(String(linea.zonaId));
   const [lista, setLista] = useState<PrecioDeLista | null>(null);
@@ -504,6 +536,7 @@ export function CamposLineaVenta({
         precio={lista?.precioVenta ?? precioEscrito}
         moneda={moneda}
         descuentoInicial={linea.descuento}
+        tope={topeDescuento}
       />
 
       {elegida ? (

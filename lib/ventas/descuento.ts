@@ -209,6 +209,71 @@ export function descuentoParaSubtotal(
 }
 
 /**
+ * Lo mínimo que se puede cobrar por la línea con el tope del rol.
+ *
+ * `null` cuando no hay tope, o cuando todavía no hay cantidad y precio con los
+ * que hacer la cuenta. Se usa para escribir el mínimo en el campo Subtotal, que
+ * es donde se negocia: decir «hasta 5.355» sirve; decir «hasta un 10 %» obliga
+ * a hacer la cuenta de cabeza delante del cliente.
+ */
+export function subtotalMinimo(
+  cajas: number,
+  precioCaja: number | null,
+  topePorcentaje: number | null,
+): number | null {
+  if (topePorcentaje === null || precioCaja === null) return null;
+
+  const cantidad = aCantidad(cajas);
+  const precio = aDinero(precioCaja);
+  if (cantidad === null || precio === null) return null;
+
+  const bruto = cantidad * precio;
+  const decimales = DECIMALES_CAJAS + DECIMALES_DINERO;
+
+  return comoNumero(bruto - topeEnImporte(bruto, topePorcentaje), decimales);
+}
+
+/** Cuánto se puede rebajar de un importe dado, en la misma unidad que él. */
+function topeEnImporte(bruto: bigint, topePorcentaje: number): bigint {
+  // En enteros y por lo bajo, como el resto: el tope es un máximo, así que si
+  // no cae justo hay que quedarse por debajo y no por encima.
+  const porcentaje = BigInt(Math.round(topePorcentaje * 100));
+  return (bruto * porcentaje) / 10_000n;
+}
+
+/**
+ * VEN-07: comprueba el descuento contra el tope del rol de quien vende.
+ *
+ * Devuelve el mensaje de error, o `null` si la rebaja cabe. La barrera de
+ * verdad es `fn_venta_detalle_tope_descuento` (migración 0035); esto existe
+ * para decirlo con una frase que se pueda leer, y antes de intentar guardar.
+ */
+export function superaElTope(
+  cajas: number,
+  precioCaja: number | null,
+  descuento: number,
+  topePorcentaje: number | null,
+): string | null {
+  if (topePorcentaje === null || precioCaja === null || descuento <= 0) return null;
+
+  const cantidad = aCantidad(cajas);
+  const precio = aDinero(precioCaja);
+  const rebaja = aDinero(descuento);
+  if (cantidad === null || precio === null || rebaja === null) return null;
+
+  const bruto = cantidad * precio;
+  const maximo = topeEnImporte(bruto, topePorcentaje);
+
+  if (rebaja * DINERO_A_IMPORTE <= maximo) return null;
+
+  const decimales = DECIMALES_CAJAS + DECIMALES_DINERO;
+  return (
+    `Su rol admite hasta un ${topePorcentaje} % de descuento: en esta línea son ` +
+    `${comoNumero(maximo, decimales)} como máximo, y se pidieron ${descuento}`
+  );
+}
+
+/**
  * La rebaja que sigue en pie cuando se corrige una línea sin tocar el subtotal.
  *
  * Es el otro significado de «no vino el campo». Al **agregar** una línea

@@ -30,9 +30,9 @@ let proveedorId: number;
 let clienteId: number;
 let monedaId: number;
 let adminId: string;
-/** Documentos creados por los tests, para poder limpiarlos pase lo que pase. */
-const ventas: number[] = [];
-const importaciones: number[] = [];
+/** Rol y usuario de usar y tirar, para probar el tope de descuento (0035). */
+let rolTopeId: number;
+let usuarioTopeId: string;
 
 const n = (fila: Fila | undefined, campo: string): number => Number(fila?.[campo]);
 
@@ -43,14 +43,19 @@ async function comoAdmin(sql: string): Promise<Fila[]> {
   );
 }
 
+/** Ejecuta con la identidad de un usuario cualquiera, para probar sus límites. */
+async function como(uid: string, sql: string): Promise<Fila[]> {
+  return consultar(
+    `select set_config('request.jwt.claims', '{"sub":"${uid}","role":"authenticated"}', false); ${sql}`,
+  );
+}
+
 /** Crea una nota de venta en BORRADOR y la apunta para la limpieza. */
 async function nuevaVenta(): Promise<number> {
   const [venta] = await consultar(
     `insert into venta (cliente_id, moneda_id) values (${clienteId}, ${monedaId}) returning id`,
   );
-  const id = n(venta, 'id');
-  ventas.push(id);
-  return id;
+  return n(venta, 'id');
 }
 
 /** Crea una importación en BORRADOR y la apunta para la limpieza. */
@@ -58,9 +63,7 @@ async function nuevaImportacion(): Promise<number> {
   const [imp] = await consultar(
     `insert into importacion (proveedor_id, moneda_id) values (${proveedorId}, ${monedaId}) returning id`,
   );
-  const id = n(imp, 'id');
-  importaciones.push(id);
-  return id;
+  return n(imp, 'id');
 }
 
 describe.runIf(hayCredenciales)('regresiones abiertas', { timeout: 180_000 }, () => {
@@ -115,34 +118,79 @@ describe.runIf(hayCredenciales)('regresiones abiertas', { timeout: 180_000 }, ()
       `insert into movimiento (variante_id, zona_id, tipo, cajas)
        values (${varianteId}, ${zonaId}, 'ENTRADA', 100)`,
     );
+
+    /*
+     * Rol y usuario de usar y tirar para el tope de descuento (0035). Se crean
+     * en vez de tocarle el tope al rol Administrador: esto corre contra el
+     * proyecto real, y un test que se corta a la mitad dejaría a los
+     * administradores de verdad topados sin que nadie se entere.
+     */
+    const [rolTope] = await consultar(
+      `insert into rol (nombre, descripcion, descuento_maximo)
+       values ('${CODIGO}', 'Rol de prueba con tope', 10) returning id`,
+    );
+    rolTopeId = n(rolTope, 'id');
+    const [auth] = await consultar(
+      `insert into auth.users (id, email, aud, role)
+       values (gen_random_uuid(), '${CODIGO.toLowerCase()}@test.local', 'authenticated', 'authenticated')
+       returning id`,
+    );
+    usuarioTopeId = String(auth?.['id']);
+    await consultar(`update usuario set rol_id = ${rolTopeId} where id = '${usuarioTopeId}'`);
   });
 
+  /*
+   * La limpieza borra por el prefijo del codigo y no por los ids capturados.
+   * La Management API aplica las sentencias una detras de otra y se detiene en
+   * la primera que falle: con ids, un montaje que muere a la mitad deja
+   * variables sin valor, una sentencia revienta y todo lo que venia despues se
+   * queda en la base REAL del cliente. Un `like` sobre algo que no se creo
+   * simplemente no borra nada.
+   */
   afterAll(async () => {
-    if (!varianteId) return;
-    const lista = (ids: number[]): string => (ids.length ? ids.join(', ') : '0');
-    // Si el montaje se corto a la mitad, los ids de lo ultimo que crea pueden
-    // no existir. El 0 no coincide con ninguna fila y deja pasar el resto de la
-    // limpieza, que es justo lo que hay que borrar en ese caso.
-    const id = (valor: number | undefined): number => valor ?? 0;
     await consultar(`
       -- Solo para esta sesion, que muere con la peticion: un "alter table
       -- ... disable trigger" que no llegue a su "enable" deja la base REAL del
       -- cliente sin sus protecciones, en silencio.
       set session_replication_role = replica;
-      delete from movimiento where variante_id = ${varianteId};
-      delete from stock where variante_id = ${varianteId};
-      delete from importacion_detalle where importacion_id in (${lista(importaciones)});
-      delete from importacion where id in (${lista(importaciones)});
-      delete from venta_detalle where venta_id in (${lista(ventas)});
-      delete from venta where id in (${lista(ventas)});
-      delete from lista_precio_item where variante_id = ${varianteId};
-      delete from cliente where id = ${id(clienteId)};
-      delete from proveedor where id = ${id(proveedorId)};
-      delete from producto_variante where id = ${varianteId};
-      delete from producto where id = ${id(productoId)};
-      delete from zona where id = ${id(zonaId)};
-      delete from bodega where id = ${id(bodegaId)};
-      delete from categoria where id = ${id(categoriaId)};
+
+      delete from movimiento where variante_id in (
+        select v.id from producto_variante v join producto p on p.id = v.producto_id
+         where p.codigo like '${CODIGO}%');
+      delete from stock where variante_id in (
+        select v.id from producto_variante v join producto p on p.id = v.producto_id
+         where p.codigo like '${CODIGO}%');
+
+      delete from importacion_detalle where importacion_id in (
+        select i.id from importacion i join proveedor pr on pr.id = i.proveedor_id
+         where pr.codigo like '${CODIGO}%');
+      delete from importacion where proveedor_id in (
+        select id from proveedor where codigo like '${CODIGO}%');
+
+      delete from venta_detalle where venta_id in (
+        select v.id from venta v join cliente c on c.id = v.cliente_id
+         where c.codigo like '${CODIGO}%');
+      delete from venta where cliente_id in (
+        select id from cliente where codigo like '${CODIGO}%');
+
+      delete from lista_precio_item where variante_id in (
+        select v.id from producto_variante v join producto p on p.id = v.producto_id
+         where p.codigo like '${CODIGO}%');
+
+      delete from cliente where codigo like '${CODIGO}%';
+      delete from proveedor where codigo like '${CODIGO}%';
+      delete from producto_variante where producto_id in (
+        select id from producto where codigo like '${CODIGO}%');
+      delete from producto where codigo like '${CODIGO}%';
+      delete from zona where bodega_id in (
+        select id from bodega where codigo like '${CODIGO}%');
+      delete from bodega where codigo like '${CODIGO}%';
+      delete from categoria where codigo like '${CODIGO}%';
+
+      delete from usuario where id in (
+        select id from auth.users where email like '${CODIGO.toLowerCase()}%');
+      delete from auth.users where email like '${CODIGO.toLowerCase()}%';
+      delete from rol where nombre like '${CODIGO}%';
     `);
   });
 
@@ -238,7 +286,9 @@ describe.runIf(hayCredenciales)('regresiones abiertas', { timeout: 180_000 }, ()
     const [fecha] = await consultar(`select fecha from importacion where id = ${importacionId}`);
     const dia = String(fecha?.['fecha']).slice(0, 10);
 
-    const filas = await consultar(
+    // Con identidad: desde 0034 la función comprueba `reporte_compras.ver` por
+    // su cuenta, porque es `security definer` y se salta la RLS a propósito.
+    const filas = await comoAdmin(
       `select agrupacion, clave, cajas, monto_clp, lineas, sin_importe
          from fn_compras_resumen('${dia}', '${dia}')`,
     );
@@ -291,21 +341,77 @@ describe.runIf(hayCredenciales)('regresiones abiertas', { timeout: 180_000 }, ()
     expect(String(fila?.['opciones'])).toContain('security_invoker=true');
   });
 
-  it('G-06: la migración 0031 concedió `importacion.ver` a Ventas y Consulta (hoy en verde)', async () => {
+  it('G-06: ver el reporte de compras no abre el módulo Compras (0034)', async () => {
     /*
-     * El reporte de compras depende de este permiso. Si 0031 no se aplicó, la
-     * página muestra el aviso de «pídalo en Roles y permisos» y el reporte
-     * queda inservible para los dos roles que más lo consultan.
+     * 0031 concedió `importacion.ver` a Ventas y Consulta para que el reporte
+     * no les saliera vacío, y de paso les abrió el módulo Compras entero.
+     * 0034 lo separa: `reporte_compras.ver` da el reporte y nada más.
      */
-    const filas = await consultar(
+    const conReporte = await consultar(
       `select r.nombre
-         from rol r
-         join rol_permiso rp on rp.rol_id = r.id
-         join permiso p on p.id = rp.permiso_id
-        where p.codigo = 'importacion.ver' and r.nombre in ('Ventas', 'Consulta')
+         from rol r join rol_permiso rp on rp.rol_id = r.id join permiso p on p.id = rp.permiso_id
+        where p.codigo = 'reporte_compras.ver' and r.nombre in ('Ventas', 'Consulta')
         order by r.nombre`,
     );
+    expect(conReporte.map((f) => String(f['nombre']))).toEqual(['Consulta', 'Ventas']);
 
-    expect(filas.map((f) => String(f['nombre']))).toEqual(['Consulta', 'Ventas']);
+    const conModulo = await consultar(
+      `select r.nombre
+         from rol r join rol_permiso rp on rp.rol_id = r.id join permiso p on p.id = rp.permiso_id
+        where p.codigo = 'importacion.ver' and r.nombre in ('Ventas', 'Consulta')`,
+    );
+    expect(conModulo).toHaveLength(0);
+  });
+
+  it('G-09: el reporte de compras se niega a quien no tiene su permiso (0034)', async () => {
+    /*
+     * Las dos funciones son `security definer`: se saltan la RLS a propósito,
+     * así que la puerta es la comprobación que llevan dentro. El rol de prueba
+     * no tiene ningún permiso.
+     */
+    await expect(como(usuarioTopeId, `select * from fn_compras_detalle()`)).rejects.toThrow(
+      /permiso/i,
+    );
+    await expect(como(usuarioTopeId, `select * from fn_compras_resumen()`)).rejects.toThrow(
+      /permiso/i,
+    );
+  });
+
+  it('G-10: el tope de descuento del rol se aplica en la base (0035)', async () => {
+    /*
+     * El rol de prueba admite hasta un 10 %. Sobre una línea de 200 eso son 20:
+     * 50 tiene que rebotar y 20 tiene que pasar. Lo comprueba un trigger, no la
+     * página, para que no se pueda rodear desde otro formulario.
+     */
+    const ventaId = await nuevaVenta();
+
+    await expect(
+      como(
+        usuarioTopeId,
+        `insert into venta_detalle (venta_id, variante_id, zona_id, cajas, precio_caja, descuento)
+         values (${ventaId}, ${varianteId}, ${zonaId}, 2, 100, 50)`,
+      ),
+    ).rejects.toThrow(/admite hasta/i);
+
+    await expect(
+      como(
+        usuarioTopeId,
+        `insert into venta_detalle (venta_id, variante_id, zona_id, cajas, precio_caja, descuento)
+         values (${ventaId}, ${varianteId}, ${zonaId}, 2, 100, 20)`,
+      ),
+    ).resolves.toBeDefined();
+  });
+
+  it('G-11: sin tope en el rol no hay límite más que el importe de la línea (0035)', async () => {
+    // Los roles arrancan en `null` y 0035 no cambia el comportamiento de nadie
+    // hasta que alguien configure un tope.
+    const ventaId = await nuevaVenta();
+
+    await expect(
+      comoAdmin(
+        `insert into venta_detalle (venta_id, variante_id, zona_id, cajas, precio_caja, descuento)
+         values (${ventaId}, ${varianteId}, ${zonaId}, 2, 100, 200)`,
+      ),
+    ).resolves.toBeDefined();
   });
 });

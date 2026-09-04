@@ -30,6 +30,23 @@ export default async function VentasPorPeriodo({
   const puedeExportar = usuario.permisos.has('reporte.exportar');
   const { pagina, porPagina, desde: primera, hasta: ultima } = leerPaginacion(crudos);
 
+  // `v_ventas_detalle` es security_invoker: sin `venta.ver` la RLS de venta no
+  // devuelve una sola fila. Decirlo es mejor que mostrar una tabla vacía, que se
+  // leería como «no hubo ventas en el período» —el mismo cuidado que ya tenía el
+  // reporte de compras—.
+  if (!usuario.permisos.has('venta.ver')) {
+    return (
+      <>
+        <Encabezado titulo="Ventas por período" descripcion="Ventas confirmadas (REP-05)" />
+        <Vacio>
+          Este reporte lee las ventas confirmadas y su rol no tiene el permiso
+          <code className="mx-1 text-xs">venta.ver</code>. Pídalo en Administración › Roles y
+          permisos.
+        </Vacio>
+      </>
+    );
+  }
+
   const supabase = await crearClienteServidor();
 
   let consulta = supabase

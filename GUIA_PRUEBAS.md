@@ -222,8 +222,8 @@ Antes de empezar: cargar **RUT y teléfono** en Administración › Empresa. Sal
 - [ ] **Valorización**: total **$79,9 millones CLP** (más lo que se agregue en las pruebas), valorizado al último costo de importación.
 - [ ] **Estadística mensual**: muestra las salidas del mes, incluida la venta recién hecha.
 - [ ] **Ventas por período**: filtrar por fecha y ver la venta a Comercial Andina.
-- [ ] **Compras por período**: filtrar por fecha y ver la importación por proveedor y por artículo. Solo aparecen las **confirmadas**: un borrador no cuenta como compra.
-- [ ] Entrar con un usuario **Ventas** o **Consulta** y comprobar que el reporte de compras trae datos (migración `0031`), pero que el botón de crear importación sigue sin aparecer.
+- [ ] **Compras por período**: filtrar por fecha y ver la importación por proveedor y por artículo. Solo aparecen las **confirmadas**: un borrador no cuenta como compra. Debajo de los dos resúmenes va el detalle, paginado.
+- [ ] Entrar con un usuario **Ventas** o **Consulta** y comprobar que el reporte de compras trae datos (permiso `reporte_compras.ver`, migración `0034`) pero que **el módulo Compras no aparece en el menú**: ver el reporte y entrar a Compras son dos permisos distintos.
 - [ ] **Alertas de stock**: aparecen `PL-7702` (115 cajas, mínimo 120) y `ZN-6103` (305, mínimo 350).
 - [ ] **Exportar a Excel** desde un reporte: descarga el `.xlsx` y abre bien (los cuatro tipos: estadística, valorización, ventas y compras).
 
@@ -300,6 +300,10 @@ movimientos trazables.
 la lista de ese cliente. Rebajar una línea escribiendo el subtotal acordado
 —«son 5.950, déjemelo en 5.900»— y mostrar que la nota anota el descuento en vez
 de esconderlo en el precio. Confirmar → el stock baja solo.
+
+Si al rol de ese usuario se le puso un **descuento máximo** (Administración ›
+Roles y permisos), el campo dice hasta dónde se puede bajar y no deja pasarse.
+Vale la pena enseñarlo: es la respuesta a «¿y si el vendedor regala la venta?».
 
 **6. Lo que no se puede hacer (4 min). El momento importante.** Intentar vender
 5.000 cajas cuando hay 380: el sistema rechaza la operación entera. _«No existe

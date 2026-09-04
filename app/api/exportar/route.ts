@@ -120,14 +120,18 @@ export async function GET(peticion: Request): Promise<Response> {
     total = count;
     nombre = 'ventas-por-periodo';
   } else if (tipo === 'compras') {
-    const { data, count, error } = await enPeriodo(
-      supabase
-        .from('v_compras_detalle')
-        .select(
-          'fecha, documento_aduana, proveedor_codigo, proveedor, producto, cajas, costo_caja, precio_venta_caja, subtotal, moneda, tipo_cambio, monto_clp',
-          { count: 'exact' },
-        ),
-    )
+    // Por la función y no por la vista: desde 0034 el reporte de compras se pide
+    // con `reporte_compras.ver`, que es lo que se comprueba ahí dentro. La vista
+    // dependía de `importacion.ver` y eso abría el módulo Compras entero.
+    const { data, count, error } = await supabase
+      .rpc(
+        'fn_compras_detalle',
+        {
+          ...(periodo.desde ? { p_desde: periodo.desde } : {}),
+          ...(periodo.hasta ? { p_hasta: periodo.hasta } : {}),
+        },
+        { count: 'exact' },
+      )
       .order('fecha', { ascending: false })
       .limit(LIMITE_FILAS);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

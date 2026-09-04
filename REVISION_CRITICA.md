@@ -4,22 +4,22 @@ Revisión adversarial del trabajo reciente: **descuento por artículo (VEN-07, c
 
 Cada hallazgo se convirtió primero en un test en rojo y después se corrigió. **Los tests quedan** como guardias: cada uno describe un fallo que ocurrió de verdad y que no debe volver.
 
-Estado: **157 tests en verde, 1 `todo`** (D-08, que es una decisión del cliente). `format:check`, `lint`, `typecheck` y `build` limpios. Los tests de integración se ejecutaron contra el proyecto Supabase real y su limpieza no dejó residuos.
+Estado: **todo en verde, sin pendientes**. Las tres decisiones que quedaban abiertas se resolvieron y están al final. `format:check`, `lint`, `typecheck` y `build` limpios. Los tests de integración se ejecutaron contra el proyecto Supabase real y su limpieza no dejó residuos.
 
 ## Dónde vive cada guardia
 
 | Archivo                                          | Cubre                         | Corre                 |
 | ------------------------------------------------ | ----------------------------- | --------------------- |
 | `lib/ventas/descuento.regresion.test.ts`         | D-01 … D-08                   | siempre               |
-| `lib/ventas/acciones-notas.regresion.test.ts`    | A-01 … A-04 (Supabase falso)  | siempre               |
+| `lib/ventas/acciones-notas.regresion.test.ts`    | A-01 … A-05 (Supabase falso)  | siempre               |
 | `lib/ventas/conversion.regresion.test.ts`        | C-02, C-03                    | siempre               |
 | `lib/errores.regresion.test.ts`                  | E-01, E-02                    | siempre               |
 | `lib/fechas.test.ts`                             | R-03, F-01 y F-02 en el borde | siempre               |
 | `lib/paginacion.regresion.test.ts`               | P-01, P-02                    | siempre               |
 | `lib/bitacora/rango-fechas.regresion.test.ts`    | F-01, F-02                    | siempre               |
-| `lib/inventario/regresiones.integracion.test.ts` | G-01 … G-08                   | solo con `.env.local` |
+| `lib/inventario/regresiones.integracion.test.ts` | G-01 … G-11                   | solo con `.env.local` |
 
-Migraciones nuevas: `0032_confirmar_con_importe.sql` y `0033_resumen_reportes.sql`, ya aplicadas al proyecto (`npm run db:migrar`) y con los tipos regenerados (`npm run db:types`).
+Migraciones nuevas: `0032_confirmar_con_importe.sql`, `0033_resumen_reportes.sql`, `0034_reporte_compras_permiso.sql` y `0035_tope_descuento_rol.sql`, todas aplicadas al proyecto (`npm run db:migrar`) y con los tipos regenerados (`npm run db:types`).
 
 ---
 
@@ -104,21 +104,41 @@ Las dos páginas de reportes se traían el período entero para sumarlo en TypeS
 
 ---
 
-## Abierto · son decisiones del cliente, no fallos
+## Decisiones tomadas
 
-### S-01 · La migración 0031 abre el módulo Compras entero
+Las tres preguntas que quedaban abiertas se resolvieron y están implementadas.
 
-Conceder `importacion.ver` a **Ventas** y **Consulta** para que funcione un reporte les da también costos de compra, proveedores y el módulo Compras en modo consulta. Está documentado en la propia migración como decisión consciente, pero conviene confirmarlo antes de commitear: **los vendedores pasan a ver a qué precio compra la empresa**.
+### S-01 · El reporte de compras deja de abrir el módulo Compras → migración 0034
 
-Si no es lo que se quiere, la alternativa sin ese efecto es un permiso propio (`reporte.compras.ver`) con su política, o exponer el reporte por una función `security definer` acotada a sus columnas. No se cambió porque la decisión ya estaba tomada y escrita.
+**Decisión: solo el reporte, no el módulo.** `0031` había concedido `importacion.ver` a Ventas y Consulta para que el reporte no les saliera vacío, y de paso les abría Compras entero —borradores, documentos de aduana, el detalle de cada importación—.
 
-### D-08 · No hay tope de descuento
+Ahora son dos permisos distintos: `reporte_compras.ver` da los totales del período; `importacion.ver` da el módulo. El costo sigue a la vista de quien tenga el reporte —es de lo que trata REP-07— pero ver el reporte ya no arrastra lo demás. Como la vista es `security_invoker`, el reporte se lee por dos funciones `security definer` que comprueban el permiso antes de devolver nada.
 
-Un descuento del 100 % es legal: la base lo permite y hay un test que lo consagra («deja regalar la línea entera, pero no más»). No hay tope por rol ni segunda firma; cualquiera con `venta.crear` puede dejar una nota en cero. Si el cliente esperaba un máximo (10 %, 20 %), es una regla que falta. Es el único `it.todo` de la suite.
+De paso: el reporte de **ventas** hacía lo mismo en silencio. Consulta tiene `reporte.ver` pero no `venta.ver`, así que la RLS le devolvía una tabla vacía que se leía como «no hubo ventas». Ahora lo dice. No se le concedió `venta.ver` a nadie: quién ve las ventas es otra decisión y no estaba sobre la mesa.
 
-### Precios previos
+**Guardias:** `G-06` (los permisos quedaron separados) y `G-09` (las funciones se niegan a quien no tiene el permiso).
 
-`lib/compras/precios-previos.ts` propone el precio de **lista**, no lo último realmente cobrado. Con VEN-07 esas dos cifras ya no son la misma, y el comentario de `0029` usa precisamente «a qué precio se vendió la última vez» para justificar el diseño del descuento. Hay que decidir cuál de las dos se quiere proponer al comprar.
+### D-08 · Tope de descuento por rol → migración 0035
+
+**Decisión: un porcentaje máximo por rol**, editable en Administración › Roles y permisos. `null` = sin tope, que es como arrancan todos: la migración no cambia el comportamiento de nadie hasta que se configure.
+
+Por rol y no global porque el punto es distinguir: un vendedor cierra hasta cierto margen y de ahí para arriba lo autoriza quien puede. Un tope único topa también a quien debería poder pasarse, y entonces se «arregla» subiéndolo un rato, que es como se pierde el control de verdad.
+
+Lo hace cumplir un trigger sobre `venta_detalle`; la acción lo comprueba antes para dar la frase entera en vez de la excepción de PostgreSQL, y el campo Subtotal escribe el mínimo que se puede cobrar —«puede bajarlo hasta 5.355»— en vez del porcentaje: es lo que hay que poder decir en el mostrador sin hacer la cuenta de cabeza.
+
+**Guardias:** `D-08a` … `D-08f` (la cuenta, incluido que el tope se recorta a la baja), `A-05` (la acción no deja pasar la escritura) y `G-10` / `G-11` (el trigger, con y sin tope).
+
+### Precios previos · las dos cifras, con su procedencia
+
+**Decisión: se propone el de la lista y al lado se ve lo que se cobró de verdad.** La lista es la decisión vigente y sigue siendo la propuesta; debajo aparece «Última venta: 34 USD el 12-08 a Comercial X».
+
+Lo cobrado sale de `venta_detalle.subtotal` —la columna generada, ya con el descuento restado— repartido entre las cajas de la línea, y solo de ventas confirmadas **en dólares**: es el mismo criterio que ya usaba el costo, porque en pesos la cifra no es comparable sin arrastrar una conversión del día.
+
+Es el mismo trato que se le da al costo: se propone, con su origen a la vista, y decide quien compra.
+
+---
+
+## Sigue abierto, y es a propósito
 
 ### X-05 · Redondeo por línea
 

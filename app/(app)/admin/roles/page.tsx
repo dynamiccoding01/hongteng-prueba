@@ -40,14 +40,16 @@ export default async function Roles({
     // La matriz necesita todos los roles: son sus columnas, no un listado.
     supabase
       .from('rol')
-      .select('id, nombre, descripcion, activo, acceso_total, protegido')
+      .select('id, nombre, descripcion, activo, acceso_total, protegido, descuento_maximo')
       .order('nombre'),
     supabase.from('permiso').select('id, codigo, modulo, descripcion').order('codigo'),
     supabase.from('rol_permiso').select('rol_id, permiso_id'),
     // La tabla de abajo sí es un listado y va paginada.
     supabase
       .from('rol')
-      .select('id, nombre, descripcion, activo, acceso_total, protegido', { count: 'exact' })
+      .select('id, nombre, descripcion, activo, acceso_total, protegido, descuento_maximo', {
+        count: 'exact',
+      })
       .order('nombre')
       .range(desde, hasta),
   ]);
@@ -109,6 +111,7 @@ export default async function Roles({
             <Th>Rol</Th>
             <Th>Descripción</Th>
             <Th numerico>Permisos</Th>
+            <Th numerico>Descuento máx.</Th>
             <Th>Estado</Th>
             {puedeEditar ? <Th> </Th> : null}
           </tr>
@@ -124,6 +127,10 @@ export default async function Roles({
                 ) : (
                   (conteo.get(r.id) ?? 0)
                 )}
+              </Td>
+              {/* VEN-07: sin tope no es lo mismo que 0, y así se lee. */}
+              <Td numerico tenue>
+                {r.descuento_maximo === null ? 'sin tope' : `${Number(r.descuento_maximo)} %`}
               </Td>
               <Td>
                 <Etiqueta tono={r.activo ? 'verde' : 'neutro'}>
@@ -151,6 +158,15 @@ export default async function Roles({
                         valor={r.descripcion}
                         ejemplo="Para qué sirve el rol"
                         largoMax={200}
+                      />
+                      <Campo
+                        etiqueta="Descuento máximo (%)"
+                        nombre="descuento_maximo"
+                        tipo="number"
+                        valor={r.descuento_maximo}
+                        minimo={0}
+                        maximo={100}
+                        ayuda="Cuánto puede rebajar este rol en cada línea de venta. Vacío = sin tope."
                       />
                       <Seleccion
                         etiqueta="Estado"

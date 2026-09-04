@@ -91,6 +91,16 @@ export async function crearRol(
 const esquemaEditarRol = esquemaCrearRol.extend({
   id: z.coerce.number().int().positive(),
   activo: z.enum(['1', '0']),
+  /*
+   * VEN-07: tope de descuento por linea. Vacio significa «sin tope», que no es
+   * lo mismo que 0 —un rol con tope 0 no puede rebajar nada— y por eso el campo
+   * distingue la cadena vacia del cero en vez de tratar los dos como falta.
+   */
+  descuento_maximo: z.coerce
+    .number()
+    .min(0, 'El tope va entre 0 y 100')
+    .max(100, 'El tope va entre 0 y 100')
+    .optional(),
 });
 
 /**
@@ -106,17 +116,20 @@ export async function editarRol(
 ): Promise<EstadoFormulario> {
   await requerirPermiso('rol.editar');
 
+  const crudoTope = datos.get('descuento_maximo');
   const analisis = esquemaEditarRol.safeParse({
     id: datos.get('id'),
     nombre: datos.get('nombre'),
     descripcion: datos.get('descripcion'),
     activo: datos.get('activo'),
+    descuento_maximo:
+      typeof crudoTope === 'string' && crudoTope.trim() !== '' ? crudoTope : undefined,
   });
   if (!analisis.success) {
     return { error: analisis.error.issues[0]?.message ?? 'Datos no válidos' };
   }
 
-  const { id, nombre, descripcion, activo } = analisis.data;
+  const { id, nombre, descripcion, activo, descuento_maximo } = analisis.data;
   const supabase = await crearClienteServidor();
 
   // Un rol sin usuarios se puede desactivar sin más; con usuarios dentro, no:
@@ -138,7 +151,12 @@ export async function editarRol(
 
   const { error } = await supabase
     .from('rol')
-    .update({ nombre, descripcion: descripcion ?? null, activo: activo === '1' })
+    .update({
+      nombre,
+      descripcion: descripcion ?? null,
+      activo: activo === '1',
+      descuento_maximo: descuento_maximo ?? null,
+    })
     .eq('id', id);
 
   if (error) return { error: mensajeError(error, 'rol') };

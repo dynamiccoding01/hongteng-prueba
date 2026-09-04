@@ -395,6 +395,7 @@ export default async function NotasDeVenta({
                                   >
                                     <CamposLineaVenta
                                       ventaId={venta.id}
+                                      topeDescuento={usuario.descuentoMaximo}
                                       linea={{
                                         id: d.id,
                                         varianteId: d.variante_id,
@@ -448,7 +449,11 @@ export default async function NotasDeVenta({
                       etiquetaNuevo="Agregar detalle"
                     >
                       <input type="hidden" name="venta_id" value={venta.id} />
-                      <CamposDetalleVenta ventaId={venta.id} moneda={venta.moneda.codigo} />
+                      <CamposDetalleVenta
+                        ventaId={venta.id}
+                        moneda={venta.moneda.codigo}
+                        topeDescuento={usuario.descuentoMaximo}
+                      />
                     </FormularioDesplegable>
 
                     {/*

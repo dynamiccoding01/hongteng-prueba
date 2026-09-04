@@ -47,13 +47,18 @@ const ESPERA_MAXIMA_MS = 20_000;
  *
  * Reintentar no basta: la suite de integración dispara cientos de consultas
  * seguidas y el límite es por ventana de tiempo, así que se sale de ella y no
- * vuelve a entrar. Espaciarlas mantiene el ritmo por debajo del tope (unas 54
- * por minuto) y hace que los reintentos sean la excepción y no el mecanismo.
+ * vuelve a entrar. Espaciarlas mantiene el ritmo por debajo del tope y hace que
+ * los reintentos sean la excepción y no el mecanismo.
+ *
+ * El limite de la Management API ronda las 60 por minuto. Con 1,1 s (unas 54)
+ * la suite entera todavia lo rozaba y caian archivos enteros en el montaje; con
+ * 1,5 s (unas 40) hay margen. La suite tarda mas, pero un rojo intermitente que
+ * no es del codigo cuesta mucho mas caro que unos minutos.
  *
  * Las peticiones se encolan: `fileParallelism` ya está en `false`, pero dentro
  * de un mismo archivo puede haber `Promise.all`.
  */
-const INTERVALO_MINIMO_MS = 1100;
+const INTERVALO_MINIMO_MS = 1500;
 
 const esperar = (ms: number): Promise<void> => new Promise((listo) => setTimeout(listo, ms));
 

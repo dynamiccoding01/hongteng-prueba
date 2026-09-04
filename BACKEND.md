@@ -543,6 +543,37 @@ Son `language sql` y `stable`, **sin** `security definer`: se ejecutan con los p
 
 ---
 
+### 4.14 Ver el reporte de compras no es entrar a Compras (migración 0034)
+
+`0031` concedió `importacion.ver` a Ventas y Consulta para que el reporte de compras no les saliera vacío. Funcionaba, pero daba mucho más que el reporte: el módulo Compras entero en modo consulta —borradores, documentos de aduana, el detalle línea a línea—.
+
+El cliente pidió que los reportes los vea todo el mundo, no que todo el mundo entre a Compras. `0034` separa las dos cosas:
+
+- `reporte_compras.ver` → los totales del período por proveedor y producto.
+- `importacion.ver` → el módulo Compras.
+
+El costo sigue a la vista de quien tenga el reporte: es de lo que trata REP-07 y eso ya estaba decidido. Lo que cambia es que ver el reporte ya no arrastra lo demás.
+
+Como `v_compras_detalle` es `security_invoker`, el reporte pasa a leerse por dos funciones **`security definer`** —`fn_compras_detalle` y `fn_compras_resumen`— que comprueban el permiso antes de devolver nada. Es el mismo patrón de `fn_confirmar_venta`: la función se salta la RLS a propósito y por eso **empieza preguntando**. `fn_compras_detalle` devuelve `setof v_compras_detalle`, así que la página sigue paginando con `order` y `range` como si fuera una tabla.
+
+El código lleva guion bajo y no un segundo punto: `permiso_codigo_formato_ck` (0002) solo admite `recurso.accion`.
+
+---
+
+### 4.15 Tope de descuento por rol (migración 0035)
+
+`rol.descuento_maximo` es el porcentaje máximo que ese rol puede rebajar **en cada línea** de venta. `null` = sin tope, que es como arrancan todos: la migración no cambia el comportamiento de nadie hasta que alguien lo configure en Administración › Roles y permisos.
+
+El tope es por rol y no un número único del sistema porque el punto es distinguir: un vendedor cierra hasta cierto margen y de ahí para arriba lo autoriza quien puede. Un tope global topa también a quien debería poder pasarse, y entonces se «arregla» subiéndolo un rato, que es como se pierde el control de verdad.
+
+Lo hace cumplir `fn_venta_detalle_tope_descuento`, un trigger `before insert or update` sobre `venta_detalle`. Es `security definer` porque lee `rol` con la identidad de quien escribe, y la RLS de esa tabla no tiene por qué mostrarle su propia fila.
+
+**Sin sesión no se aplica**: los scripts y las migraciones corren sin `auth.uid()` y no tienen rol al que topar. No es un agujero —para llegar ahí hace falta la clave secreta, que ya se salta toda la RLS— y sin eso ni `db:migrar` ni los tests de integración podrían escribir una línea.
+
+La aplicación lo comprueba además en el `acciones.ts` (`superaElTope`) y el campo Subtotal escribe el mínimo que se puede cobrar —«puede bajarlo hasta 5.355»— en vez del porcentaje: es lo que hay que poder decir en el mostrador sin hacer la cuenta de cabeza. Como siempre, la página es comodidad y la barrera es la base.
+
+---
+
 ## 5. Diagrama entidad-relación
 
 ```mermaid

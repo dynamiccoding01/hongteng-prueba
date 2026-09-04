@@ -3,9 +3,10 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
+import { requerirUsuario } from '@/lib/auth';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
 import { precioDeLista, type PrecioDeLista } from '@/lib/ventas/precio-lista';
-import { descuentoParaSubtotal, descuentoVigente } from '@/lib/ventas/descuento';
+import { descuentoParaSubtotal, descuentoVigente, superaElTope } from '@/lib/ventas/descuento';
 import { esquemaDia } from '@/lib/fechas';
 
 const esquemaCabecera = z.object({
@@ -142,6 +143,7 @@ export async function agregarDetalleVenta(
   }
 
   const supabase = await crearClienteServidor();
+  const { descuentoMaximo: topeDelRol } = await requerirUsuario();
 
   const lista = await precioDeLista(analisis.data.venta_id, analisis.data.variante_id);
   const fallo = motivoSinPrecio(lista);
@@ -165,6 +167,14 @@ export async function agregarDetalleVenta(
    */
   const rebaja = descuentoParaSubtotal(analisis.data.cajas, precio, analisis.data.subtotal);
   if ('error' in rebaja) return { error: rebaja.error };
+
+  /*
+   * VEN-07: el tope de descuento del rol (migración 0035). Lo hace cumplir un
+   * trigger de la base; comprobarlo aquí es para dar la frase entera —cuánto
+   * se puede rebajar en esta línea— en vez del error de la excepción.
+   */
+  const tope = superaElTope(analisis.data.cajas, precio, rebaja.descuento, topeDelRol);
+  if (tope) return { error: tope };
 
   const { error } = await supabase.from('venta_detalle').insert({
     venta_id: analisis.data.venta_id,
@@ -266,6 +276,7 @@ export async function editarLineaVenta(
   }
 
   const supabase = await crearClienteServidor();
+  const { descuentoMaximo: topeDelRol } = await requerirUsuario();
 
   // Misma regla que al agregar: si hay precio de lista en la moneda de la
   // venta, ese manda. Si no se comprobara aquí, el precio bloqueado en un
@@ -310,6 +321,9 @@ export async function editarLineaVenta(
       : descuentoParaSubtotal(analisis.data.cajas, precio, analisis.data.subtotal);
 
   if ('error' in rebaja) return { error: rebaja.error };
+
+  const tope = superaElTope(analisis.data.cajas, precio, rebaja.descuento, topeDelRol);
+  if (tope) return { error: tope };
 
   const { error } = await supabase
     .from('venta_detalle')

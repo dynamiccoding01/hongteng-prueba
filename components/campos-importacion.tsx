@@ -137,6 +137,20 @@ export function CamposDetalleImportacion({
         ? 'Todavía no está en la lista de precios'
         : null;
 
+  /*
+   * VEN-07: lo que de verdad se cobró la última vez, al lado de la lista.
+   *
+   * Se propone el de la lista, que es la decisión vigente, pero desde que hay
+   * descuento por artículo esa cifra ya no es lo que se cobró. Las dos juntas
+   * es lo que permite decidir: si la lista dice 38 y se cerró en 34, o el
+   * precio está alto o hay que revisarlo antes de fijar el de esta compra.
+   */
+  const ultimoCobrado =
+    previos?.cobrado === null || previos?.cobrado === undefined
+      ? null
+      : `Última venta: ${numero(previos.cobrado)} ${moneda} el ${fechaCorta(previos.cobradoFecha)}` +
+        (previos.cobradoCliente ? ` a ${previos.cobradoCliente}` : '');
+
   return (
     <>
       <SelectorArticulo nombre="variante_id" requerido alElegir={setArticulo} ancho="completo" />
@@ -216,6 +230,7 @@ export function CamposDetalleImportacion({
             : `${numero(unitarioVenta)} ${moneda} por ${unidad}`}
         </span>
         {origenVenta ? <span className="text-xs text-tenue">{origenVenta}</span> : null}
+        {ultimoCobrado ? <span className="text-xs text-tenue">{ultimoCobrado}</span> : null}
       </label>
 
       {/* Resumen del margen: es la cifra por la que se toma la decisión. */}

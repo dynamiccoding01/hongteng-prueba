@@ -182,7 +182,9 @@ const SECCIONES: {
         href: '/reportes/compras',
         clave: 'navComprasPorPeriodo',
         icono: 'ShoppingCart',
-        permiso: 'reporte.ver',
+        // Su propio permiso desde 0034: ver el reporte de compras ya no es lo
+        // mismo que entrar al módulo Compras.
+        permiso: 'reporte_compras.ver',
       },
     ],
   },

@@ -29,9 +29,15 @@ interface Escritura {
 const estado = vi.hoisted(() => ({
   cliente: null as unknown,
   lista: null as unknown,
+  /** VEN-07: tope de descuento del rol de quien vende. `null` = sin tope. */
+  tope: null as number | null,
 }));
 
 vi.mock('next/cache', () => ({ revalidatePath: () => undefined }));
+// `lib/auth` importa `server-only`, que no existe fuera del runtime de Next.
+vi.mock('@/lib/auth', () => ({
+  requerirUsuario: async () => ({ descuentoMaximo: estado.tope }),
+}));
 vi.mock('@/lib/supabase/server', () => ({
   crearClienteServidor: async () => estado.cliente,
 }));
@@ -93,6 +99,7 @@ let escrituras: Escritura[];
 beforeEach(() => {
   escrituras = [];
   estado.lista = null;
+  estado.tope = null;
   estado.cliente = clienteFalso(null, escrituras);
 });
 
@@ -231,5 +238,66 @@ describe('A-04 · guardias de lo que ya está bien (hoy en verde)', () => {
     );
 
     expect(escrituras[0]?.valores).not.toHaveProperty('subtotal');
+  });
+});
+
+describe('A-05 · el tope de descuento del rol se comprueba antes de escribir', () => {
+  /*
+   * VEN-07 (migración 0035). La barrera es el trigger de la base; la acción lo
+   * comprueba antes para poder decir cuánto se puede rebajar en esta línea, en
+   * vez de devolver la excepción de PostgreSQL.
+   */
+  it('A-05a: una rebaja por encima del tope no llega a la base', async () => {
+    estado.tope = 10;
+    estado.lista = listaCon(1000);
+
+    const r = await agregarDetalleVenta(
+      {},
+      formulario({
+        venta_id: '7',
+        variante_id: '3',
+        zona_id: '2',
+        cajas: '2',
+        subtotal: '1500', // 500 de rebaja sobre 2.000: un 25 %.
+      }),
+    );
+
+    expect(r.error).toContain('10 %');
+    expect(escrituras).toHaveLength(0);
+  });
+
+  it('A-05b: dentro del tope se guarda con normalidad', async () => {
+    estado.tope = 10;
+    estado.lista = listaCon(1000);
+
+    const r = await agregarDetalleVenta(
+      {},
+      formulario({
+        venta_id: '7',
+        variante_id: '3',
+        zona_id: '2',
+        cajas: '2',
+        subtotal: '1900', // 100 de rebaja sobre 2.000: un 5 %.
+      }),
+    );
+
+    expect(r.error).toBeUndefined();
+    expect(escrituras[0]?.valores['descuento']).toBe(100);
+  });
+
+  it('A-05c: al corregir una línea rige el mismo tope', async () => {
+    estado.tope = 10;
+    estado.cliente = clienteFalso(
+      { venta_id: 7, variante_id: 3, cajas: 2, precio_caja: 1000, descuento: 0 },
+      escrituras,
+    );
+
+    const r = await editarLineaVenta(
+      {},
+      formulario({ id: '1', zona_id: '2', cajas: '2', precio_caja: '1000', subtotal: '1500' }),
+    );
+
+    expect(r.error).toContain('10 %');
+    expect(escrituras).toHaveLength(0);
   });
 });

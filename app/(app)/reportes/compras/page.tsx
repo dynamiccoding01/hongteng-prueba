@@ -30,17 +30,18 @@ export default async function ComprasPorPeriodo({
   const puedeExportar = usuario.permisos.has('reporte.exportar');
   const { pagina, porPagina, desde: primera, hasta: ultima } = leerPaginacion(crudos);
 
-  // `v_compras_detalle` es security_invoker: sin `importacion.ver` la RLS de
-  // importacion no devuelve una sola fila. Decirlo es mejor que mostrar una
-  // tabla vacía, que se leería como «no hubo compras en el período».
-  if (!usuario.permisos.has('importacion.ver')) {
+  // Desde 0034 el reporte se lee por dos funciones que exigen este permiso, y
+  // no por la vista, que dependía de `importacion.ver` y arrastraba el módulo
+  // Compras entero. Decirlo es mejor que mostrar una tabla vacía, que se leería
+  // como «no hubo compras en el período».
+  if (!usuario.permisos.has('reporte_compras.ver')) {
     return (
       <>
         <Encabezado titulo="Compras por período" descripcion="Importaciones confirmadas (REP-07)" />
         <Vacio>
-          Este reporte lee las importaciones confirmadas y su rol no tiene el permiso
-          <code className="mx-1 text-xs">importacion.ver</code>. Pídalo en Administración › Roles y
-          permisos.
+          Su rol no tiene el permiso
+          <code className="mx-1 text-xs">reporte_compras.ver</code>. Pídalo en Administración ›
+          Roles y permisos.
         </Vacio>
       </>
     );
@@ -48,18 +49,19 @@ export default async function ComprasPorPeriodo({
 
   const supabase = await crearClienteServidor();
 
-  let consulta = supabase
-    .from('v_compras_detalle')
-    .select(
-      'detalle_id, fecha, documento_aduana, proveedor, producto, cajas, costo_caja, moneda, monto_clp',
-      { count: 'exact' },
-    )
+  const periodo = {
+    ...(desde ? { p_desde: desde } : {}),
+    ...(hasta ? { p_hasta: hasta } : {}),
+  };
+
+  // `fn_compras_detalle` es `security definer` y comprueba el permiso por su
+  // cuenta: se pagina igual que una tabla porque PostgREST admite `order` y
+  // `range` sobre el resultado de una función que devuelve filas.
+  const consulta = supabase
+    .rpc('fn_compras_detalle', periodo, { count: 'exact' })
     .order('fecha', { ascending: false })
     .order('detalle_id', { ascending: false })
     .range(primera, ultima);
-
-  if (desde) consulta = consulta.gte('fecha', desde);
-  if (hasta) consulta = consulta.lte('fecha', hasta);
 
   /*
    * Los totales del período los agrega la base (migración 0033). Antes se traía
@@ -69,10 +71,7 @@ export default async function ComprasPorPeriodo({
    */
   const [detalle, resumen] = await Promise.all([
     consulta,
-    supabase.rpc('fn_compras_resumen', {
-      ...(desde ? { p_desde: desde } : {}),
-      ...(hasta ? { p_hasta: hasta } : {}),
-    }),
+    supabase.rpc('fn_compras_resumen', periodo),
   ]);
 
   // Los dos errores se miran. El del resumen se descartaba, y una consulta que
