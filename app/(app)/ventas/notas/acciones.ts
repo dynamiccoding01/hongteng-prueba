@@ -5,13 +5,20 @@ import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
 import { precioDeLista, type PrecioDeLista } from '@/lib/ventas/precio-lista';
-import { descuentoParaSubtotal } from '@/lib/ventas/descuento';
+import { descuentoParaSubtotal, descuentoVigente } from '@/lib/ventas/descuento';
+import { esquemaDia } from '@/lib/fechas';
 
 const esquemaCabecera = z.object({
   cliente_id: z.coerce.number().int().positive('Seleccione el cliente'),
   moneda_id: z.coerce.number().int().positive('Seleccione la moneda'),
-  fecha: z.string().trim().optional(),
-  notas: z.string().trim().optional(),
+  /*
+   * La fecha se valida aquí y no en la base: de ella sale el tipo de cambio que
+   * `fn_documento_tipo_cambio` congela en el documento, así que «mañana» no
+   * puede llegar a PostgreSQL para volver como `invalid input syntax for type
+   * date` dentro de un aviso.
+   */
+  fecha: esquemaDia.optional(),
+  notas: z.string().trim().max(2000, 'Las notas no pueden pasar de 2000 caracteres').optional(),
 });
 
 /**
@@ -187,6 +194,13 @@ export async function agregarDetalleVenta(
 function motivoSinPrecio(lista: PrecioDeLista | null): string | null {
   if (!lista || lista.precioVenta !== null) return null;
 
+  if (lista.motivo === 'tipo_cambio_invalido') {
+    return (
+      'Esta venta no tiene un tipo de cambio con el que convertir el precio de la lista ' +
+      `«${lista.lista}». Cárguelo en Maestros › Tipo de cambio, o escriba el precio`
+    );
+  }
+
   return (
     `La lista «${lista.lista}» está en ${lista.monedaLista} y esta venta va en ` +
     `${lista.monedaVenta}: solo se sabe convertir de dólares a pesos, escriba el precio`
@@ -256,22 +270,45 @@ export async function editarLineaVenta(
   // Misma regla que al agregar: si hay precio de lista en la moneda de la
   // venta, ese manda. Si no se comprobara aquí, el precio bloqueado en un
   // formulario se podría cambiar desde el otro.
+  //
+  // Se leen también `precio_caja` y `descuento`: los dos son datos que ya se
+  // acordaron y que esta acción tiene que respetar si el formulario no trae
+  // nada que los reemplace.
   const { data: linea } = await supabase
     .from('venta_detalle')
-    .select('venta_id, variante_id')
+    .select('venta_id, variante_id, precio_caja, descuento')
     .eq('id', analisis.data.id)
     .maybeSingle();
 
   if (!linea) return { error: 'La línea ya no existe' };
 
+  const precioGuardado = linea.precio_caja === null ? null : Number(linea.precio_caja);
+
   const lista = await precioDeLista(linea.venta_id, linea.variante_id);
   const fallo = motivoSinPrecio(lista);
 
-  if (fallo && analisis.data.precio_caja === undefined) return { error: fallo };
+  if (fallo && analisis.data.precio_caja === undefined && precioGuardado === null) {
+    return { error: fallo };
+  }
 
-  const precio = lista?.precioVenta ?? analisis.data.precio_caja ?? null;
+  /*
+   * El precio guardado cierra la lista: sin él, un formulario enviado con el
+   * campo en blanco —se borró para reescribirlo y se envió sin completar—
+   * dejaba la línea con `precio_caja` nulo. Y una línea sin precio se confirma
+   * igual, sale de bodega y no aparece en ninguna cifra de venta.
+   */
+  const precio = lista?.precioVenta ?? analisis.data.precio_caja ?? precioGuardado;
 
-  const rebaja = descuentoParaSubtotal(analisis.data.cajas, precio, analisis.data.subtotal);
+  /*
+   * VEN-07: «no vino el subtotal» significa cosas distintas según de dónde se
+   * llegue. Al corregir una línea significa que la rebaja acordada sigue en
+   * pie, no que se acabe de acordar que no hay ninguna.
+   */
+  const rebaja =
+    analisis.data.subtotal === undefined
+      ? descuentoVigente(analisis.data.cajas, precio, Number(linea.descuento ?? 0))
+      : descuentoParaSubtotal(analisis.data.cajas, precio, analisis.data.subtotal);
+
   if ('error' in rebaja) return { error: rebaja.error };
 
   const { error } = await supabase

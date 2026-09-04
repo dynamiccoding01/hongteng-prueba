@@ -50,7 +50,7 @@ async function crearUsuario(rol: string): Promise<string> {
 
 describe.runIf(hayCredenciales)(
   'seguridad: rol Superadmin y jerarquía (0013)',
-  { timeout: 60_000 },
+  { timeout: 180_000 },
   () => {
     beforeAll(async () => {
       ({ consultar } = await import('../../scripts/api-supabase'));
@@ -60,18 +60,20 @@ describe.runIf(hayCredenciales)(
       superRolId = Number(r!.id);
       const [p] = await consultar(`select count(*)::int n from permiso`);
       totalPermisos = n(p);
-    }, 60_000);
+    }, 180_000);
 
     afterAll(async () => {
       for (const id of [adminId, superId]) {
         if (!id) continue;
         await consultar(`
-          alter table bitacora disable trigger tr_bitacora_sin_delete;
+          -- Solo para esta sesion, que muere con la peticion: un "alter table
+          -- ... disable trigger" que no llegue a su "enable" deja la base REAL del
+          -- cliente sin sus protecciones, en silencio.
+          set session_replication_role = replica;
           delete from bitacora where usuario_id='${id}' or registro_id='${id}';
-          alter table bitacora enable trigger tr_bitacora_sin_delete;
           delete from auth.users where id='${id}';`);
       }
-    }, 60_000);
+    }, 180_000);
 
     it('es_superadmin(): true para el Superadmin, false para el Administrador', async () => {
       const s = await como(superId, `select es_superadmin() as n`);

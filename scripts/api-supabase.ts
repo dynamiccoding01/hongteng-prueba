@@ -26,17 +26,73 @@ if (!token) {
 export const ref = new URL(urlProyecto).hostname.split('.')[0]!;
 export const tokenAcceso = token;
 
+/**
+ * Reintentos ante el rate limit de la Management API.
+ *
+ * La API responde 429 con facilidad —correr `npm test` dos veces seguidas
+ * bastaba— y sin reintentos eso tumbaba de golpe los seis archivos de tests de
+ * integración con un error que no tiene nada que ver con el código. Un rojo que
+ * no es del cambio que se acaba de hacer es peor que no tener el test: enseña a
+ * ignorarlo.
+ *
+ * La espera se dobla en cada intento (2 s, 4 s, 8 s…) hasta un tope, que es lo
+ * que pide un límite por ventana de tiempo.
+ */
+const REINTENTOS = 7;
+const ESPERA_INICIAL_MS = 2000;
+const ESPERA_MAXIMA_MS = 20_000;
+
+/**
+ * Separación mínima entre peticiones.
+ *
+ * Reintentar no basta: la suite de integración dispara cientos de consultas
+ * seguidas y el límite es por ventana de tiempo, así que se sale de ella y no
+ * vuelve a entrar. Espaciarlas mantiene el ritmo por debajo del tope (unas 54
+ * por minuto) y hace que los reintentos sean la excepción y no el mecanismo.
+ *
+ * Las peticiones se encolan: `fileParallelism` ya está en `false`, pero dentro
+ * de un mismo archivo puede haber `Promise.all`.
+ */
+const INTERVALO_MINIMO_MS = 1100;
+
+const esperar = (ms: number): Promise<void> => new Promise((listo) => setTimeout(listo, ms));
+
+/** Cola de un solo carril: cada consulta espera su turno y su intervalo. */
+let turno: Promise<void> = Promise.resolve();
+
+function pedirTurno(): Promise<void> {
+  const mio = turno.then(() => esperar(INTERVALO_MINIMO_MS));
+  turno = mio;
+  return mio;
+}
+
 /** Ejecuta SQL contra la base del proyecto. Devuelve las filas del resultado. */
 export async function consultar(sql: string): Promise<Record<string, unknown>[]> {
-  const respuesta = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: sql }),
-  });
+  let espera = ESPERA_INICIAL_MS;
 
-  const cuerpo = await respuesta.text();
+  for (let intento = 1; ; intento++) {
+    await pedirTurno();
 
-  if (!respuesta.ok) {
+    const respuesta = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: sql }),
+    });
+
+    const cuerpo = await respuesta.text();
+
+    if (respuesta.ok) {
+      return cuerpo ? (JSON.parse(cuerpo) as Record<string, unknown>[]) : [];
+    }
+
+    // Solo el rate limit se reintenta. Un error de SQL saldría igual de mal en
+    // cada intento y además escondería su mensaje detrás de las esperas.
+    if (respuesta.status === 429 && intento < REINTENTOS) {
+      await esperar(espera);
+      espera = Math.min(espera * 2, ESPERA_MAXIMA_MS);
+      continue;
+    }
+
     let detalle = cuerpo;
     try {
       const json: unknown = JSON.parse(cuerpo);
@@ -48,8 +104,6 @@ export async function consultar(sql: string): Promise<Record<string, unknown>[]>
     }
     throw new Error(`HTTP ${respuesta.status} — ${detalle}`);
   }
-
-  return cuerpo ? (JSON.parse(cuerpo) as Record<string, unknown>[]) : [];
 }
 
 /** Escapa comillas simples para interpolar un valor en SQL. */

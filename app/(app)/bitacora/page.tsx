@@ -3,6 +3,7 @@ import { requerirUsuario } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { ZONA, comoDia, diasAtras, limites } from '@/lib/bitacora/rango-fechas';
+import { esquemaDia } from '@/lib/fechas';
 import { leerPaginacion } from '@/lib/paginacion';
 import { Paginacion } from '@/components/paginacion';
 import { Filtros, type OpcionUsuario } from './filtros';
@@ -44,14 +45,11 @@ function fecha(iso: string): string {
 }
 
 const esquemaFiltros = z.object({
-  desde: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  hasta: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
+  // `esquemaDia` comprueba que el dia EXISTA, no solo que tenga la forma: con
+  // la expresion regular sola, `?desde=9999-99-99` pasaba el filtro y hacia
+  // saltar un RangeError dentro de Intl, o sea un 500 en esta pantalla.
+  desde: esquemaDia.optional(),
+  hasta: esquemaDia.optional(),
   usuario: z.string().uuid().optional(),
   accion: z.enum(ACCIONES as [string, ...string[]]).optional(),
 });

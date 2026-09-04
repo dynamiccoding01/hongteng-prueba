@@ -28,8 +28,19 @@ export interface PrecioConvertido {
  *
  * El redondeo se hace aquí y no al mostrar, para que la cifra que se ve en
  * pantalla y la que queda grabada en `venta_detalle.precio_caja` sean la misma.
+ *
+ * Devuelve `null` cuando no hay conversión posible: un tipo de cambio que no
+ * es un número positivo. Hoy la base lo garantiza —`venta.tipo_cambio` es
+ * `not null` con `check (tipo_cambio > 0)` desde 0025—, pero quien llama hace
+ * `Number(venta.tipo_cambio)` y `Number(null)` es 0: sin esta puerta, el día
+ * que la columna vuelva a admitir nulos el precio de venta sale en cero pesos
+ * y nada en el camino lo detiene. Un precio que no se sabe calcular se escribe
+ * a mano; uno inventado se cobra.
  */
-export function convertirAPesos(precioUsd: number, tipoCambio: number): PrecioConvertido {
+export function convertirAPesos(precioUsd: number, tipoCambio: number): PrecioConvertido | null {
+  if (!Number.isFinite(precioUsd) || precioUsd < 0) return null;
+  if (!Number.isFinite(tipoCambio) || tipoCambio <= 0) return null;
+
   // Al centavo primero: 38 * 947.3 da 35997.399999999994 en coma flotante, y
   // sin este paso el `ceil` de más abajo trabajaría sobre la basura del final.
   const exacto = Math.round(precioUsd * tipoCambio * 100) / 100;

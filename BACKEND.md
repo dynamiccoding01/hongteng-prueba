@@ -503,6 +503,46 @@ En el mostrador la negociación no es sobre la nota entera sino sobre cada líne
 
 ---
 
+### 4.11 Compras por período (migración 0030)
+
+`v_compras_detalle` es la simétrica de `v_ventas_detalle`: una fila por línea de importación **confirmada**, con el proveedor y el producto resueltos y el importe convertido a CLP. Alimenta _Reportes › Compras por período_ y el tipo `compras` de `/api/exportar`.
+
+Solo confirmadas. Un borrador es una intención, no una compra: sumarlo diría que entró mercadería que todavía no está en bodega.
+
+La conversión **pregunta por la moneda**, no la deduce de un nulo — la misma regla del § 4.8. Desde `0024` toda importación nueva va en USD y desde `0025` `tipo_cambio` es `not null`, pero el histórico anterior conserva la suya, y un `coalesce(tipo_cambio, 1)` valorizaría una compra en dólares como si el dólar valiera un peso.
+
+La vista expone además `precio_venta_caja`, el precio de venta fijado al comprar (§ 4.5): viaja en la misma línea y en la misma moneda que el costo, así que el margen de entrada se lee sin cruzar con la lista de precios.
+
+`security_invoker` como el resto: quien no tenga `importacion.ver` no lee ni una fila aunque tenga `reporte.ver`. La página lo dice explícitamente en vez de mostrar una tabla vacía que se leería como «no hubo compras».
+
+Por eso `0031` concede `importacion.ver` a **Ventas** y **Consulta**, que hasta entonces veían reportes pero no compras: el cliente pidió que el reporte lo vea todo el mundo. Se concede el permiso en lugar de añadir un `or tiene_permiso('reporte.ver')` a la política, para que la pantalla de Roles diga la verdad sobre quién lee qué. `importacion.crear` no se toca: los dos roles ven el módulo Compras en modo consulta y nada más.
+
+---
+
+### 4.12 Un documento no se confirma sin importe (migración 0032)
+
+`fn_confirmar_venta` exige **precio en todas las líneas** y `fn_confirmar_importacion` exige **costo**. Antes ninguna de las dos lo comprobaba, y confirmar sin importe no se veía en ninguna pantalla: la venta generaba sus `SALIDA`, la mercadería salía de bodega, `venta_detalle.subtotal` quedaba nulo por la columna generada (§ 4.10) y los reportes lo sumaban como cero. Mercadería despachada que no figuraba en ninguna cifra de venta.
+
+Las dos columnas siguen siendo nullable a propósito —una línea se carga y el importe se pone después—, pero eso vale mientras el documento es un BORRADOR. La comprobación vive en la función y no en el `acciones.ts` porque confirmar es lo que sella el documento y mueve stock: una regla que vive en la página se la salta cualquier otra vía.
+
+No toca lo ya confirmado. Los documentos históricos incompletos siguen ahí y el resumen de reportes los cuenta aparte en `sin_importe` (§ 4.13) en vez de valorizarlos en cero.
+
+---
+
+### 4.13 Los totales de los reportes se agregan en la base (migración 0033)
+
+`fn_ventas_resumen(desde, hasta)` y `fn_compras_resumen(desde, hasta)` devuelven el resumen del período: una fila por cliente o proveedor, una por producto, y una fila `TOTAL` que va **primera**. Cada una trae `cajas`, `monto_clp`, `lineas` y `sin_importe`.
+
+Existen porque las páginas de reportes se traían el período entero para sumarlo en TypeScript, sin `range` ni `limit`. PostgREST corta esa consulta en `db-max-rows` (1000 por defecto) **sin decirlo**: pasadas mil líneas, el total del encabezado y las dos tablas de resumen eran números cortos con toda la pinta de estar bien. Un reporte que miente en silencio es peor que uno que no carga.
+
+El `TOTAL` va primero justamente para que siga estando aunque alguna vez el resto se corte.
+
+Son `language sql` y `stable`, **sin** `security definer`: se ejecutan con los permisos de quien llama, así que la RLS de las tablas de abajo sigue decidiendo qué filas se agregan. Un vendedor sin `importacion.ver` obtiene ceros, no las compras de la empresa.
+
+`sin_importe` cuenta las líneas que no se pueden valorizar. Desde `0032` no se crean nuevas, pero las históricas existen: contarlas aparte es lo que permite que la pantalla diga «faltan 3 líneas por valorizar» en vez de sumarlas como cero.
+
+---
+
 ## 5. Diagrama entidad-relación
 
 ```mermaid

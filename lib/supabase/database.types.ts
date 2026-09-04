@@ -423,6 +423,13 @@ export type Database = {
             referencedRelation: 'proveedor';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'importacion_proveedor_id_fkey';
+            columns: ['proveedor_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_compras_detalle';
+            referencedColumns: ['proveedor_id'];
+          },
         ];
       };
       importacion_detalle: {
@@ -463,6 +470,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'importacion';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'importacion_detalle_importacion_id_fkey';
+            columns: ['importacion_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_compras_detalle';
+            referencedColumns: ['importacion_id'];
           },
           {
             foreignKeyName: 'importacion_detalle_variante_id_fkey';
@@ -867,6 +881,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'proveedor';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'producto_proveedor_id_fkey';
+            columns: ['proveedor_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_compras_detalle';
+            referencedColumns: ['proveedor_id'];
           },
           {
             foreignKeyName: 'producto_unidad_medida_id_fkey';
@@ -1614,6 +1635,27 @@ export type Database = {
           },
         ];
       };
+      v_compras_detalle: {
+        Row: {
+          cajas: number | null;
+          costo_caja: number | null;
+          detalle_id: number | null;
+          documento_aduana: string | null;
+          fecha: string | null;
+          importacion_id: number | null;
+          moneda: string | null;
+          monto_clp: number | null;
+          precio_venta_caja: number | null;
+          producto: string | null;
+          proveedor: string | null;
+          proveedor_codigo: string | null;
+          proveedor_id: number | null;
+          subtotal: number | null;
+          tipo_cambio: number | null;
+          unidades_por_caja: number | null;
+        };
+        Relationships: [];
+      };
       v_resumen_categoria: {
         Row: {
           articulos: number | null;
@@ -1703,6 +1745,17 @@ export type Database = {
         Args: { p_toma_id: number };
         Returns: undefined;
       };
+      fn_compras_resumen: {
+        Args: { p_desde?: string; p_hasta?: string };
+        Returns: {
+          agrupacion: string;
+          cajas: number;
+          clave: string;
+          lineas: number;
+          monto_clp: number;
+          sin_importe: number;
+        }[];
+      };
       fn_confirmar_importacion: {
         Args: { p_importacion_id: number };
         Returns: string;
@@ -1732,6 +1785,17 @@ export type Database = {
           p_zona_origen: number;
         };
         Returns: undefined;
+      };
+      fn_ventas_resumen: {
+        Args: { p_desde?: string; p_hasta?: string };
+        Returns: {
+          agrupacion: string;
+          cajas: number;
+          clave: string;
+          lineas: number;
+          monto_clp: number;
+          sin_importe: number;
+        }[];
       };
       mis_permisos: { Args: never; Returns: string[] };
       registrar_en_bitacora: {

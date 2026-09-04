@@ -178,6 +178,12 @@ const SECCIONES: {
         icono: 'BarChart3',
         permiso: 'reporte.ver',
       },
+      {
+        href: '/reportes/compras',
+        clave: 'navComprasPorPeriodo',
+        icono: 'ShoppingCart',
+        permiso: 'reporte.ver',
+      },
     ],
   },
   {

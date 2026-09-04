@@ -73,6 +73,7 @@ Prioridad: **Alta** (núcleo) · **Media** (operación completa) · **Baja** (va
 | REP-04 | Valorización de inventario (a costo)                                  | Media     |
 | REP-05 | Reportes de ventas por cliente, producto y período                    | Media     |
 | REP-06 | Exportación a Excel/PDF de todos los reportes                         | Media     |
+| REP-07 | Reportes de compras por proveedor, producto y período                 | Media     |
 
 ## Administración y seguridad
 

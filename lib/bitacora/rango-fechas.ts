@@ -9,6 +9,8 @@
  * trabaja en bodega.
  */
 
+import { esDia } from '@/lib/fechas';
+
 export const ZONA = 'America/Santiago';
 
 const DIA_MS = 86_400_000;
@@ -23,26 +25,45 @@ export function comoDia(instante: Date): string {
  *
  * Se calcula día a día a propósito: el país cambia de hora dentro del año, así
  * que un desfase fijo desplazaría el filtro una hora medio año.
+ *
+ * Un día que no existe cae en el desfase de hoy en vez de reventar. Antes
+ * lanzaba: `Intl.DateTimeFormat.formatToParts` tira `RangeError` sobre una
+ * fecha inválida, y como esto corre en un Server Component el resultado era un
+ * 500 en la pantalla de auditoría. `?desde=9999-99-99` pasaba el `^\d{4}-...`
+ * de la página y llegaba hasta aquí.
  */
 export function desfase(dia: string): string {
+  const cuando = esDia(dia) ? new Date(`${dia}T12:00:00Z`) : new Date();
+
   const partes = new Intl.DateTimeFormat('en-US', {
     timeZone: ZONA,
     timeZoneName: 'longOffset',
-  }).formatToParts(new Date(`${dia}T12:00:00Z`));
+  }).formatToParts(cuando);
 
   const nombre = partes.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT-04:00';
   // En un desfase de cero, Intl devuelve 'GMT' a secas.
   return nombre === 'GMT' ? '+00:00' : nombre.replace('GMT', '');
 }
 
-/** Instante en que empieza ese día en Chile, en formato ISO con desfase. */
+/**
+ * Instante en que empieza ese día en Chile, en formato ISO con desfase.
+ *
+ * Un día imposible se sustituye por hoy: el filtro se corre a un rango
+ * razonable en vez de mandar a PostgreSQL un texto que no es una fecha.
+ */
 export function inicioDelDia(dia: string): string {
-  return `${dia}T00:00:00${desfase(dia)}`;
+  const real = diaReal(dia);
+  return `${real}T00:00:00${desfase(real)}`;
+}
+
+/** El día tal cual si existe; si no, hoy. */
+function diaReal(dia: string): string {
+  return esDia(dia) ? dia : comoDia(new Date());
 }
 
 /** El día siguiente a `dia`, en el calendario chileno. */
 export function diaSiguiente(dia: string): string {
-  return comoDia(new Date(new Date(`${dia}T12:00:00Z`).getTime() + DIA_MS));
+  return comoDia(new Date(new Date(`${diaReal(dia)}T12:00:00Z`).getTime() + DIA_MS));
 }
 
 /** Hace `dias` atrás desde `referencia`, como día del calendario chileno. */

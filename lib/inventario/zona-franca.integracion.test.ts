@@ -40,7 +40,7 @@ async function comoAdmin(sql: string): Promise<Fila[]> {
 
 describe.runIf(hayCredenciales)(
   'zona franca: correlativo, traspasos y toma',
-  { timeout: 60_000 },
+  { timeout: 180_000 },
   () => {
     beforeAll(async () => {
       ({ consultar } = await import('../../scripts/api-supabase'));
@@ -106,12 +106,10 @@ describe.runIf(hayCredenciales)(
     afterAll(async () => {
       if (!varianteId) return;
       await consultar(`
-      alter table movimiento disable trigger tr_movimiento_sin_delete;
-      alter table venta_detalle disable trigger tr_venta_detalle_solo_borrador;
-      alter table venta disable trigger tr_venta_confirmada_inmutable;
-      alter table toma_inventario_detalle disable trigger tr_toma_detalle_solo_borrador;
-      alter table toma_inventario disable trigger tr_toma_aplicada_inmutable;
-      alter table documento_traspaso disable trigger tr_documento_traspaso_sin_delete;
+      -- Solo para esta sesion, que muere con la peticion: un "alter table
+      -- ... disable trigger" que no llegue a su "enable" deja la base REAL del
+      -- cliente sin sus protecciones, en silencio.
+      set session_replication_role = replica;
       delete from documento_traspaso where venta_id = ${ventaId};
       delete from toma_inventario_detalle where toma_id = ${tomaId};
       delete from toma_inventario where id = ${tomaId};
@@ -119,12 +117,6 @@ describe.runIf(hayCredenciales)(
       delete from stock where variante_id = ${varianteId};
       delete from venta_detalle where venta_id = ${ventaId};
       delete from venta where id = ${ventaId};
-      alter table movimiento enable trigger tr_movimiento_sin_delete;
-      alter table venta_detalle enable trigger tr_venta_detalle_solo_borrador;
-      alter table venta enable trigger tr_venta_confirmada_inmutable;
-      alter table toma_inventario_detalle enable trigger tr_toma_detalle_solo_borrador;
-      alter table toma_inventario enable trigger tr_toma_aplicada_inmutable;
-      alter table documento_traspaso enable trigger tr_documento_traspaso_sin_delete;
       delete from cliente where id = ${clienteId};
       delete from producto_variante where id = ${varianteId};
       delete from producto where id = ${productoId};
@@ -133,7 +125,7 @@ describe.runIf(hayCredenciales)(
       delete from categoria where id = ${categoriaId};
       delete from correlativo where tipo_documento = '${TIPO_CORRELATIVO}';
     `);
-    }, 60_000);
+    }, 180_000);
 
     it('fn_siguiente_correlativo entrega folios secuenciales sin repetir', async () => {
       const [f1] = await consultar(

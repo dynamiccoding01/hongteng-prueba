@@ -14,6 +14,23 @@ export const FILAS_POR_PAGINA = [10, 15, 20] as const;
 
 export const FILAS_POR_DEFECTO = 15;
 
+/**
+ * Hasta dónde se deja desplazar el listado.
+ *
+ * `pagina` la escribe cualquiera en la barra de direcciones y de ella sale el
+ * `OFFSET` que viaja a PostgreSQL en **todas** las pantallas del sistema, con
+ * un `count: 'exact'` al lado. Sin tope, `?pagina=1e15` mandaba un
+ * desplazamiento de quince mil billones de filas; pasado
+ * `Number.MAX_SAFE_INTEGER` el índice calculado ni siquiera era el que se había
+ * pedido.
+ *
+ * El tope se pone sobre el desplazamiento y no sobre el número de página
+ * porque es el desplazamiento lo que le cuesta a la base. Un millón de filas es
+ * mucho más de lo que este sistema va a tener en un listado, y a partir de ahí
+ * lo que hace falta es filtrar, no seguir pasando páginas.
+ */
+export const DESPLAZAMIENTO_MAXIMO = 1_000_000;
+
 export interface Paginacion {
   pagina: number;
   porPagina: number;
@@ -56,7 +73,8 @@ export function leerPaginacion(
       ? filas
       : FILAS_POR_DEFECTO;
 
-  const pagina = aEntero(parametros[claves.pagina]) ?? 1;
+  const ultima = Math.floor(DESPLAZAMIENTO_MAXIMO / porPagina) + 1;
+  const pagina = Math.min(aEntero(parametros[claves.pagina]) ?? 1, ultima);
   const desde = (pagina - 1) * porPagina;
 
   return { pagina, porPagina, desde, hasta: desde + porPagina - 1 };

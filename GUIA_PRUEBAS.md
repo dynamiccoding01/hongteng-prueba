@@ -222,8 +222,10 @@ Antes de empezar: cargar **RUT y teléfono** en Administración › Empresa. Sal
 - [ ] **Valorización**: total **$79,9 millones CLP** (más lo que se agregue en las pruebas), valorizado al último costo de importación.
 - [ ] **Estadística mensual**: muestra las salidas del mes, incluida la venta recién hecha.
 - [ ] **Ventas por período**: filtrar por fecha y ver la venta a Comercial Andina.
+- [ ] **Compras por período**: filtrar por fecha y ver la importación por proveedor y por artículo. Solo aparecen las **confirmadas**: un borrador no cuenta como compra.
+- [ ] Entrar con un usuario **Ventas** o **Consulta** y comprobar que el reporte de compras trae datos (migración `0031`), pero que el botón de crear importación sigue sin aparecer.
 - [ ] **Alertas de stock**: aparecen `PL-7702` (115 cajas, mínimo 120) y `ZN-6103` (305, mínimo 350).
-- [ ] **Exportar a Excel** desde un reporte: descarga el `.xlsx` y abre bien.
+- [ ] **Exportar a Excel** desde un reporte: descarga el `.xlsx` y abre bien (los cuatro tipos: estadística, valorización, ventas y compras).
 
 ### 10. Bitácora — `/bitacora`
 
@@ -252,8 +254,8 @@ Los permisos por rol hoy son:
 | ------------- | ------------ | --------------------------------------------------------- |
 | Administrador | 38           | Todo el sistema                                           |
 | Bodeguero     | 17           | Stock, movimientos, traspasos, tomas, productos, reportes |
-| Ventas        | 16           | Clientes, precios, notas de venta, reportes               |
-| Consulta      | 8            | Solo lectura de catálogo y stock                          |
+| Ventas        | 17           | Clientes, precios, notas de venta, reportes               |
+| Consulta      | 9            | Solo lectura de catálogo, stock y compras                 |
 | Superadmin    | acceso total | Desarrollo / TI                                           |
 
 ### Prueba automatizada (opcional, para respaldar lo anterior)
@@ -310,8 +312,10 @@ el sistema decía 355, y el ajuste de 3 cajas queda registrado con su nombre.
 _«La diferencia no se corrige a escondidas: queda escrita.»_
 
 **8. Reportes (2 min).** Valorización del stock: **$79,9 millones** al último
-costo de importación, y exportación a Excel — para quien hoy vive en Excel,
-esto tranquiliza mucho.
+costo de importación. Ventas por período y su espejo, compras por período: lo
+que salió y lo que entró, por cliente o proveedor y por artículo, en el mismo
+rango de fechas. Y exportación a Excel — para quien hoy vive en Excel, esto
+tranquiliza mucho.
 
 **9. Bitácora (2 min). Cerrar con esto.** Filtrar por la fecha de hoy y mostrar
 todo lo que se acaba de hacer en la demo, línea por línea, con usuario y hora.

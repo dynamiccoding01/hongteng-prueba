@@ -71,7 +71,11 @@ export function CampoCantidad({
         required
         min={0.01}
         max={maximo}
-        step="any"
+        // Dos decimales, que es lo que guarda `cajas numeric(14,2)` tanto en
+        // ventas como en importaciones. Con `step="any"` se podia escribir
+        // 1,005: la base lo redondeaba a 1,01 y el subtotal cobrado dejaba de
+        // ser el acordado. El servidor lo rechaza igual; esto lo evita antes.
+        step={0.01}
         inputMode="decimal"
         className={CLASE_CONTROL}
       />

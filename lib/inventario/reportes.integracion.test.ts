@@ -43,7 +43,7 @@ async function comoAdmin(sql: string): Promise<Fila[]> {
   );
 }
 
-describe.runIf(hayCredenciales)('reportes: vistas de consulta', { timeout: 60_000 }, () => {
+describe.runIf(hayCredenciales)('reportes: vistas de consulta', { timeout: 180_000 }, () => {
   beforeAll(async () => {
     ({ consultar } = await import('../../scripts/api-supabase'));
 
@@ -150,22 +150,16 @@ describe.runIf(hayCredenciales)('reportes: vistas de consulta', { timeout: 60_00
     varianteClpId ??= 0;
     ventaClpId ??= 0;
     await consultar(`
-      alter table movimiento disable trigger tr_movimiento_sin_delete;
-      alter table importacion_detalle disable trigger tr_detalle_solo_borrador;
-      alter table importacion disable trigger tr_importacion_confirmada_inmutable;
-      alter table venta_detalle disable trigger tr_venta_detalle_solo_borrador;
-      alter table venta disable trigger tr_venta_confirmada_inmutable;
+      -- Solo para esta sesion, que muere con la peticion: un "alter table
+      -- ... disable trigger" que no llegue a su "enable" deja la base REAL del
+      -- cliente sin sus protecciones, en silencio.
+      set session_replication_role = replica;
       delete from movimiento where variante_id in (${varianteId}, ${varianteClpId});
       delete from stock where variante_id in (${varianteId}, ${varianteClpId});
       delete from importacion_detalle where importacion_id = ${importacionId};
       delete from importacion where id = ${importacionId};
       delete from venta_detalle where venta_id in (${ventaId}, ${ventaClpId});
       delete from venta where id in (${ventaId}, ${ventaClpId});
-      alter table movimiento enable trigger tr_movimiento_sin_delete;
-      alter table importacion_detalle enable trigger tr_detalle_solo_borrador;
-      alter table importacion enable trigger tr_importacion_confirmada_inmutable;
-      alter table venta_detalle enable trigger tr_venta_detalle_solo_borrador;
-      alter table venta enable trigger tr_venta_confirmada_inmutable;
       delete from cliente where id = ${clienteId};
       delete from proveedor where id = ${proveedorId};
       delete from producto_variante where id in (${varianteId}, ${varianteClpId});
@@ -174,7 +168,7 @@ describe.runIf(hayCredenciales)('reportes: vistas de consulta', { timeout: 60_00
       delete from bodega where id = ${bodegaId};
       delete from categoria where id = ${categoriaId};
     `);
-  }, 60_000);
+  }, 180_000);
 
   it('v_salidas_mensuales registra la venta del mes (REP-02)', async () => {
     const [fila] = await consultar(
@@ -220,6 +214,51 @@ describe.runIf(hayCredenciales)('reportes: vistas de consulta', { timeout: 60_00
     expect(fila?.moneda).toBe('CLP');
     expect(n(fila, 'tipo_cambio')).toBeGreaterThan(0);
     expect(n(fila, 'monto_clp')).toBe(24000);
+  });
+
+  it('v_compras_detalle expone la línea de importación con su monto en CLP (REP-07)', async () => {
+    const [fila] = await consultar(
+      `select cajas, costo_caja, moneda, subtotal, monto_clp, proveedor_codigo, producto
+         from v_compras_detalle where importacion_id = ${importacionId}`,
+    );
+    // 5 cajas × 20 USD, convertidas con el tipo de cambio de la importación.
+    expect(n(fila, 'cajas')).toBe(5);
+    expect(n(fila, 'costo_caja')).toBe(20);
+    expect(fila?.moneda).toBe('USD');
+    expect(n(fila, 'subtotal')).toBe(100);
+    expect(n(fila, 'monto_clp')).toBe(Math.round(5 * 20 * tipoCambio));
+    expect(fila?.proveedor_codigo).toBe(CODIGO);
+    expect(fila?.producto).toBe(CODIGO);
+  });
+
+  it('v_compras_detalle deja fuera los borradores (REP-07)', async () => {
+    // Un borrador es una intención: sumarlo diría que entró mercadería que
+    // todavía no está en bodega. Se crea, se comprueba que no aparece y se
+    // borra en el mismo test para no dejar rastro en la base.
+    const [borrador] = await consultar(
+      `insert into importacion (proveedor_id, moneda_id)
+       values (${proveedorId}, ${monedaId}) returning id`,
+    );
+    const borradorId = n(borrador, 'id');
+    await consultar(
+      `insert into importacion_detalle (importacion_id, variante_id, zona_id, cajas, costo_caja)
+       values (${borradorId}, ${varianteId}, ${zonaId}, 99, 7)`,
+    );
+
+    // `finally`: si la aserción falla, el borrador se borra igual. Sin esto se
+    // quedaba en la base REAL del cliente cada vez que el test se ponía rojo.
+    try {
+      const filas = await consultar(
+        `select detalle_id from v_compras_detalle where importacion_id = ${borradorId}`,
+      );
+      expect(filas).toHaveLength(0);
+    } finally {
+      await consultar(`
+        set session_replication_role = replica;
+        delete from importacion_detalle where importacion_id = ${borradorId};
+        delete from importacion where id = ${borradorId};
+      `);
+    }
   });
 
   it('v_alertas_stock alerta cuando el stock queda en o bajo el mínimo (INV-05)', async () => {

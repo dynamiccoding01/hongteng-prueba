@@ -8,7 +8,7 @@ import { SelectorZona, type ZonaOpcion } from './selector-zona';
 import { DistintivoBodega } from './color-bodega';
 import { Etiqueta, numero } from './ui';
 import { precioDeLista, type PrecioDeLista } from '@/lib/ventas/precio-lista';
-import { redondearDinero, subtotalBruto } from '@/lib/ventas/descuento';
+import { descuentoParaSubtotal, subtotalBruto, subtotalConDescuento } from '@/lib/ventas/descuento';
 import {
   unidadLegible,
   type ArticuloEncontrado,
@@ -100,9 +100,19 @@ function PrecioVenta({
 
       {descuadre ? (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:col-span-2 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
-          La lista <strong>«{lista.lista}»</strong> está en {lista.monedaLista} y esta venta va en{' '}
-          {lista.monedaVenta}. Solo se sabe convertir de dólares a pesos, así que este precio hay
-          que escribirlo.
+          {lista.motivo === 'tipo_cambio_invalido' ? (
+            <>
+              Esta venta no tiene un tipo de cambio con el que convertir el precio de la lista{' '}
+              <strong>«{lista.lista}»</strong>. Cárguelo en Maestros › Tipo de cambio, o escriba
+              este precio a mano.
+            </>
+          ) : (
+            <>
+              La lista <strong>«{lista.lista}»</strong> está en {lista.monedaLista} y esta venta va
+              en {lista.monedaVenta}. Solo se sabe convertir de dólares a pesos, así que este precio
+              hay que escribirlo.
+            </>
+          )}
         </p>
       ) : null}
     </>
@@ -118,39 +128,55 @@ function PrecioVenta({
  * que se escribe aquí es el subtotal ya acordado, y la rebaja la deduce el
  * servidor restando contra el precio que él mismo resolvió.
  *
- * El campo vuelve al bruto en cuanto cambian las cajas o el precio. Un
- * subtotal acordado lo fue para una cantidad concreta: si la línea pasa de 7
- * cajas a 10, los 5.900 que se hablaron ya no significan nada, y arrastrarlos
- * convertiría un cambio de cantidad en un descuento enorme que nadie pidió.
+ * Lo que viaja cuando cambian las cajas o el precio es **la rebaja**, no el
+ * subtotal. Si la línea pasa de 7 cajas a 10, arrastrar los 5.900 que se
+ * hablaron convertiría un cambio de cantidad en un descuento enorme que nadie
+ * pidió; arrastrar los 50 de rebaja, en cambio, es lo que se acordó y lo mismo
+ * que hace el servidor cuando el campo no llega. Antes el campo volvía al
+ * bruto, y como el bruto también cambia solo —al llegar la respuesta asíncrona
+ * del precio de lista— la rebaja pactada se borraba sin que nadie tocara nada.
+ *
+ * La cuenta no se hace aquí: se llama a las mismas funciones que usa la acción
+ * del servidor, para que lo que se ve mientras se teclea y lo que se guarda
+ * sean el mismo número.
  */
 function CampoSubtotal({
-  bruto,
+  cajas,
+  precio,
   moneda,
   descuentoInicial,
 }: {
-  /** Lo que costaría a precio de lista. Nulo mientras no haya precio. */
-  bruto: number | null;
+  /** Cantidad tecleada. Nula mientras el campo esté vacío. */
+  cajas: number | null;
+  /** Precio por caja ya resuelto. Nulo mientras no haya. */
+  precio: number | null;
   moneda: string;
   /** La rebaja ya guardada, al corregir una línea existente. */
   descuentoInicial?: number;
 }) {
-  const [texto, setTexto] = useState(
-    bruto === null ? '' : String(redondearDinero(bruto - (descuentoInicial ?? 0))),
-  );
+  const bruto = cajas === null ? null : subtotalBruto(cajas, precio);
+  const rebajaPrevia = descuentoInicial ?? 0;
 
-  // Estado derivado de props: cuando cambia el bruto, el campo vuelve a él.
+  /** Lo que muestra el campo cuando se rehace: el bruto menos lo ya acordado. */
+  const sugerido =
+    cajas === null ? null : (subtotalConDescuento(cajas, precio, rebajaPrevia) ?? null);
+  const comoTexto = sugerido === null ? '' : String(sugerido);
+
+  const [texto, setTexto] = useState(comoTexto);
+
+  // Estado derivado de props: cuando cambia el bruto, el campo se rehace.
   // Se hace en el render y no en un efecto —el patrón que documenta React—
   // para que no se alcance a ver un instante la cifra vieja.
   const [brutoPrevio, setBrutoPrevio] = useState(bruto);
   if (bruto !== brutoPrevio) {
     setBrutoPrevio(bruto);
-    setTexto(bruto === null ? '' : String(bruto));
+    setTexto(comoTexto);
   }
 
-  const pedido = texto.trim() === '' ? null : Number(texto);
-  const valido = pedido !== null && Number.isFinite(pedido);
-  const descuento = bruto !== null && valido ? redondearDinero(bruto - pedido) : 0;
-  const excede = descuento < 0;
+  const pedido = texto.trim() === '' ? undefined : Number(texto);
+  const calculo = cajas === null ? null : descuentoParaSubtotal(cajas, precio, pedido);
+  const fallo = calculo !== null && 'error' in calculo ? calculo.error : null;
+  const descuento = calculo !== null && 'descuento' in calculo ? calculo.descuento : 0;
 
   return (
     <label className="flex flex-col gap-1 text-sm">
@@ -167,18 +193,17 @@ function CampoSubtotal({
         max={bruto ?? undefined}
         step="any"
         inputMode="decimal"
-        className={`${CLASE_CONTROL} ${excede ? 'border-red-500' : ''} ${
+        className={`${CLASE_CONTROL} ${fallo ? 'border-red-500' : ''} ${
           bruto === null ? 'cursor-not-allowed bg-zinc-100 dark:bg-zinc-800' : ''
         }`}
       />
-      <span className={`text-xs ${excede ? 'text-red-600 dark:text-red-400' : 'text-tenue'}`}>
+      <span className={`text-xs ${fallo ? 'text-red-600 dark:text-red-400' : 'text-tenue'}`}>
         {bruto === null
           ? 'Se calcula al poner la cantidad y el precio'
-          : excede
-            ? `No puede pasar de ${numero(bruto)}: esto es para rebajar, no para subir el precio`
-            : descuento > 0
+          : (fallo ??
+            (descuento > 0
               ? `${numero(bruto)} a precio de lista · descuento de ${numero(descuento)}`
-              : `Son ${numero(bruto)}. Cámbielo si acordó otra cifra con el cliente`}
+              : `Son ${numero(bruto)}. Cámbielo si acordó otra cifra con el cliente`))}
       </span>
     </label>
   );
@@ -310,10 +335,7 @@ export function CamposDetalleVenta({
         alEscribir={setPrecioEscrito}
       />
 
-      <CampoSubtotal
-        bruto={cajas === null ? null : subtotalBruto(cajas, lista?.precioVenta ?? precioEscrito)}
-        moneda={moneda}
-      />
+      <CampoSubtotal cajas={cajas} precio={lista?.precioVenta ?? precioEscrito} moneda={moneda} />
 
       {elegida ? (
         <p className="flex items-center gap-2 text-xs text-tenue sm:col-span-2">
@@ -478,7 +500,8 @@ export function CamposLineaVenta({
       />
 
       <CampoSubtotal
-        bruto={cajas === null ? null : subtotalBruto(cajas, lista?.precioVenta ?? precioEscrito)}
+        cajas={cajas}
+        precio={lista?.precioVenta ?? precioEscrito}
         moneda={moneda}
         descuentoInicial={linea.descuento}
       />

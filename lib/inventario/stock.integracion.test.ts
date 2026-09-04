@@ -92,16 +92,18 @@ describe.runIf(hayCredenciales)(
         `insert into zona (bodega_id, codigo) values (${bodegaId}, '${CODIGO}-2') returning id`,
       );
       zonaId2 = n(zon2, 'id');
-    }, 60_000);
+    }, 180_000);
 
     afterAll(async () => {
       if (!varianteId) return;
       // El kardex es append-only por trigger; para limpiar los datos de prueba
       // se levanta la barrera solo durante la limpieza y se restituye al final.
       await consultar(`
-      alter table movimiento disable trigger tr_movimiento_sin_delete;
+      -- Solo para esta sesion, que muere con la peticion: un "alter table
+      -- ... disable trigger" que no llegue a su "enable" deja la base REAL del
+      -- cliente sin sus protecciones, en silencio.
+      set session_replication_role = replica;
       delete from movimiento where variante_id = ${varianteId};
-      alter table movimiento enable trigger tr_movimiento_sin_delete;
       delete from stock where variante_id = ${varianteId};
       delete from producto_variante where id = ${varianteId};
       delete from producto where id = ${productoId};
@@ -109,7 +111,7 @@ describe.runIf(hayCredenciales)(
       delete from bodega where id = ${bodegaId};
       delete from categoria where id = ${categoriaId};
     `);
-    }, 60_000);
+    }, 180_000);
 
     it('una ENTRADA crea stock y convierte cajas a unidades con el factor del empaque', async () => {
       const [mov] = await consultar(

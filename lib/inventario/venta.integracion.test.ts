@@ -34,7 +34,7 @@ async function comoAdmin(sql: string): Promise<Fila[]> {
   );
 }
 
-describe.runIf(hayCredenciales)('ventas: confirmación y precios', { timeout: 60_000 }, () => {
+describe.runIf(hayCredenciales)('ventas: confirmación y precios', { timeout: 180_000 }, () => {
   beforeAll(async () => {
     ({ consultar } = await import('../../scripts/api-supabase'));
 
@@ -99,21 +99,19 @@ describe.runIf(hayCredenciales)('ventas: confirmación y precios', { timeout: 60
       `insert into venta_detalle (venta_id, variante_id, zona_id, cajas, precio_caja)
        values (${ventaId}, ${varianteId}, ${zonaId}, 2, 30)`,
     );
-  }, 60_000);
+  }, 180_000);
 
   afterAll(async () => {
     if (!varianteId) return;
     await consultar(`
-      alter table movimiento disable trigger tr_movimiento_sin_delete;
-      alter table venta_detalle disable trigger tr_venta_detalle_solo_borrador;
-      alter table venta disable trigger tr_venta_confirmada_inmutable;
+      -- Solo para esta sesion, que muere con la peticion: un "alter table
+      -- ... disable trigger" que no llegue a su "enable" deja la base REAL del
+      -- cliente sin sus protecciones, en silencio.
+      set session_replication_role = replica;
       delete from movimiento where variante_id = ${varianteId};
       delete from stock where variante_id = ${varianteId};
       delete from venta_detalle where venta_id = ${ventaId};
       delete from venta where id = ${ventaId};
-      alter table movimiento enable trigger tr_movimiento_sin_delete;
-      alter table venta_detalle enable trigger tr_venta_detalle_solo_borrador;
-      alter table venta enable trigger tr_venta_confirmada_inmutable;
       delete from cliente where id = ${clienteId};
       delete from lista_precio_item where lista_id = ${listaId};
       delete from lista_precio where id = ${listaId};
@@ -123,7 +121,7 @@ describe.runIf(hayCredenciales)('ventas: confirmación y precios', { timeout: 60
       delete from bodega where id = ${bodegaId};
       delete from categoria where id = ${categoriaId};
     `);
-  }, 60_000);
+  }, 180_000);
 
   it('sin usuario autenticado la confirmación se rechaza', async () => {
     await expect(consultar(`select fn_confirmar_venta(${ventaId})`)).rejects.toThrow(/permiso/);
@@ -160,9 +158,12 @@ describe.runIf(hayCredenciales)('ventas: confirmación y precios', { timeout: 60
       `insert into venta (cliente_id, moneda_id) values (${clienteId}, ${monedaId}) returning id`,
     );
     const otraId = n(otra, 'id');
+    // Con precio: desde 0032 una venta sin precio ni siquiera llega a mover
+    // stock, y lo que este test vigila es el sobregiro, no esa otra regla.
     await consultar(
-      `insert into venta_detalle (venta_id, variante_id, zona_id, cajas)
-       values (${otraId}, ${varianteId}, ${zonaId}, 1), (${otraId}, ${varianteId}, ${zonaId}, 100)`,
+      `insert into venta_detalle (venta_id, variante_id, zona_id, cajas, precio_caja)
+       values (${otraId}, ${varianteId}, ${zonaId}, 1, 30),
+              (${otraId}, ${varianteId}, ${zonaId}, 100, 30)`,
     );
 
     await expect(comoAdmin(`select fn_confirmar_venta(${otraId})`)).rejects.toThrow(

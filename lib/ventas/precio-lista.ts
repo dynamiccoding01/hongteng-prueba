@@ -1,6 +1,6 @@
 'use server';
 
-import { requerirUsuario } from '@/lib/auth';
+import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { convertirAPesos } from './conversion';
 
@@ -11,7 +11,8 @@ import { convertirAPesos } from './conversion';
 export type MotivoPrecio =
   | 'mismo' // La venta va en la moneda de la lista: se usa tal cual.
   | 'convertido' // La venta va en pesos: se multiplicó por el tipo de cambio.
-  | 'moneda_no_soportada'; // La lista no está en dólares: no hay conversión.
+  | 'moneda_no_soportada' // La lista no está en dólares: no hay conversión.
+  | 'tipo_cambio_invalido'; // El documento no trae un tipo de cambio utilizable.
 
 /** Lo que dice la lista de precios del cliente sobre un artículo. */
 export interface PrecioDeLista {
@@ -54,7 +55,14 @@ export async function precioDeLista(
   ventaId: number,
   varianteId: number,
 ): Promise<PrecioDeLista | null> {
-  await requerirUsuario();
+  /*
+   * Es un Server Action: lo llama un componente de cliente y, por tanto,
+   * cualquiera que tenga sesión puede invocarlo con el `ventaId` y el
+   * `varianteId` que quiera. La RLS de `venta` y `lista_precio_item` es la que
+   * de verdad decide qué filas se leen, pero exigir el permiso aquí evita que
+   * la puerta quede abierta a quien ni siquiera entra al módulo de ventas.
+   */
+  await requerirPermiso('venta.ver');
 
   const supabase = await crearClienteServidor();
 
@@ -92,8 +100,20 @@ export async function precioDeLista(
   // El tipo de cambio de la venta dice cuántos pesos vale un dólar, así que
   // solo sirve para ese par. Una lista en euros no se sabe convertir.
   if (monedaVenta === 'CLP' && monedaLista === 'USD') {
-    const { exacto, redondeado } = convertirAPesos(precioLista, tipoCambio);
-    return { ...comun, precioVenta: redondeado, precioExacto: exacto, motivo: 'convertido' };
+    const convertido = convertirAPesos(precioLista, tipoCambio);
+
+    // Sin un tipo de cambio utilizable no se inventa un precio: se pide a mano.
+    // Un cero aquí se cobraría, y nadie lo habría decidido.
+    if (convertido === null) {
+      return { ...comun, precioVenta: null, precioExacto: null, motivo: 'tipo_cambio_invalido' };
+    }
+
+    return {
+      ...comun,
+      precioVenta: convertido.redondeado,
+      precioExacto: convertido.exacto,
+      motivo: 'convertido',
+    };
   }
 
   return { ...comun, precioVenta: null, precioExacto: null, motivo: 'moneda_no_soportada' };
