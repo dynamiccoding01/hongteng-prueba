@@ -7,9 +7,9 @@ export const metadata: Metadata = { title: 'Ingresar · Sistema de Inventario' }
 export default async function PaginaLogin({
   searchParams,
 }: {
-  searchParams: Promise<{ destino?: string }>;
+  searchParams: Promise<{ destino?: string; expirada?: string }>;
 }) {
-  const { destino } = await searchParams;
+  const { destino, expirada } = await searchParams;
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -19,6 +19,15 @@ export default async function PaginaLogin({
           <h1 className="mt-1 text-xl font-semibold">Sistema de Gestión e Inventario</h1>
           <p className="mt-1 text-sm text-zinc-500">Zona Franca de Iquique</p>
         </div>
+
+        {expirada ? (
+          <p
+            role="status"
+            className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+          >
+            Su sesión se cerró tras 15 minutos sin actividad. Vuelva a entrar.
+          </p>
+        ) : null}
 
         <Tarjeta className="p-6">
           <FormularioLogin destino={destino} />

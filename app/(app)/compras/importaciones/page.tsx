@@ -9,6 +9,7 @@ import type { ZonaOpcion } from '@/components/selector-zona';
 import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
+import { hoy } from '@/lib/fechas';
 import { unidadLegible, unidadSingular } from '@/lib/inventario/articulo';
 import { preciosLinea } from '@/lib/compras/precios';
 import { agregarDetalle, confirmarImportacion, crearImportacion } from './acciones';
@@ -106,7 +107,7 @@ export default async function Importaciones({
               opciones={opcionesProveedor}
               requerido
             />
-            <Campo etiqueta="Fecha" nombre="fecha" tipo="date" />
+            <Campo etiqueta="Fecha" nombre="fecha" tipo="date" valor={hoy()} />
             <Campo
               etiqueta="Documento de aduana (traspaso 203)"
               nombre="documento_aduana"

@@ -45,6 +45,8 @@ npm run db:sql       # SQL consolidado para pegar en el editor del panel
 npx tsx scripts/asignar-rol.ts correo@ejemplo.com Administrador
 npx tsx scripts/verificar-esquema.ts      # comprueba triggers, RLS, bitácora, stock
 npx tsx scripts/analizar-bodega.ts ruta/BODEGA.xls   # diagnóstico, no escribe
+npx tsx scripts/migrar-catalogo.ts ruta/planilla.xlsx            # ensayo, no escribe
+npx tsx scripts/migrar-catalogo.ts ruta/planilla.xlsx --ejecutar # migra el catálogo
 ```
 
 Con Supabase CLI + Docker disponibles el flujo es `supabase start` / `supabase migration new <desc>` / `supabase db reset` / `npm run db:types`. Sin CLI, se usa la vía `db:sql` + editor SQL del panel (ver [DESARROLLO.md](DESARROLLO.md)).
@@ -60,6 +62,8 @@ Next.js 15 (App Router, React 19, Tailwind 4) sobre Supabase (PostgreSQL + Auth)
 3. **RLS en PostgreSQL** (`0005_rls.sql`) consultando `tiene_permiso()` sobre usuario → rol → rol_permiso → permiso.
 
 Las capas 1 y 2 son comodidad de UX: **la autorización que cuenta es la 3**. Nunca reemplazar una política RLS por una comprobación en la app.
+
+**La sesión caduca a los 15 minutos de inactividad** ([lib/sesion.ts](lib/sesion.ts)). Supabase no lo hace solo: renueva el token mientras viva el refresh token, así que quien no cerraba sesión seguía dentro al día siguiente —inaceptable en un mostrador con el computador compartido—. La cuenta la lleva una cookie propia, `ultima_actividad`, que el middleware lee y reescribe en cada petición; pasado el plazo cierra la sesión y manda a `/login?expirada=1`. Dos detalles que parecen menores y no lo son: la cookie **ausente cuenta como caducada** (se emite con `maxAge` de 15 min, así que «volví al día siguiente» llega como ausencia, no como marca vieja; por eso `iniciarSesion` la escribe al entrar), y la **prerecarga de `<Link>` no renueva** el plazo, solo lo comprueba —si no, un menú en pantalla mantendría viva la sesión sin que nadie tocara nada—. `VigiaInactividad` ([components/vigia-inactividad.tsx](components/vigia-inactividad.tsx)) es el complemento en el navegador, para quien deja la pantalla abierta y no genera peticiones; comparte la marca entre pestañas por `localStorage` y sale con `window.location` —navegación dura— para que se vaya también la caché de rutas de Next. El vigía es comodidad; **la barrera es el middleware**.
 
 El cliente de servidor ([lib/supabase/server.ts](lib/supabase/server.ts)) usa la clave pública con la sesión del usuario en cookies, para que RLS se evalúe con su identidad real. La `service_role key` (`getServiceRoleKey()` en [lib/env.ts](lib/env.ts)) omite RLS y solo puede usarse en scripts y código de servidor.
 
@@ -210,4 +214,6 @@ Commits convencionales (`feat:`, `fix:`, `docs:`, `refactor:`) con descripción 
 
 ## Datos del cliente
 
-`BODEGA.xls` y cualquier planilla con datos reales **no se versionan** (`.gitignore` excluye `*.xls`). La ruta se pasa por `BODEGA_XLS_PATH`. El parser vive en `lib/bodega/` con sus tests unitarios (zonas en texto libre tipo `1-3 (2)M3(1)`), y `scripts/migrar-bodega.ts` valida totales contra la hoja 汇总 antes de escribir.
+`BODEGA.xls` y cualquier planilla con datos reales **no se versionan** (`.gitignore` excluye `*.xls` y `*.xlsx`). La ruta se pasa por `BODEGA_XLS_PATH`. El parser vive en `lib/bodega/` con sus tests unitarios (zonas en texto libre tipo `1-3 (2)M3(1)`), y `scripts/migrar-bodega.ts` valida totales contra la hoja 汇总 antes de escribir.
+
+`scripts/migrar-catalogo.ts` es la migración de la planilla «bodegas ok.xlsx» (hecha el 2026-09-06: 1.690 productos, 18.143 cajas en IQQ). Reutiliza `parseZona` porque la columna UBICACIÓN trae la misma sintaxis compuesta. Tres cosas que no son evidentes al leer la planilla: **la hoja no tiene columna de categoría** —está partida en bloques por un separador en la columna del código (`（juvenil)`, `（adulto)`, `（ropa)`; lo anterior es Niño) y el encabezado se repite en cada bloque—; se carga **STOCK DISP.**, no `INGR − VDO`, porque en 275 filas esa resta no cuadra y el disponible es lo que el cliente mantiene al día; y **UNIDADES es el contenido de la caja**, que va a `producto_variante.unidades_por_caja`, mientras la unidad de medida de todo el catálogo es `CAJ`. Corre en ensayo por defecto: escribe solo con `--ejecutar`, y se niega a correr dos veces sobre las mismas zonas para no duplicar existencias.

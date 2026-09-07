@@ -135,9 +135,9 @@ export async function editarProducto(
 }
 
 /**
- * Datos de un empaque, más allá de su cantidad. Antes había que recorrer tres
- * pantallas para dejarlo completo: la cantidad aquí, el código de barras en
- * /maestros/codigos y el mínimo en /inventario/alertas.
+ * Datos de un empaque, más allá de su cantidad. Este formulario es el único
+ * sitio donde se dejan completos: cantidad, código de barras, SKU interno y
+ * stock mínimo. El mínimo se consulta además en /inventario/alertas.
  */
 const codigoEmpaque = z
   .string()
@@ -229,7 +229,6 @@ export async function editarEmpaque(
   if (error) return { error: errorEmpaque(error) };
 
   revalidatePath('/maestros/productos');
-  revalidatePath('/maestros/codigos');
   revalidatePath('/inventario/alertas');
   return { ok: 'Empaque actualizado' };
 }
@@ -272,7 +271,6 @@ export async function agregarEmpaque(
   if (error) return { error: errorEmpaque(error) };
 
   revalidatePath('/maestros/productos');
-  revalidatePath('/maestros/codigos');
   revalidatePath('/inventario/alertas');
   return { ok: 'Empaque agregado' };
 }

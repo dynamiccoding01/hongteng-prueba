@@ -1,4 +1,5 @@
 import { requerirPermiso } from '@/lib/auth';
+import { hoy } from '@/lib/fechas';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
@@ -73,7 +74,7 @@ export default async function TomaDeInventario({
         {puedeCrear ? (
           <FormularioDesplegable accion={crearToma} etiquetaNuevo="Nueva toma">
             <Seleccion etiqueta="Bodega" nombre="bodega_id" opciones={opcionesBodega} requerido />
-            <Campo etiqueta="Fecha" nombre="fecha" tipo="date" />
+            <Campo etiqueta="Fecha" nombre="fecha" tipo="date" valor={hoy()} />
             <Campo etiqueta="Notas" nombre="notas" ancho="completo" />
           </FormularioDesplegable>
         ) : null}

@@ -42,7 +42,7 @@ flowchart TD
 
 - Existencia = entradas − salidas (regla heredada de BODEGA.xls: 实存 = 入库 − 出库).
 - Todo movimiento queda en el kardex; nada se edita ni borra físicamente.
-- Traspasos entre zonas/bodegas (ej. Arica–Iquique) generan salida en origen y entrada en destino.
+- Traspasos entre zonas/bodegas (ej. Arica–Iquique) generan salida en origen y entrada en destino. La regla vive en `fn_traspasar`; desde el 2026-09-06 no hay pantalla que la invoque (ver PLAN_AVANZE.md).
 - Toma de inventario físico → diferencias se registran como movimientos de AJUSTE.
 
 ## 4. Flujo de ventas / despachos (VEN-01 a VEN-03 · Fase 2)
@@ -54,7 +54,7 @@ flowchart TD
     ST -->|Sí| CONF["Confirmar venta"]
     ST -->|No| ALERT["Alerta: existencia insuficiente"]
     CONF --> SAL["Movimiento de SALIDA<br/>descuento automático de stock"]
-    SAL --> DOC["Documentos: factura /<br/>traspaso Aduanas (zona franca)"]
+    SAL --> DOC["Nota de venta impresa<br/>4 copias: vendedor, cliente,<br/>bodega y despacho"]
 ```
 
 ## 5. Flujo de migración inicial (ADM-04)

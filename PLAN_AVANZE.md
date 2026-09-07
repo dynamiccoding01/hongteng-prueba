@@ -149,9 +149,9 @@ base de datos, y el stock solo se toca vía movimientos.
 ## Checklist Sprint 6 (detalle de trabajo)
 
 - [x] ~~Migración `0011_zona_franca.sql`: datos de empresa + correlativos con `fn_siguiente_correlativo` (ADM-03), `documento_traspaso` numerado desde venta confirmada (VEN-03), `toma_inventario` + `fn_aplicar_toma_inventario` con ajustes por diferencia (INV-06), y permiso reforzado en `fn_traspasar` (INV-07)~~ (aplicada el 2026-07-22; tipos regenerados)
-- [x] ~~Página «Traspasos» (INV-07): mover cajas entre zonas/bodegas con motivo~~ (`app/(app)/inventario/traspasos`)
+- [~] ~~Página «Traspasos» (INV-07): mover cajas entre zonas/bodegas con motivo~~ — **retirada el 2026-09-06** a pedido del cliente. Ver la nota de alcance abajo
 - [x] ~~Página «Toma de inventario» (INV-06): conteo por zona en borrador, comparación contra el sistema, y aplicación de diferencias como ajustes~~ (`app/(app)/inventario/toma`)
-- [x] ~~Página «Traspasos ante Aduanas» (VEN-03): emitir documento 203 numerado desde una venta confirmada, y anularlo~~ (`app/(app)/ventas/traspasos-aduana`)
+- [~] ~~Página «Traspasos ante Aduanas» (VEN-03): emitir documento 203 numerado desde una venta confirmada, y anularlo~~ — **retirada el 2026-09-06** a pedido del cliente. Ver la nota de alcance abajo
 - [x] ~~Página «Empresa» (ADM-03): datos fiscales editables, con aviso mientras el RUT no esté confirmado por el cliente~~ (`app/(app)/admin/empresa`)
 - [x] ~~Tests de integración: correlativo secuencial, permiso en `fn_traspasar`, toma con ajuste de solo la diferencia, emisión/anulación del documento~~ (8 tests nuevos; se corrigió también `fn_traspasar` en el test del Sprint 2, que quedó exigiendo el permiso nuevo)
 - [x] ~~PR del Sprint 6 con CI verde y merge a `main`~~ (PR #7 mergeado el 2026-07-23 — **Sprint 6 cerrado, Fase 3 casi completa**)
@@ -159,12 +159,57 @@ base de datos, y el stock solo se toca vía movimientos.
 ## Checklist Sprint 7 (detalle de trabajo)
 
 - [~] ~~VEN-05 (migración `0012`, páginas «Vendedores» y «Comisiones», campo vendedor en la nota de venta)~~ — **retirado el 2026-09-03** por `0028_quitar_comisiones.sql`: el cliente confirmó que no trabaja con comisión por vendedor. Ver la nota de alcance abajo
-- [x] ~~Página «Códigos de barras» (INV-08): asignar `codigo_barras`/`sku_interno` a cada empaque existente~~ (`app/(app)/maestros/codigos`)
-- [x] ~~Página «Buscar por código» (INV-08): lectura rápida (lector USB/Bluetooth) que ubica el artículo y su stock~~ (`app/(app)/inventario/buscar-codigo`; no incluye generación de etiqueta gráfica de barras/QR — ver nota abajo)
+- [~] ~~Página «Códigos de barras» (INV-08): asignar `codigo_barras`/`sku_interno` a cada empaque existente~~ — **retirada el 2026-09-06**: era redundante, esos campos se editan en el formulario de empaque de `/maestros/productos`
+- [~] ~~Página «Buscar por código» (INV-08): lectura rápida (lector USB/Bluetooth) que ubica el artículo y su stock~~ — **retirada el 2026-09-06**: se solapaba con «Buscar artículos» (`/articulos`), que también encuentra por código de barras
 - [x] ~~Dashboard: indicadores en el Resumen (valor de inventario, alertas activas, movimientos del día)~~ (tarjetas nuevas en `app/(app)/page.tsx`)
 - [~] ~~Tests de integración: comisión calculada y congelada al confirmar~~ — eliminados con la funcionalidad (`lib/inventario/comisiones.integracion.test.ts`)
+- [x] Caducidad de sesión por inactividad (15 min): cookie `ultima_actividad` comprobada en `middleware.ts`, vigía en el navegador (`components/vigia-inactividad.tsx`) y aviso en el login. 6 tests unitarios en `lib/sesion.test.ts`
 
 > **Nota de alcance — VEN-05 (retirado):** en la reunión del 2026-09-03 el cliente confirmó que **no trabaja con comisión por vendedor**: la venta la toma quien esté en el mostrador y no se liquida nada sobre ella. La migración `0028_quitar_comisiones.sql` retira la funcionalidad entera —tabla `vendedor`, las tres columnas de `venta`, la vista `v_comisiones`, los tres permisos y la rama de comisión de `fn_confirmar_venta`— en vez de dejarla escondida. Se pudo borrar sin perder nada: ninguna venta referenciaba un vendedor. Los registros de bitácora de la tabla se conservan, que para eso es append-only. Si vuelve a hacer falta, se reconstruye desde `0012`.
+
+> **Caducidad de sesión (2026-09-06):** el cliente reportó que al día siguiente
+> la sesión seguía abierta. No era un defecto del código sino el comportamiento
+> por defecto de Supabase: renueva el token mientras viva el refresh token, y
+> nada mide la inactividad. Se añadió un plazo de **15 minutos** en
+> [lib/sesion.ts](lib/sesion.ts). La decisión de diseño que importa es que
+> `sesionExpirada` **falla cerrando**: una cookie ausente cuenta como caducada,
+> porque el caso «volví al día siguiente» llega justamente como ausencia (la
+> cookie se emite con `maxAge` de 15 minutos y el navegador ya la borró).
+> Tratarla como válida habría dejado pasar exactamente al usuario que se quería
+> echar. Como contrapartida, `iniciarSesion` escribe la cookie al entrar: sin
+> eso el primer clic tras el login rebotaría al propio login.
+>
+> El plazo es una constante, no un ajuste por rol ni por empresa. Si el cliente
+> pide poder cambiarlo, es una columna en `empresa` y una migración; hoy no lo
+> ha pedido.
+
+> **Nota de alcance — páginas retiradas el 2026-09-06:** a pedido del cliente se
+> quitaron del menú y del código cuatro pantallas, en la línea de simplificar la
+> interfaz. «Códigos de barras» y «Buscar por código» eran **redundantes**: el
+> código de barras y el SKU ya se editan en el formulario de empaque de
+> Productos, y `/articulos` ya busca por código. **«Traspasos» y «Traspasos ante
+> Aduanas» no lo eran**: eran las únicas pantallas que llamaban a `fn_traspasar`
+> y a `fn_emitir_documento_traspaso` / `fn_anular_documento_traspaso`, así que
+> mover cajas entre zonas y emitir el documento 203 dejaron de poder hacerse
+> desde la aplicación.
+>
+> En los cuatro casos **la base de datos quedó intacta**: las funciones, la tabla
+> `documento_traspaso`, los permisos (`traspaso.crear`,
+> `documento_traspaso.ver`, `documento_traspaso.crear`) y sus tests de
+> integración siguen ahí. Reponer una pantalla es volver a crear su `page.tsx` y
+> su `acciones.ts` (están en el historial de git) y devolver su entrada a
+> `navegacion.tsx` e `i18n.ts`. No se escribió migración: retirar los permisos
+> habría obligado a reponerlos si las pantallas vuelven.
+
+> **Reorganización del menú (2026-09-06):** «Maestros» juntaba cosas de módulos
+> distintos. Se repartieron según quién las usa, siguiendo el diagrama de
+> módulos del cliente: **Unidades de medida** pasó a Inventario (es en lo que se
+> cuenta), **Proveedores** a Compras y **Clientes** a Ventas. Maestros queda con
+> Productos, Categorías, Bodegas y zonas, y Tipo de cambio. **Las URL no
+> cambiaron** (`/maestros/clientes` sigue siendo esa): mover carpetas obligaba a
+> tocar cada `revalidatePath` y rompía enlaces guardados, y `GrupoNav` decide el
+> módulo activo con la lista de rutas de cada sección, no con el prefijo de la
+> URL. Si se quiere alinear las rutas con el menú, es un cambio aparte.
 
 > **Nota de alcance — INV-08:** se implementó la asignación de código de barras/SKU por empaque y la lectura rápida (compatible con lector USB/Bluetooth, que escribe como si fuera un teclado). **No** se generó una imagen de código de barras/QR para imprimir etiquetas: es prioridad Baja en el PRD, y un generador mal implementado podría producir etiquetas que no escanean sin forma de detectarlo sin un lector físico a mano. Si se necesita, mejor evaluarlo con una librería probada cuando haya cómo verificarlo contra un lector real.
 
@@ -185,7 +230,7 @@ ahora; se puede ampliar página por página más adelante.
 - [x] ~~Página nueva «Ajustes» (`app/(app)/ajustes`): selector de tema y de idioma, sin permiso requerido (preferencia personal, no acceso a datos)~~
 - [x] ~~`components/navegacion.tsx`: menú traducido vía diccionario, resaltado de la ruta activa (`components/enlace-nav.tsx`, no existía antes), selector de tema en el pie~~
 - [x] ~~Refresco visual centralizado, sin tocar props de nada: `components/ui.tsx` (nuevo componente `Tarjeta`, radios de borde unificados), `components/formulario.tsx` (estados de foco que no existían, color de acento nuevo), color de acento único en `app/globals.css`~~
-- [x] ~~Reemplazo de las tarjetas armadas a mano por `<Tarjeta>` / unificación de bordes en los archivos identificados: login, admin/usuarios, admin/roles, inventario/toma, inventario/buscar-codigo, compras/importaciones, ventas/notas, ventas/precios~~
+- [x] ~~Reemplazo de las tarjetas armadas a mano por `<Tarjeta>` / unificación de bordes en los archivos identificados: login, admin/usuarios, admin/roles, inventario/toma, compras/importaciones, ventas/notas, ventas/precios~~
 - [x] ~~Verificación completa: format + lint + typecheck + test + build en verde, sin cambios en `supabase/migrations/*`~~
 - [x] ~~PR del Sprint 8 con CI verde y merge a `main`~~ (PR #9 mergeado el 2026-07-23 — **Sprint 8 cerrado**)
 

@@ -14,6 +14,15 @@ Los datos de prueba que habían dejado los tests (`TESTIMP-…`, «Cat test», �
 test») fueron reemplazados por un catálogo del rubro. No quedan residuos en los
 maestros.
 
+> **Desde el 2026-09-06 la base tiene además el catálogo real del cliente**:
+> 1.690 productos migrados desde `bodegas ok.xlsx` con
+> `npx tsx scripts/migrar-catalogo.ts`, en 53 zonas nuevas de IQUIQUE y con
+> **18.143 cajas** de existencia inicial. Los 8 artículos de demostración de más
+> abajo (`ZN-6101`, `ZD-8801`…) siguen ahí y son los que usan las ventas e
+> importaciones del guion, así que los pasos de esta guía se siguen igual; lo
+> que cambia es que las pantallas ya no muestran ocho filas sino miles, que es
+> justamente como las va a ver el cliente.
+
 ### Catálogo (8 artículos, con descripción bilingüe y código de barras EAN-13)
 
 | Código    | Artículo                       | 中文       | Categoría | Tallas | u/caja | Proveedor         |
@@ -38,7 +47,7 @@ mismo.
 
 ### Existencias, clientes y proveedores
 
-- **2.785 cajas · 22.685 unidades**, repartidas en las 9 zonas.
+- Del catálogo de demostración: **2.785 cajas · 22.685 unidades** en 9 zonas. Con el catálogo real migrado encima, IQUIQUE suma **19.540 cajas** en 56 zonas.
 - Valorización total: **$79.908.337 CLP** al último costo de importación (dólar a 947,30).
 - 4 clientes: Comercial Andina Ltda. (Iquique), Distribuidora Norte Grande SpA
   (Antofagasta), Importadora Tarapacá Ltda. (ZOFRI), Multitiendas El Loa SpA
@@ -55,19 +64,19 @@ costo a los artículos.
 
 ### Lo único que quedó feo, y por qué no se puede arreglar
 
-Hay **dos importaciones antiguas con documento de aduana `203-TEST`** (4 cajas
-cada una). No se pueden editar ni borrar: el trigger
-`tr_importacion_confirmada_inmutable` rechaza cualquier `UPDATE` o `DELETE`
-sobre una importación confirmada. Es exactamente la regla que le vamos a
-presentar al cliente como garantía, así que **no se toca**.
+La **bitácora** arrastra miles de registros de las corridas de prueba. No se
+puede limpiar desde el sistema, por diseño: es append-only e inmutable
+(`tr_bitacora_sin_delete`). Para la demo conviene filtrarla por la fecha de hoy.
 
-Opciones: dejarlas (aparecen al final del listado, con 4 cajas), o convertirlo
-en argumento de venta: «esas dos son de las pruebas del sistema; fíjese que ni
-yo, que lo programé, puedo borrarlas».
+Que no se pueda limpiar **es el argumento**, no el defecto: es la misma regla
+que le vamos a presentar al cliente como garantía de que nadie borra su rastro,
+ni siquiera el administrador.
 
-La **bitácora** tiene además ~2.200 registros de las pruebas. Tampoco se puede
-limpiar, por diseño (append-only e inmutable). Para la demo conviene filtrarla
-por fecha de hoy.
+> El 2026-09-06 se purgaron de la base los datos de prueba que sí eran
+> borrables: tres juegos de bodega/producto/cliente huérfanos de la suite de
+> integración, los usuarios `__seg_*@test.local` y las dos importaciones con
+> documento de aduana `203-TEST`. Al quitar esas dos, el stock de `BT-4501`
+> volvió a 246 cajas y el de `PT-3301` a 146 — que es justo la carga inicial.
 
 ---
 
@@ -122,6 +131,7 @@ Orden pensado para que cada paso deje preparado el siguiente. Ir marcando.
 
 - [ ] Entrar con el usuario Administrador.
 - [ ] El menú lateral muestra Inventario, Maestros, Compras, Ventas, Reportes, Administración.
+- [ ] Cada maestro está en el módulo donde se usa: **Unidades de medida** en Inventario, **Proveedores** en Compras, **Clientes** en Ventas. Maestros solo tiene Productos, Categorías, Bodegas y zonas, y Tipo de cambio.
 - [ ] Cambiar idioma a 中文 (selector abajo en el menú) → el **menú** se traduce; el contenido de las páginas sigue en español (es a propósito).
 - [ ] Cambiar el tema claro/oscuro y recargar: la preferencia se mantiene.
 
@@ -129,7 +139,7 @@ Orden pensado para que cada paso deje preparado el siguiente. Ir marcando.
 
 Antes de crear nada, comprobar que lo cargado se ve bien.
 
-- [ ] Stock por zona muestra las 9 combinaciones artículo × zona con sus cajas y unidades.
+- [ ] Stock por zona pagina sobre las ~1.825 combinaciones artículo × zona; el selector de filas (10/15/20) y el paginador responden.
 - [ ] Buscar `ZD` en el buscador → aparece la zapatilla deportiva dama con su ubicación.
 - [ ] `ZN-6101` muestra 540 cajas / 6.480 unidades en la zona 1-1 (12 pares por caja: la conversión la hace la base de datos).
 
@@ -164,13 +174,7 @@ Este es el flujo que carga el stock. **Nunca se escribe stock a mano.**
 - [ ] En Kardex, filtrar por `BT-4501`: se ve la entrada con el **saldo resultante** (300).
 - [ ] El saldo del kardex **concilia** con lo que muestra Stock por zona.
 
-### 6. Traspaso entre zonas — `/inventario/traspasos`
-
-- [ ] Traspasar **60 cajas** de `ZD-8801` de la zona `1-2` a `A-1` (Arica).
-- [ ] Stock: 1-2 baja a 420, A-1 sube en 60. **El total de la empresa no cambió.**
-- [ ] En Movimientos se ven **dos** registros: TRASPASO_SALIDA y TRASPASO_ENTRADA.
-
-### 7. Venta: la mercadería sale — `/ventas/precios`, `/ventas/notas`
+### 6. Venta: la mercadería sale — `/ventas/precios`, `/ventas/notas`
 
 La lista **Mayorista USD** ya tiene precio para los 8 artículos y los 4 clientes
 la tienen asignada.
@@ -182,7 +186,7 @@ la tienen asignada.
 - [ ] Vender **40 cajas** desde la zona 1-2 y confirmar.
 - [ ] Stock: la zona 1-2 baja a 380. En Movimientos hay una SALIDA con documento VENTA.
 
-#### 7.1 La misma venta, pero en pesos
+#### 6.1 La misma venta, pero en pesos
 
 - [ ] Crear otra nota para **Comercial Andina Ltda.**, esta vez en **CLP**. El formulario no pide tipo de cambio: anuncia con cuál se va a grabar.
 - [ ] Solo se ofrecen **USD y CLP**: euros, UF y UTM no están en la lista.
@@ -190,7 +194,7 @@ la tienen asignada.
 - [ ] Intentar cambiar la moneda de esa venta con la línea ya cargada → lo rechaza y explica que hay precios en la moneda actual.
 - [ ] Confirmar y comprobar en **Reportes › Ventas por período** que el monto en pesos es 2 × 36.000 y no 76.
 
-#### 7.1.1 Imprimir la nota — botón «Imprimir nota»
+#### 6.1.1 Imprimir la nota — botón «Imprimir nota»
 
 Antes de empezar: cargar **RUT y teléfono** en Administración › Empresa. Salen en el encabezado de las cuatro copias y hoy están vacíos.
 
@@ -204,20 +208,20 @@ Antes de empezar: cargar **RUT y teléfono** en Administración › Empresa. Sal
 - [ ] Con el **tema oscuro** puesto, la hoja sigue siendo negra sobre blanco.
 - [ ] En Bitácora queda un registro **IMPRIMIR** por cada vez que se abrió la vista.
 
-#### 7.2 El tipo de cambio — `/maestros/tipo-cambio`
+#### 6.2 El tipo de cambio — `/maestros/tipo-cambio`
 
 - [ ] Entrar como **Administrador**: se ve el dólar vigente en grande y la serie por fecha. Como **Ventas** el enlace no aparece.
 - [ ] Cargar el dólar de hoy con otro valor (por ejemplo 960) y fuente «Banco Central de Chile».
 - [ ] Volver a Notas de venta: una nota **nueva** en pesos usa 960; las anteriores **conservan** el suyo y sus precios no se movieron.
 
-### 8. Toma de inventario — `/inventario/toma`
+### 7. Toma de inventario — `/inventario/toma`
 
 - [ ] Crear una toma para la bodega IQQ.
 - [ ] Contar `ZH-8802` en la zona `2-4` declarando **352** cajas (el sistema dice 355).
 - [ ] Aplicar la toma → el sistema genera solo el **ajuste negativo de 3 cajas**, y el stock queda en 352.
 - [ ] El ajuste queda en el kardex con el nombre de quien lo hizo.
 
-### 9. Reportes y exportación — `/reportes/*`, `/inventario/alertas`
+### 8. Reportes y exportación — `/reportes/*`, `/inventario/alertas`
 
 - [ ] **Valorización**: total **$79,9 millones CLP** (más lo que se agregue en las pruebas), valorizado al último costo de importación.
 - [ ] **Estadística mensual**: muestra las salidas del mes, incluida la venta recién hecha.
@@ -227,7 +231,7 @@ Antes de empezar: cargar **RUT y teléfono** en Administración › Empresa. Sal
 - [ ] **Alertas de stock**: aparecen `PL-7702` (115 cajas, mínimo 120) y `ZN-6103` (305, mínimo 350).
 - [ ] **Exportar a Excel** desde un reporte: descarga el `.xlsx` y abre bien (los cuatro tipos: estadística, valorización, ventas y compras).
 
-### 10. Bitácora — `/bitacora`
+### 9. Bitácora — `/bitacora`
 
 - [ ] Todo lo anterior está registrado: quién, qué, cuándo, y el antes/después de cada cambio.
 - [ ] La exportación a Excel figura como acción **EXPORTAR**.
@@ -242,21 +246,22 @@ delante del cliente.
 
 - [ ] **Sobregiro**: vender 5.000 cajas de `ZD-8801` cuando hay 380 → la venta falla **completa**, no deja stock negativo ni una venta a medias.
 - [ ] **Doble confirmación**: confirmar dos veces la misma importación → se bloquea.
-- [ ] **Editar un documento confirmado**: no se puede, y no por la pantalla, sino por la base de datos (es lo que impide arreglar los dos `203-TEST`).
-- [ ] **Traspaso sin stock suficiente**: falla y no mueve nada.
+- [ ] **Editar un documento confirmado**: no se puede, y no por la pantalla, sino por la base de datos. Una importación confirmada solo se corrige con un movimiento inverso.
 - [ ] **Permisos**: entrar con el usuario **Bodeguero** → no ve Notas de venta, Listas de precios, Usuarios, Roles ni Bitácora. Con **Consulta** → solo lectura, sin botones de crear ni editar.
 - [ ] **Saltarse el menú**: con la sesión de Consulta, escribir a mano `localhost:3001/ventas/notas` → pantalla «Sin permiso». Aunque alguien esquive la interfaz, la base de datos (RLS) no le entrega los datos.
 - [ ] **Sin sesión**: cerrar sesión e intentar entrar a `/inventario/stock` → redirige al login.
+- [ ] **Sesión caducada**: entrar, dejar el sistema quieto **15 minutos** (sin mover el ratón ni escribir) → sale solo al login con el aviso «Su sesión se cerró tras 15 minutos sin actividad». En la bitácora queda un LOGOUT con «Cierre de sesión por inactividad».
+- [ ] **Sesión caducada con el navegador cerrado**: entrar, cerrar el navegador, abrirlo al rato y volver a `localhost:3001` → pide login otra vez, no entra directo.
 
 Los permisos por rol hoy son:
 
-| Rol           | Permisos     | Alcance                                                   |
-| ------------- | ------------ | --------------------------------------------------------- |
-| Administrador | 38           | Todo el sistema                                           |
-| Bodeguero     | 17           | Stock, movimientos, traspasos, tomas, productos, reportes |
-| Ventas        | 17           | Clientes, precios, notas de venta, reportes               |
-| Consulta      | 9            | Solo lectura de catálogo, stock y compras                 |
-| Superadmin    | acceso total | Desarrollo / TI                                           |
+| Rol           | Permisos     | Alcance                                        |
+| ------------- | ------------ | ---------------------------------------------- |
+| Administrador | 38           | Todo el sistema                                |
+| Bodeguero     | 17           | Stock, movimientos, tomas, productos, reportes |
+| Ventas        | 17           | Clientes, precios, notas de venta, reportes    |
+| Consulta      | 9            | Solo lectura de catálogo, stock y compras      |
+| Superadmin    | acceso total | Desarrollo / TI                                |
 
 ### Prueba automatizada (opcional, para respaldar lo anterior)
 
@@ -274,7 +279,7 @@ de documentos y de la bitácora.
 
 ---
 
-## B. Guion para la demostración al cliente (~25 min)
+## B. Guion para la demostración al cliente (~22 min)
 
 No mostrar pantalla por pantalla: **contar la historia de una caja de zapatos**
 entrando y saliendo de la bodega.
@@ -285,18 +290,14 @@ qué ni cuándo.
 
 **2. Entrar al sistema (2 min).** Login. Mostrar el catálogo: los artículos
 tienen descripción en español y en chino, tallas, pares por caja y su
-proveedor. Ir a Stock por zona: 2.785 cajas ubicadas estantería por estantería.
+proveedor. Ir a Stock por zona: casi 20.000 cajas ubicadas estantería por estantería.
 
 **3. Llega un contenedor (5 min).** Crear la importación con el proveedor y el
 documento de aduana, cargar dos artículos, confirmar. Volver a Stock: la
 mercadería ya está, en su ubicación y convertida a pares automáticamente.
 _«Nadie sumó nada a mano.»_
 
-**4. Se mueve mercadería a Arica (3 min).** Traspaso de 60 cajas de Iquique a
-Arica. El total de la empresa no cambió, solo cambió de lugar, y quedaron dos
-movimientos trazables.
-
-**5. Se vende (4 min).** Nota de venta a Comercial Andina: el precio lo propone
+**4. Se vende (4 min).** Nota de venta a Comercial Andina: el precio lo propone
 la lista de ese cliente. Rebajar una línea escribiendo el subtotal acordado
 —«son 5.950, déjemelo en 5.900»— y mostrar que la nota anota el descuento en vez
 de esconderlo en el precio. Confirmar → el stock baja solo.
@@ -305,23 +306,23 @@ Si al rol de ese usuario se le puso un **descuento máximo** (Administración �
 Roles y permisos), el campo dice hasta dónde se puede bajar y no deja pasarse.
 Vale la pena enseñarlo: es la respuesta a «¿y si el vendedor regala la venta?».
 
-**6. Lo que no se puede hacer (4 min). El momento importante.** Intentar vender
+**5. Lo que no se puede hacer (4 min). El momento importante.** Intentar vender
 5.000 cajas cuando hay 380: el sistema rechaza la operación entera. _«No existe
 la posibilidad de dejar el stock en negativo, ni por error ni a propósito.»_
 Después, con el usuario de bodega, mostrar que las pantallas de venta y de
 usuarios simplemente no existen para él.
 
-**7. Conteo físico (3 min).** Toma de inventario: el bodeguero cuenta 352 donde
+**6. Conteo físico (3 min).** Toma de inventario: el bodeguero cuenta 352 donde
 el sistema decía 355, y el ajuste de 3 cajas queda registrado con su nombre.
 _«La diferencia no se corrige a escondidas: queda escrita.»_
 
-**8. Reportes (2 min).** Valorización del stock: **$79,9 millones** al último
+**7. Reportes (2 min).** Valorización del stock: **$79,9 millones** al último
 costo de importación. Ventas por período y su espejo, compras por período: lo
 que salió y lo que entró, por cliente o proveedor y por artículo, en el mismo
 rango de fechas. Y exportación a Excel — para quien hoy vive en Excel, esto
 tranquiliza mucho.
 
-**9. Bitácora (2 min). Cerrar con esto.** Filtrar por la fecha de hoy y mostrar
+**8. Bitácora (2 min). Cerrar con esto.** Filtrar por la fecha de hoy y mostrar
 todo lo que se acaba de hacer en la demo, línea por línea, con usuario y hora.
 Y decir la frase: **esta tabla no se puede editar ni borrar, tampoco por el
 administrador**.
@@ -333,7 +334,7 @@ administrador**.
 - [ ] Servidor `dev` corriendo desde hace rato y páginas ya visitadas una vez: la primera carga de cada ruta compila y demora.
 - [ ] Bitácora filtrada por hoy, para que no se vean los 2.200 registros de pruebas.
 - [ ] Ventanas cerradas: terminal, editor, panel de Supabase. El cliente ve un sistema, no un proyecto en construcción.
-- [ ] Segunda sesión (ventana de incógnito) ya abierta como Bodeguero, para el punto 6 sin perder tiempo.
+- [ ] Segunda sesión (ventana de incógnito) ya abierta como Bodeguero, para el punto 5 sin perder tiempo.
 - [ ] **No haber corrido `npm test` ese día.**
 
 ### Qué decir si preguntan por lo que falta

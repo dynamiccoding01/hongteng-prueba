@@ -50,22 +50,16 @@ const SECCIONES: {
         permiso: 'stock.ver',
       },
       {
-        href: '/inventario/traspasos',
-        clave: 'navTraspasos',
-        icono: 'ArrowLeftRight',
-        permiso: 'movimiento.ver',
-      },
-      {
         href: '/inventario/toma',
         clave: 'navTomaInventario',
         icono: 'ClipboardCheck',
         permiso: 'toma.ver',
       },
       {
-        href: '/inventario/buscar-codigo',
-        clave: 'navBuscarCodigo',
-        icono: 'ScanLine',
-        permiso: 'stock.ver',
+        href: '/maestros/unidades',
+        clave: 'navUnidadesMedida',
+        icono: 'Ruler',
+        permiso: 'unidad.ver',
       },
     ],
   },
@@ -86,29 +80,10 @@ const SECCIONES: {
         permiso: 'categoria.ver',
       },
       {
-        href: '/maestros/unidades',
-        clave: 'navUnidadesMedida',
-        icono: 'Ruler',
-        permiso: 'unidad.ver',
-      },
-      {
         href: '/maestros/zonas',
         clave: 'navBodegasZonas',
         icono: 'Warehouse',
         permiso: 'zona.ver',
-      },
-      {
-        href: '/maestros/proveedores',
-        clave: 'navProveedores',
-        icono: 'Truck',
-        permiso: 'proveedor.ver',
-      },
-      { href: '/maestros/clientes', clave: 'navClientes', icono: 'Users', permiso: 'cliente.ver' },
-      {
-        href: '/maestros/codigos',
-        clave: 'navCodigosBarras',
-        icono: 'Barcode',
-        permiso: 'producto.ver',
       },
       {
         href: '/maestros/tipo-cambio',
@@ -134,6 +109,12 @@ const SECCIONES: {
         icono: 'PackageCheck',
         permiso: 'importacion.ver',
       },
+      {
+        href: '/maestros/proveedores',
+        clave: 'navProveedores',
+        icono: 'Truck',
+        permiso: 'proveedor.ver',
+      },
     ],
   },
   {
@@ -148,12 +129,7 @@ const SECCIONES: {
         permiso: 'venta.ver',
       },
       { href: '/ventas/precios', clave: 'navListasPrecios', icono: 'Tag', permiso: 'venta.ver' },
-      {
-        href: '/ventas/traspasos-aduana',
-        clave: 'navTraspasosAduana',
-        icono: 'Stamp',
-        permiso: 'documento_traspaso.ver',
-      },
+      { href: '/maestros/clientes', clave: 'navClientes', icono: 'Users', permiso: 'cliente.ver' },
     ],
   },
   {

@@ -4,7 +4,6 @@ import {
   ArrowLeftRight,
   ClipboardCheck,
   Receipt,
-  ScanLine,
   Ship,
   type LucideIcon,
 } from 'lucide-react';
@@ -128,12 +127,6 @@ export default async function Resumen() {
     acciones.push({ href: '/compras/importaciones', icono: Ship, texto: 'Nueva importación' });
   if (permisos.has('toma.crear'))
     acciones.push({ href: '/inventario/toma', icono: ClipboardCheck, texto: 'Toma de inventario' });
-  if (permisos.has('stock.ver'))
-    acciones.push({
-      href: '/inventario/buscar-codigo',
-      icono: ScanLine,
-      texto: 'Buscar por código',
-    });
 
   const nAlertas = alertas.count ?? 0;
   const nVentasBorrador = ventasBorrador.count ?? 0;

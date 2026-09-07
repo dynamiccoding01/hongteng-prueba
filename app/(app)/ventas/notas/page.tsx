@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { requerirPermiso } from '@/lib/auth';
+import { hoy } from '@/lib/fechas';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
@@ -95,7 +96,7 @@ function CamposCabecera({
             : 'En pesos, los precios de la lista se convierten con el tipo de cambio'
         }
       />
-      <Campo etiqueta="Fecha" nombre="fecha" valor={v?.fecha} tipo="date" />
+      <Campo etiqueta="Fecha" nombre="fecha" valor={v?.fecha ?? hoy()} tipo="date" />
       <Campo etiqueta="Notas" nombre="notas" valor={v?.notas} ancho="completo" />
       <p className="rounded-lg bg-zinc-100 px-3 py-2 text-xs text-tenue sm:col-span-2 dark:bg-zinc-800">
         {cambio === null ? (

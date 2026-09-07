@@ -53,8 +53,8 @@ const ESTADOS_EMPAQUE: Opcion[] = [
 /**
  * Campos de un empaque, en un solo formulario.
  *
- * Antes estaban repartidos en tres pantallas: la cantidad aquí, el código de
- * barras en /maestros/codigos y el mínimo en /inventario/alertas.
+ * Es el único sitio donde se editan: cantidad, código de barras, SKU interno
+ * y stock mínimo. El mínimo se consulta además en /inventario/alertas.
  *
  * `cantidadFija` es para los empaques que ya tienen kardex: su cantidad es el
  * factor con el que se convirtieron los movimientos ya aplicados, así que no se

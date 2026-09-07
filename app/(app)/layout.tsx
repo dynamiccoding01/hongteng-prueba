@@ -2,6 +2,7 @@ import { Marco } from '@/components/marco';
 import { Navegacion } from '@/components/navegacion';
 import { ProveedorIdioma } from '@/components/proveedor-idioma';
 import { ProveedorToast } from '@/components/proveedor-toast';
+import { VigiaInactividad } from '@/components/vigia-inactividad';
 import { requerirUsuario } from '@/lib/auth';
 import { obtenerIdioma, obtenerTema } from '@/lib/preferencias';
 
@@ -20,6 +21,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   return (
     <ProveedorToast>
       <ProveedorIdioma idioma={idioma}>
+        <VigiaInactividad />
         <Marco navegacion={<Navegacion usuario={usuario} idioma={idioma} tema={tema} />}>
           {children}
         </Marco>

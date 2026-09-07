@@ -1,9 +1,29 @@
 'use server';
 
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
+import { COOKIE_ULTIMA_ACTIVIDAD, INACTIVIDAD_MAXIMA_MS } from '@/lib/sesion';
+
+/**
+ * Arranca el reloj de inactividad.
+ *
+ * Tiene que hacerse al entrar y no dejarlo al middleware: `sesionExpirada`
+ * trata la cookie ausente como sesión caducada, así que sin esto el primer
+ * clic después del login rebotaría al propio login.
+ */
+async function marcarActividad(): Promise<void> {
+  const almacen = await cookies();
+  almacen.set(COOKIE_ULTIMA_ACTIVIDAD, String(Date.now()), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: INACTIVIDAD_MAXIMA_MS / 1000,
+  });
+}
 
 const esquemaLogin = z.object({
   email: z.string().min(1, 'Ingrese su correo').email('Correo no válido'),
@@ -55,6 +75,8 @@ export async function iniciarSesion(
     .update({ ultimo_acceso: new Date().toISOString() })
     .eq('email', analisis.data.email);
 
+  await marcarActividad();
+
   revalidatePath('/', 'layout');
   redirect(
     analisis.data.destino && analisis.data.destino !== '/login' ? analisis.data.destino : '/',
@@ -71,6 +93,31 @@ export async function cerrarSesion(): Promise<never> {
   });
 
   await supabase.auth.signOut();
+  (await cookies()).delete(COOKIE_ULTIMA_ACTIVIDAD);
   revalidatePath('/', 'layout');
   redirect('/login');
+}
+
+/**
+ * Cierre de sesión que dispara el vigía del navegador tras 15 minutos quieto.
+ *
+ * A diferencia de `cerrarSesion`, **no redirige**: quien la llama es un
+ * componente de cliente que después navega con `window.location`, de forma que
+ * el documento se recarga entero y la caché de rutas de Next —que guarda en
+ * memoria las páginas privadas ya visitadas— se va con él. Un `redirect()`
+ * desde aquí sería una navegación blanda y esa caché sobreviviría.
+ */
+export async function cerrarSesionPorInactividad(): Promise<void> {
+  const supabase = await crearClienteServidor();
+
+  // Antes de cerrar: después ya no hay sesión con la que escribir.
+  await supabase.rpc('registrar_en_bitacora', {
+    p_accion: 'LOGOUT',
+    p_modulo: 'admin',
+    p_descripcion: 'Cierre de sesión por inactividad',
+  });
+
+  await supabase.auth.signOut();
+  (await cookies()).delete(COOKIE_ULTIMA_ACTIVIDAD);
+  revalidatePath('/', 'layout');
 }

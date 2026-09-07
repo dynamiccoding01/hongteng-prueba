@@ -14,6 +14,7 @@
  */
 
 import { z } from 'zod';
+import { comoDia } from './bitacora/rango-fechas';
 
 const FORMATO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -54,3 +55,14 @@ export const esquemaDia = z
   .string()
   .trim()
   .refine(esDia, 'La fecha no es válida: se escribe aaaa-mm-dd y tiene que existir');
+
+/**
+ * El día de hoy en Chile, como `aaaa-mm-dd`.
+ *
+ * No vale `new Date().toISOString().slice(0, 10)`: eso da el día en UTC, y
+ * desde las 21:00 de Chile ya es el día siguiente allá. Un formulario abierto
+ * de noche vendría con la fecha de mañana.
+ */
+export function hoy(): string {
+  return comoDia(new Date());
+}
