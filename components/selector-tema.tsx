@@ -3,6 +3,7 @@
 import { useTransition } from 'react';
 import { fijarTema } from '@/lib/acciones-preferencias';
 import type { Tema } from '@/lib/preferencias';
+import { aplicarTemaEnDocumento } from '@/lib/tema-cliente';
 import { t, type Idioma } from '@/lib/i18n';
 
 const OPCIONES: {
@@ -24,7 +25,10 @@ export function SelectorTema({ temaActual, idioma }: { temaActual: Tema; idioma:
           key={o.valor}
           type="button"
           disabled={pendiente}
-          onClick={() => iniciarTransicion(() => fijarTema(o.valor))}
+          onClick={() => {
+            aplicarTemaEnDocumento(o.valor);
+            iniciarTransicion(() => fijarTema(o.valor));
+          }}
           className={`rounded-md px-2 py-1 text-xs transition disabled:opacity-60 ${
             o.valor === temaActual
               ? 'bg-acento text-white'

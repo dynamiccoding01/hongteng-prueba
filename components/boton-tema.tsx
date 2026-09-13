@@ -4,6 +4,7 @@ import { useTransition } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { fijarTema } from '@/lib/acciones-preferencias';
 import type { Tema } from '@/lib/preferencias';
+import { aplicarTemaEnDocumento } from '@/lib/tema-cliente';
 import { t, type Idioma } from '@/lib/i18n';
 
 /**
@@ -20,7 +21,10 @@ export function BotonTema({ temaActual, idioma }: { temaActual: Tema; idioma: Id
     <button
       type="button"
       disabled={pendiente}
-      onClick={() => iniciarTransicion(() => fijarTema(objetivo))}
+      onClick={() => {
+        aplicarTemaEnDocumento(objetivo);
+        iniciarTransicion(() => fijarTema(objetivo));
+      }}
       title={t(idioma, 'ajustesTema')}
       className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-zinc-600 transition hover:bg-zinc-200/60 disabled:opacity-60 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
     >
