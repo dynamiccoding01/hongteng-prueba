@@ -1,9 +1,10 @@
 /**
- * REGRESIONES ABIERTAS · traducción de errores de PostgREST.
+ * GUARDIAS · traducción de errores de PostgREST.
  *
  * `mensajeError` es el único filtro entre PostgreSQL y la persona que está en
- * bodega. Lo que no traduce sale en crudo y en inglés. Estos tests marcan los
- * códigos que hoy se escapan y que el sistema provoca de verdad.
+ * bodega. Lo que no traduce sale en crudo y en inglés. Estos tests fijan los
+ * códigos que el sistema provoca de verdad y que una vez se escaparon sin
+ * traducir.
  *
  * Identificadores según REVISION_CRITICA.md.
  */

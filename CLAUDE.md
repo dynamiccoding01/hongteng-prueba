@@ -6,6 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 El proyecto está escrito **en español**: nombres de archivos, funciones, variables, comentarios, mensajes de UI, migraciones SQL y commits. Todo código nuevo sigue esa convención (`crearClienteServidor`, `guardarZona`, `acciones.ts`). El único inglés que se conserva es el de las APIs de terceros (Next.js, Supabase, Zod).
 
+## Dónde está escrito cada cosa
+
+La raíz tiene diez `.md` y se pisan poco: antes de abrir varios, buscar aquí.
+
+| Documento                                                                                         | Qué contiene                                                                                           |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| [BACKEND.md](BACKEND.md)                                                                          | El esquema tabla por tabla, el ERD y las reglas de negocio que viven en la base. La referencia larga.  |
+| [FLUJO.md](FLUJO.md)                                                                              | Los procesos del negocio (compras, inventario, ventas, bitácora) con sus códigos de historia.          |
+| [DESARROLLO.md](DESARROLLO.md)                                                                    | Puesta en marcha, aplicar el esquema sin el CLI de Supabase, crear el primer usuario.                  |
+| [GUIA_PRUEBAS.md](GUIA_PRUEBAS.md)                                                                | Recorrido de pruebas, lo que el sistema **no** debe permitir y el guion de la demostración.            |
+| [REVISION_CRITICA.md](REVISION_CRITICA.md)                                                        | Los fallos reales encontrados en revisión y el identificador de cada guardia (`D-01`, `P-02`, `G-11`). |
+| [PLAN_AVANZE.md](PLAN_AVANZE.md)                                                                  | Fases, sprints y Definición de Terminado.                                                              |
+| [UI_UX.md](UI_UX.md)                                                                              | Principios de diseño y pantallas.                                                                      |
+| [PRD_REQUERIMIENTOS.md](PRD_REQUERIMIENTOS.md) · [TRD](<TRD_Documento de Requisitos Técnicos.md>) | Requisitos del cliente y requisitos técnicos. Origen de los códigos `MAE-02`, `INV-06`, `VEN-07`.      |
+| [README.md](README.md)                                                                            | Contexto del cliente, alcance de la Fase 1 y buenas prácticas.                                         |
+
 ## Comandos
 
 ```bash
@@ -26,6 +42,8 @@ npm run format && npm run lint && npm run typecheck && npm test && npm run build
 
 Nunca ejecutar `build` y `dev` a la vez: ambos escriben en `.next` y lo dejan inconsistente (la app aparece sin estilos). Se arregla borrando `.next`.
 
+El servidor de desarrollo está declarado en `.claude/launch.json` con el nombre `inventario` (puerto 3001): para previsualizar, `preview_start { name: 'inventario' }` en vez de levantarlo por fuera. Si ya hay uno corriendo en el 3001 es el del usuario; no se reinicia ni se detiene.
+
 ### Un solo test / un subconjunto
 
 ```bash
@@ -33,7 +51,13 @@ npx vitest run lib/bodega/parse-zona.test.ts
 npx vitest run lib/inventario -t "traspaso"
 ```
 
-Los tests `*.integracion.test.ts` corren contra el proyecto **Supabase real** vía Management API (`scripts/api-supabase.ts`), crean datos con un código único y los borran al terminar. Se auto-omiten (`describe.runIf`) si no existe `.env.local` — por eso pasan en CI sin credenciales. `vitest.config.ts` fuerza `fileParallelism: false` por el rate limit de la Management API.
+Hay tres clases de test, y el nombre del archivo dice cuál es:
+
+- `*.test.ts` — lógica pura (`parse-zona`, `conversion`, `descuento`, `paginacion`, `fechas`). Corren siempre y en milisegundos.
+- `*.regresion.test.ts` — **guardias**. Cada `it` describe un fallo que ocurrió de verdad y lleva el identificador con el que aparece en [REVISION_CRITICA.md](REVISION_CRITICA.md) (`D-01` … `D-08`, `P-01`, `F-02`, `E-01`…). El circuito de una revisión es: el hallazgo se escribe primero como test en rojo, después se corrige el código, y **el test queda**. No borrar uno porque «ya está arreglado»: eso es justamente lo que vigila. Al agregar un hallazgo nuevo, el identificador va en el `it` y en la tabla de REVISION_CRITICA.md.
+- `*.integracion.test.ts` — contra el proyecto **Supabase real** vía Management API (`scripts/api-supabase.ts`); crean datos con un código único y los borran al terminar. Se auto-omiten (`describe.runIf`) si no existe `.env.local`, por eso pasan en CI sin credenciales.
+
+Tres ajustes de [vitest.config.ts](vitest.config.ts) que son remedios, no preferencias: `fileParallelism: false` y `hookTimeout: 180_000` porque los tests de integración comparten el rate limit de la Management API —en paralelo da 429, y un `beforeAll` de quince consultas espaciadas no cabe en los 10 s por defecto—; y `exclude: ['.claude/**']` porque los worktrees que abre Claude Code son otra copia del repo: sin excluirlos cada test corre dos veces contra la **misma** base y revive tests de código ya borrado.
 
 ### Base de datos y utilidades
 
@@ -42,9 +66,13 @@ npm run db:migrar    # aplica migraciones pendientes al proyecto en la nube
 npm run db:probar    # verifica conexión y qué tablas existen
 npm run db:types     # regenera lib/supabase/database.types.ts desde el esquema
 npm run db:sql       # SQL consolidado para pegar en el editor del panel
+npm run db:reset     # supabase db reset — SOLO con el CLI local, borra la base
 npx tsx scripts/asignar-rol.ts correo@ejemplo.com Administrador
 npx tsx scripts/verificar-esquema.ts      # comprueba triggers, RLS, bitácora, stock
+npx tsx scripts/ver-bitacora.ts [cantidad]   # últimos registros de la bitácora (20 por defecto)
+npx tsx scripts/generar-planilla-prueba.ts   # BODEGA.xls sintética, para probar el migrador sin datos reales
 npx tsx scripts/analizar-bodega.ts ruta/BODEGA.xls   # diagnóstico, no escribe
+npm run migrar:bodega                  # ensayo de BODEGA.xls; escribe solo con `-- --ejecutar`
 npx tsx scripts/migrar-catalogo.ts ruta/planilla.xlsx            # ensayo, no escribe
 npx tsx scripts/migrar-catalogo.ts ruta/planilla.xlsx --ejecutar # migra el catálogo
 ```
@@ -54,6 +82,15 @@ Con Supabase CLI + Docker disponibles el flujo es `supabase start` / `supabase m
 ## Arquitectura
 
 Next.js 15 (App Router, React 19, Tailwind 4) sobre Supabase (PostgreSQL + Auth). No hay backend aparte: **la lógica de negocio vive en la base de datos**, y Next.js es la capa de presentación y validación.
+
+### Qué módulos hay, y los que no son evidentes
+
+`app/(app)/` agrupa por módulo —`maestros/`, `compras/`, `inventario/`, `ventas/`, `reportes/`, `admin/`— y cada carpeta tiene su `page.tsx` y, si escribe, su `acciones.ts`. Cuatro cosas que el árbol de archivos no dice:
+
+- **`inventario/toma`** (INV-06) es toma de inventario físico: se cuenta contra lo que dice el sistema y al aplicarla **el ajuste de las diferencias lo genera ella sola**, como movimientos. No es un listado más.
+- **`ventas/precios`** (VEN-04) son las listas de precios por moneda y su asignación a clientes. Los precios no se teclean ahí: los publica la importación al confirmarse (ver § Precios).
+- **Zona franca** tiene su migración (`0011_zona_franca.sql`) y todavía **no tiene interfaz**. Está en el esquema a propósito, para la Fase 3.
+- **Comisiones ya no existen.** Se agregaron en `0012_comisiones.sql` y se retiraron en `0028_quitar_comisiones.sql`. `PLAN_AVANZE.md` y el PRD todavía las mencionan: no reimplementarlas sin pedirlo.
 
 ### Seguridad en tres capas — la real es RLS
 
@@ -111,7 +148,7 @@ Traer todo y cortar con `.slice()` no es paginar: la consulta ya cruzó la red. 
 
 Los Client Components son pocos y acotados; casi todo se renderiza en el servidor. Las convenciones que ya están resueltas y no hay que reinventar:
 
-- **Altas y ediciones**: `FormularioDesplegable` de [components/formulario.tsx](components/formulario.tsx) con `Campo` / `Seleccion` / `AreaTexto` dentro. Es un modal centrado (`createPortal` sobre `document.body`) que se abre desde un botón, se cierra solo al guardar y bloquea el scroll de fondo. Ya lo usan 18 páginas: no escribir un `<form action={...}>` a mano para un CRUD.
+- **Altas y ediciones**: `FormularioDesplegable` de [components/formulario.tsx](components/formulario.tsx) con `Campo` / `Seleccion` / `AreaTexto` dentro. Es un modal centrado (`createPortal` sobre `document.body`) que se abre desde un botón, se cierra solo al guardar y bloquea el scroll de fondo. Lo usan casi todas las pantallas de alta y edición del sistema: no escribir un `<form action={...}>` a mano para un CRUD.
 - **Validación en el formulario**: `Campo` acepta `requerido`, `largoMax`, `minimo`/`maximo`, `patron` y `ayuda`; son ayuda inmediata para quien escribe, **no** la validación —esa es el esquema Zod del `acciones.ts`—, y los dos deben decir lo mismo. Si la acción normaliza el texto antes de guardar (mayúsculas, sin espacios), el campo lleva `transformar` para hacerlo mientras se escribe: un formulario no puede pintar en rojo lo que él mismo iba a corregir. El rojo es `user-invalid:`, nunca `invalid:`, que marcaría todo lo obligatorio al abrir.
 - **Baja lógica visible**: toda tabla con columna `activo` lleva su `Seleccion` de Estado en el formulario. Una fila que la interfaz muestra como «Inactivo» pero no deja desactivar es una columna muerta. `Seleccion` oculta la opción vacía cuando el campo es obligatorio y ya trae un valor válido, y la vuelve a mostrar si ese valor ya no está entre las opciones —el maestro se desactivó—, para que el navegador no reasigne solo a la primera de la lista.
 - **Avisos**: el `{ ok }` / `{ error }` de la acción se convierte en toast dentro de `FormularioDesplegable` vía `useToast()` ([components/proveedor-toast.tsx](components/proveedor-toast.tsx)). No renderizar mensajes de error inline en la página.
@@ -191,7 +228,7 @@ Para acciones que no son cambios de tabla (login, exportar, imprimir) se usa `re
 
 ### Migraciones
 
-`supabase/migrations/` es la **única fuente de verdad** del esquema; se aplican en orden alfabético, por eso van numeradas (`0001_utilidades` … `0014_unidad_medida`). Nunca cambiar el esquema desde el panel de Supabase. Tras una migración, regenerar los tipos con `npm run db:types` — `lib/supabase/database.types.ts` es generado, no se edita a mano.
+`supabase/migrations/` es la **única fuente de verdad** del esquema; se aplican en orden alfabético, por eso van numeradas (`0001_utilidades` … `0035_tope_descuento_rol`, el último aplicado). Una migración ya aplicada **no se edita**: se corrige con otra encima, y por eso la historia tiene enmiendas (`0006` arregla `fn_aplicar_movimiento` de `0004`, `0018` el color de `0016`, `0028` retira las comisiones de `0012`). Nunca cambiar el esquema desde el panel de Supabase. Tras una migración, regenerar los tipos con `npm run db:types` — `lib/supabase/database.types.ts` es generado, no se edita a mano.
 
 Convenciones del esquema (detalle en [BACKEND.md § 3](BACKEND.md)): `snake_case`, tablas en **singular**, PK `bigint generated always as identity` (nunca el código de negocio), `created_at`/`updated_at` en toda tabla, `activo` para borrado lógico, dinero `numeric(14,4)` (jamás `float`), texto `text`.
 
@@ -207,7 +244,7 @@ Una historia no está terminada si le falta alguno de estos puntos (ver [PLAN_AV
 - TypeScript `strict` sin `any`; toda entrada validada con Zod en el borde. `tsconfig.json` va más allá de `strict`: con `noUncheckedIndexedAccess`, `datos[0]` es `T | undefined` y hay que estrecharlo (de ahí los `?? ` en el código), y `noUnusedLocals`/`noUnusedParameters` convierten un import olvidado en error de build.
 - Migración versionada, reproducible desde cero, con **RLS y política escrita** para cada tabla nueva.
 - Trigger de bitácora declarado en cada tabla operativa nueva.
-- Tests unitarios de la lógica; de integración si toca stock, incluida concurrencia.
+- Tests unitarios de la lógica; de integración si toca stock, incluida concurrencia. Si el cambio nace de un fallo encontrado en revisión, su guardia va en el `*.regresion.test.ts` que corresponda, con identificador, y la tabla de `REVISION_CRITICA.md` lo registra.
 - Documentación actualizada en el **mismo** PR (`BACKEND.md`, `FLUJO.md`, `DESARROLLO.md`, `PLAN_AVANZE.md`, y `GUIA_PRUEBAS.md` si cambia el guion de demostración o los datos de prueba).
 
 Commits convencionales (`feat:`, `fix:`, `docs:`, `refactor:`) con descripción en español.
