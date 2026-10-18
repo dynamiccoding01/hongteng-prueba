@@ -71,6 +71,13 @@ describe.runIf(hayCredenciales)(
           -- cliente sin sus protecciones, en silencio.
           set session_replication_role = replica;
           delete from bitacora where usuario_id='${id}' or registro_id='${id}';
+          -- El perfil se borra a mano, no por el "on delete cascade" de la FK:
+          -- en modo replica las claves foraneas tampoco se disparan --estan
+          -- implementadas como triggers--, asi que borrar la cuenta de Auth
+          -- dejaba el perfil huerfano en \`usuario\`, visible en pantalla como un
+          -- Administrador activo que nadie reconoce. Va antes que auth.users
+          -- porque es el lado que referencia.
+          delete from usuario where id='${id}';
           delete from auth.users where id='${id}';`);
       }
     }, 180_000);
