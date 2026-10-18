@@ -1,13 +1,13 @@
 /**
- * REGRESIONES ABIERTAS · `app/(app)/ventas/notas/acciones.ts`.
+ * GUARDIAS · `app/(app)/ventas/notas/acciones.ts`.
  *
- * Los `acciones.ts` del sistema no tienen hoy un solo test: se comprueban a
- * mano o de rebote en los de integración, que corren contra Supabase y se
- * omiten en CI. Estos tests los ejercitan con un cliente de Supabase falso, sin
- * red ni credenciales, para poder afirmar QUÉ se escribe en la base.
+ * Los `acciones.ts` del sistema no tienen otro test: se comprueban a mano o de
+ * rebote en los de integración, que corren contra Supabase y se omiten en CI.
+ * Estos los ejercitan con un cliente de Supabase falso, sin red ni
+ * credenciales, para poder afirmar QUÉ se escribe en la base.
  *
- * Los que están en rojo son fallos reales. Los marcados «(hoy en verde)» son
- * guardias: cubren decisiones que ya están bien y que no deben perderse.
+ * Cubren hallazgos de la revisión crítica, ya corregidos, más A-04, que agrupa
+ * decisiones que siempre estuvieron bien y que no deben perderse.
  *
  * Identificadores según REVISION_CRITICA.md.
  */

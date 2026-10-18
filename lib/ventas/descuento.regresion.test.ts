@@ -1,12 +1,10 @@
 /**
- * REGRESIONES ABIERTAS · VEN-07 (descuento por artículo).
+ * GUARDIAS · VEN-07 (descuento por artículo).
  *
- * Estos tests describen fallos REALES que el código de hoy no supera. Están
- * escritos en rojo a propósito: son la lista de trabajo, no una red de
- * seguridad ya cumplida. Cada `it` lleva el identificador con el que aparece
- * en REVISION_CRITICA.md.
- *
- * Cuando uno se arregle, se mueve a `descuento.test.ts` con el resto.
+ * Cada `it` describe un fallo REAL que el código tuvo y que ya está corregido;
+ * el test queda como guardia, no se borra ni se traslada a `descuento.test.ts`
+ * —ahí va la prueba de la lógica, aquí lo que no debe volver—. Cada uno lleva
+ * el identificador con el que aparece en REVISION_CRITICA.md.
  */
 
 import { describe, expect, it } from 'vitest';

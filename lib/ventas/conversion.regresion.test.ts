@@ -1,8 +1,8 @@
 /**
- * REGRESIONES ABIERTAS · conversión USD → CLP.
+ * GUARDIAS · conversión USD → CLP.
  *
- * En rojo a propósito: es la lista de trabajo. Identificadores según
- * REVISION_CRITICA.md.
+ * Cada `it` corresponde a un hallazgo de la revisión crítica, ya corregido: el
+ * test queda para que no vuelva. Identificadores según REVISION_CRITICA.md.
  */
 
 import { describe, expect, it } from 'vitest';

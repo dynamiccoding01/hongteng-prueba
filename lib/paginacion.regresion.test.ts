@@ -1,7 +1,8 @@
 /**
- * REGRESIONES ABIERTAS · paginación y reportes.
+ * GUARDIAS · paginación y reportes.
  *
- * En rojo a propósito. Identificadores según REVISION_CRITICA.md.
+ * Cada `it` corresponde a un hallazgo de la revisión crítica, ya corregido: el
+ * test queda para que no vuelva. Identificadores según REVISION_CRITICA.md.
  */
 
 import { describe, expect, it } from 'vitest';
