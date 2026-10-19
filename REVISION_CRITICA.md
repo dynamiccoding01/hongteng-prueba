@@ -11,7 +11,7 @@ Estado: **todo en verde, sin pendientes**. Las tres decisiones que quedaban abie
 | Archivo                                          | Cubre                         | Corre                 |
 | ------------------------------------------------ | ----------------------------- | --------------------- |
 | `lib/ventas/descuento.regresion.test.ts`         | D-01 … D-08                   | siempre               |
-| `lib/ventas/acciones-notas.regresion.test.ts`    | A-01 … A-05 (Supabase falso)  | siempre               |
+| `lib/ventas/acciones-notas.regresion.test.ts`    | A-01 … A-06 (Supabase falso)  | siempre               |
 | `lib/ventas/conversion.regresion.test.ts`        | C-02, C-03                    | siempre               |
 | `lib/errores.regresion.test.ts`                  | E-01, E-02                    | siempre               |
 | `lib/fechas.test.ts`                             | R-03, F-01 y F-02 en el borde | siempre               |
@@ -143,3 +143,13 @@ Es el mismo trato que se le da al costo: se propone, con su origen a la vista, y
 ### X-05 · Redondeo por línea
 
 `monto_clp` se redondea línea a línea en las vistas, así que la suma del período no coincide exactamente con `round(suma)`. Resumen y detalle sí cuadran entre sí —los dos usan las mismas cifras redondeadas—, que es lo que se puede reconciliar a mano. Cambiarlo sería cambiar cómo se valoriza, no arreglar un fallo.
+
+---
+
+## Añadido después: A-06 (19-10-2026)
+
+No sale de esta revisión sino del uso real. Al registrar un artículo nuevo y venderlo, el precio no aparecía y la nota se guardaba con `precio_caja` nulo **sin un solo aviso**: el artículo no estaba en ninguna lista, que es un estado perfectamente normal, pero la pantalla callaba y parecía una avería.
+
+`motivoSinPrecio` devolvía `null` para dos cosas distintas —«el precio se resolvió» y «no hay lista que consultar»—, así que el segundo caso pasaba por bueno. Ahora `precioDeLista` devuelve el motivo (`sin_lista`, `articulo_sin_precio`) y cada uno se explica con lo que hay que hacer. Las guardias están en `lib/ventas/acciones-notas.regresion.test.ts`.
+
+En el mismo cambio: la lista dejó de asignarse cliente por cliente —con una sola activa es la de todos— y las listas se pueden desactivar desde la pantalla, que es lo que impedía arreglar el caso de dos listas activas, el que apaga la publicación automática de precios.

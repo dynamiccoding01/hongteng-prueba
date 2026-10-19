@@ -195,14 +195,29 @@ export async function agregarDetalleVenta(
 
 /**
  * Por qué no se puede tomar el precio de la lista, si es que no se puede.
- * Devuelve `null` cuando sí se puede o cuando no hay lista que aplicar.
+ * Devuelve `null` solo cuando sí se puede.
  *
- * Desde la migración 0025 solo queda un motivo: una lista en una moneda que no
- * es el dólar. Las ventas se emiten en dólares o en pesos y siempre llevan
- * tipo de cambio, así que la conversión nunca se queda sin datos.
+ * Cada caso tiene que decir qué hacer a continuación. Antes, «el artículo no
+ * tiene precio» y «no hay lista» devolvían `null` y la línea se guardaba vacía
+ * sin una palabra: quien vendía creía que el sistema fallaba, cuando lo único
+ * que faltaba era un precio que nadie había fijado.
  */
 function motivoSinPrecio(lista: PrecioDeLista | null): string | null {
   if (!lista || lista.precioVenta !== null) return null;
+
+  if (lista.motivo === 'articulo_sin_precio') {
+    return (
+      `Este artículo no tiene precio en la lista «${lista.lista}». ` +
+      'Escríbalo aquí, o fíjelo en Ventas › Listas de precios para que salga solo la próxima vez'
+    );
+  }
+
+  if (lista.motivo === 'sin_lista') {
+    return (
+      'No hay una sola lista de precios activa que aplicar, así que el precio no sale solo: ' +
+      'escríbalo aquí, o deje una sola lista activa en Ventas › Listas de precios'
+    );
+  }
 
   if (lista.motivo === 'tipo_cambio_invalido') {
     return (

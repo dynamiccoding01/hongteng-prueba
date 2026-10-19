@@ -11,15 +11,18 @@ import { convertirAPesos } from './conversion';
 export type MotivoPrecio =
   | 'mismo' // La venta va en la moneda de la lista: se usa tal cual.
   | 'convertido' // La venta va en pesos: se multiplicó por el tipo de cambio.
+  | 'sin_lista' // No hay una sola lista activa que aplicar.
+  | 'articulo_sin_precio' // Hay lista, pero el artículo no está en ella.
   | 'moneda_no_soportada' // La lista no está en dólares: no hay conversión.
   | 'tipo_cambio_invalido'; // El documento no trae un tipo de cambio utilizable.
 
 /** Lo que dice la lista de precios del cliente sobre un artículo. */
 export interface PrecioDeLista {
   /** Precio tal como está en la lista, en su moneda (hoy siempre USD). */
-  precioLista: number;
+  precioLista: number | null;
   monedaLista: string;
-  lista: string;
+  /** Nombre de la lista aplicada, o `null` si no había ninguna que aplicar. */
+  lista: string | null;
   monedaVenta: string;
   /** Ya en la moneda de la venta, o `null` si no se pudo calcular. */
   precioVenta: number | null;
@@ -48,8 +51,16 @@ export interface PrecioDeLista {
  * cabecera—, así que lo que se devuelve en `precioVenta` es lo que hay que
  * grabar. Si no se puede calcular, es `null` y hay que escribirlo a mano.
  *
- * Devuelve `null` cuando el cliente no tiene lista o el artículo no está en
- * ella.
+ * **La lista no se asigna cliente por cliente.** Mientras haya una sola lista
+ * activa, esa es la de todos: el cliente nuevo que nadie se acordó de
+ * configurar vende a los mismos precios que el resto. Si alguna vez vuelve a
+ * haber dos —mayorista y minorista—, elegir una sería adivinar, así que el
+ * precio se pide a mano; es la misma regla que ya aplica
+ * `fn_confirmar_importacion` al publicar.
+ *
+ * Devuelve `null` solo si la venta no existe. Cuando no hay precio que
+ * ofrecer, devuelve el motivo —`sin_lista` o `articulo_sin_precio`— para que
+ * la pantalla pueda decirlo en vez de dejar la línea vacía en silencio.
  */
 export async function precioDeLista(
   ventaId: number,
@@ -74,8 +85,40 @@ export async function precioDeLista(
     .eq('id', ventaId)
     .maybeSingle();
 
-  const lista = venta?.cliente?.lista;
-  if (!venta || !lista) return null;
+  if (!venta) return null;
+
+  const monedaVenta = venta.moneda?.codigo ?? '—';
+  const tipoCambio = Number(venta.tipo_cambio);
+
+  /*
+   * La lista del cliente, si la tiene; si no, la única activa del sistema.
+   * El `limit(2)` no oculta filas: la pregunta es «¿hay exactamente una?», y
+   * dos ya bastan para responder que no.
+   */
+  let lista: { id: number; nombre: string; moneda: { codigo: string } | null } | null =
+    venta.cliente?.lista ?? null;
+
+  if (!lista) {
+    const { data: activas } = await supabase
+      .from('lista_precio')
+      .select('id, nombre, moneda:moneda_id(codigo)')
+      .eq('activo', true)
+      .limit(2);
+
+    lista = activas?.length === 1 ? (activas[0] ?? null) : null;
+  }
+
+  const sinLista = {
+    precioLista: null,
+    monedaLista: '—',
+    lista: null,
+    monedaVenta,
+    tipoCambio,
+    precioVenta: null,
+    precioExacto: null,
+  };
+
+  if (!lista) return { ...sinLista, motivo: 'sin_lista' };
 
   const { data: item } = await supabase
     .from('lista_precio_item')
@@ -84,12 +127,18 @@ export async function precioDeLista(
     .eq('variante_id', varianteId)
     .maybeSingle();
 
-  if (!item) return null;
+  const monedaLista = lista.moneda?.codigo ?? '—';
+
+  if (!item) {
+    return {
+      ...sinLista,
+      monedaLista,
+      lista: lista.nombre,
+      motivo: 'articulo_sin_precio',
+    };
+  }
 
   const precioLista = Number(item.precio_caja);
-  const monedaLista = lista.moneda?.codigo ?? '—';
-  const monedaVenta = venta.moneda?.codigo ?? '—';
-  const tipoCambio = Number(venta.tipo_cambio);
 
   const comun = { precioLista, monedaLista, lista: lista.nombre, monedaVenta, tipoCambio };
 

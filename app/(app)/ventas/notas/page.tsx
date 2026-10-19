@@ -144,6 +144,7 @@ export default async function NotasDeVenta({
     { data: clientes },
     { data: monedas },
     { data: cambioVigente },
+    { data: listasActivas },
   ] = await Promise.all([
     supabase
       .from('venta')
@@ -167,9 +168,20 @@ export default async function NotasDeVenta({
     // El que va a quedar grabado en una venta creada hoy. Se pregunta a la
     // base, que es quien lo pone, para que la pantalla no anuncie otro.
     supabase.rpc('fn_tipo_cambio_vigente', { p_fecha: new Date().toISOString().slice(0, 10) }),
+    // La lista que se aplica cuando el cliente no tiene una propia: la única
+    // activa, si es que hay exactamente una. Dos bastan para saber que no.
+    supabase.from('lista_precio').select('nombre').eq('activo', true).limit(2),
   ]);
 
   if (error) return <Vacio>No se pudieron cargar las ventas: {error.message}</Vacio>;
+
+  /*
+   * Ya no se asigna lista cliente por cliente: si hay una sola activa, es la
+   * de todos. Se nombra en pantalla para que quien vende sepa de dónde sale
+   * cada precio —y, cuando no hay ninguna que aplicar, lo sepa también, que
+   * era justo lo que la pantalla callaba.
+   */
+  const listaGeneral = listasActivas?.length === 1 ? (listasActivas[0]?.nombre ?? null) : null;
 
   const borradores = ventas ?? [];
 
@@ -275,8 +287,10 @@ export default async function NotasDeVenta({
                   <Etiqueta tono="ambar">Borrador</Etiqueta>
                   <span className="text-sm text-zinc-500">
                     {fecha(venta.fecha)} · {venta.cliente.nombre}
-                    {venta.cliente.lista ? ` (lista ${venta.cliente.lista.nombre})` : ''} ·{' '}
-                    {venta.moneda.codigo}
+                    {(venta.cliente.lista?.nombre ?? listaGeneral)
+                      ? ` (lista ${venta.cliente.lista?.nombre ?? listaGeneral})`
+                      : ' (sin lista de precios: escriba cada precio)'}{' '}
+                    · {venta.moneda.codigo}
                     {` · dólar a $ ${numero(venta.tipo_cambio)}`}
                   </span>
                   <span className="ml-auto text-sm text-zinc-500">

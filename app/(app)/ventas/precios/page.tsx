@@ -1,15 +1,22 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, Etiqueta, Tabla, Tarjeta, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SelectorArticulo } from '@/components/selector-articulo';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
-import { asignarListaACliente, crearLista, fijarPrecio } from './acciones';
+import { crearLista, editarLista, fijarPrecio } from './acciones';
 
 export const metadata = { title: 'Listas de precios · Inventario' };
 
-/** VEN-04: listas de precios por moneda y su asignación a clientes. */
+/**
+ * VEN-04: listas de precios por moneda.
+ *
+ * La lista no se asigna cliente por cliente: mientras haya **una sola activa**,
+ * sus precios son los de todos. Asignarla a mano era un paso que nadie
+ * recordaba, y el cliente recién creado se quedaba sin precios sin que la
+ * pantalla dijera por qué.
+ */
 export default async function ListasDePrecios({
   searchParams,
 }: {
@@ -20,34 +27,24 @@ export default async function ListasDePrecios({
 
   const crudos = await searchParams;
   const pgListas = leerPaginacion(crudos, 'listas');
-  const pgClientes = leerPaginacion(crudos, 'clientes');
 
   const supabase = await crearClienteServidor();
 
-  const [
-    { data: listas, count: totalListas, error },
-    { data: monedas },
-    { data: clientes, count: totalClientes },
-    { data: todasLasListas },
-  ] = await Promise.all([
-    supabase
-      .from('lista_precio')
-      .select(
-        'id, nombre, activo, moneda:moneda_id(codigo, simbolo), items:lista_precio_item(id, precio_caja, variante:variante_id(unidades_por_caja, producto:producto_id(codigo)))',
-        { count: 'exact' },
-      )
-      .order('nombre')
-      .range(pgListas.desde, pgListas.hasta),
-    supabase.from('moneda').select('id, codigo, nombre').eq('activo', true).order('codigo'),
-    supabase
-      .from('cliente')
-      .select('id, codigo, nombre, lista:lista_precio_id(nombre)', { count: 'exact' })
-      .eq('activo', true)
-      .order('nombre')
-      .range(pgClientes.desde, pgClientes.hasta),
-    // Opciones del desplegable: todas las listas, no la página que se ve.
-    supabase.from('lista_precio').select('id, nombre').eq('activo', true).order('nombre'),
-  ]);
+  const [{ data: listas, count: totalListas, error }, { data: monedas }, { count: activas }] =
+    await Promise.all([
+      supabase
+        .from('lista_precio')
+        .select(
+          'id, nombre, activo, moneda:moneda_id(codigo, simbolo), items:lista_precio_item(id, precio_caja, variante:variante_id(unidades_por_caja, producto:producto_id(codigo)))',
+          { count: 'exact' },
+        )
+        .order('nombre')
+        .range(pgListas.desde, pgListas.hasta),
+      supabase.from('moneda').select('id, codigo, nombre').eq('activo', true).order('codigo'),
+      // Cuántas listas activas hay EN TOTAL, no en esta página: de eso depende
+      // que los precios salgan solos, y la página solo muestra un trozo.
+      supabase.from('lista_precio').select('id', { count: 'exact', head: true }).eq('activo', true),
+    ]);
 
   if (error) return <Vacio>No se pudieron cargar las listas: {error.message}</Vacio>;
 
@@ -55,13 +52,11 @@ export default async function ListasDePrecios({
     valor: m.id,
     texto: `${m.codigo} — ${m.nombre}`,
   }));
-  const opcionesLista = (todasLasListas ?? []).map((l) => ({ valor: l.id, texto: l.nombre }));
-
   return (
     <>
       <Encabezado
         titulo="Listas de precios"
-        descripcion="Precios por caja según lista, y lista asignada por cliente (VEN-04)"
+        descripcion="Precios por caja. Con una sola lista activa, sus precios son los de todos los clientes (VEN-04)"
       >
         {puedeEditar ? (
           <FormularioDesplegable accion={crearLista} etiquetaNuevo="Nueva lista">
@@ -70,6 +65,20 @@ export default async function ListasDePrecios({
           </FormularioDesplegable>
         ) : null}
       </Encabezado>
+
+      {/*
+       * Con una sola lista activa los precios salen solos en toda venta. Con
+       * dos, el sistema no adivina cuál aplicar —ni al vender ni al confirmar
+       * una importación—, y esa es justo la avería que nadie ve: los precios
+       * dejan de publicarse y la pantalla de ventas no dice por qué.
+       */}
+      {(activas ?? 0) > 1 ? (
+        <Tarjeta className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
+          Hay {activas} listas activas. Mientras sean más de una, el sistema no elige entre ellas:
+          los precios no saldrán solos al vender, y confirmar una importación tampoco los publicará.
+          Deje una sola activa.
+        </Tarjeta>
+      ) : null}
 
       {(listas ?? []).length === 0 ? (
         <Vacio>
@@ -83,11 +92,31 @@ export default async function ListasDePrecios({
               <div className="mb-3 flex flex-wrap items-center gap-3">
                 <h2 className="text-sm font-semibold">{lista.nombre}</h2>
                 <Etiqueta tono={lista.activo ? 'verde' : 'neutro'}>{lista.moneda.codigo}</Etiqueta>
+                {lista.activo ? null : <Etiqueta tono="neutro">Inactiva</Etiqueta>}
                 <span className="text-sm text-zinc-500">
                   {lista.items.length} {lista.items.length === 1 ? 'precio' : 'precios'}
                 </span>
                 {puedeEditar ? (
-                  <div className="ml-auto">
+                  <div className="ml-auto flex items-center gap-2">
+                    <FormularioDesplegable accion={editarLista} etiquetaNuevo="" esEdicion>
+                      <input type="hidden" name="id" value={lista.id} />
+                      <Campo etiqueta="Nombre" nombre="nombre" requerido valor={lista.nombre} />
+                      <Seleccion
+                        etiqueta="Estado"
+                        nombre="activo"
+                        requerido
+                        valor={lista.activo ? '1' : '0'}
+                        opciones={[
+                          { valor: '1', texto: 'Activa' },
+                          { valor: '0', texto: 'Inactiva' },
+                        ]}
+                      />
+                      <p className="text-sm text-tenue sm:col-span-2">
+                        Una lista inactiva no se aplica al vender ni recibe los precios de las
+                        importaciones. La moneda no se cambia: los precios ya fijados no la llevan
+                        escrita, se leen en la de la lista.
+                      </p>
+                    </FormularioDesplegable>
                     <FormularioDesplegable accion={fijarPrecio} etiquetaNuevo="Fijar precio">
                       <input type="hidden" name="lista_id" value={lista.id} />
                       <SelectorArticulo nombre="variante_id" requerido ancho="completo" />
@@ -146,57 +175,6 @@ export default async function ListasDePrecios({
         porPagina={pgListas.porPagina}
         prefijo="listas"
       />
-
-      <section className="mt-10">
-        <h2 className="mb-3 text-sm font-medium">Lista asignada por cliente</h2>
-        {(clientes ?? []).length === 0 ? (
-          <Vacio>No hay clientes registrados.</Vacio>
-        ) : (
-          <Tabla>
-            <thead>
-              <tr>
-                <Th>Cliente</Th>
-                <Th>Lista asignada</Th>
-                {puedeEditar ? <Th> </Th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {(clientes ?? []).map((c) => (
-                <tr key={c.id}>
-                  <Td>
-                    <code className="text-xs">{c.codigo}</code>
-                    <span className="ml-2">{c.nombre}</span>
-                  </Td>
-                  <Td tenue>{c.lista?.nombre ?? 'sin lista'}</Td>
-                  {puedeEditar ? (
-                    <Td>
-                      <FormularioDesplegable
-                        accion={asignarListaACliente}
-                        etiquetaNuevo=""
-                        esEdicion
-                      >
-                        <input type="hidden" name="cliente_id" value={c.id} />
-                        <Seleccion
-                          etiqueta="Lista de precios (vacío = quitar)"
-                          nombre="lista_precio_id"
-                          opciones={opcionesLista}
-                        />
-                      </FormularioDesplegable>
-                    </Td>
-                  ) : null}
-                </tr>
-              ))}
-            </tbody>
-          </Tabla>
-        )}
-
-        <Paginacion
-          total={totalClientes ?? 0}
-          pagina={pgClientes.pagina}
-          porPagina={pgClientes.porPagina}
-          prefijo="clientes"
-        />
-      </section>
     </>
   );
 }

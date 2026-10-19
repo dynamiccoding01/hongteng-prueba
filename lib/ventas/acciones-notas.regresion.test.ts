@@ -301,3 +301,79 @@ describe('A-05 · el tope de descuento del rol se comprueba antes de escribir', 
     expect(escrituras).toHaveLength(0);
   });
 });
+
+describe('A-06 · una línea sin precio no se guarda en silencio', () => {
+  /*
+   * Lo que le pasó al cliente el 18-10-2026: registró un artículo nuevo, lo
+   * vendió, y el precio no salió. No había avería —el artículo no estaba en
+   * ninguna lista—, pero la acción devolvía «Detalle agregado» y dejaba la
+   * línea con `precio_caja` nulo, así que parecía un fallo del sistema.
+   *
+   * El silencio era el error: `motivoSinPrecio` devolvía `null` tanto cuando
+   * el precio se había resuelto como cuando no había lista que consultar.
+   * Ahora cada caso dice qué falta y qué hacer, y la línea no entra sin precio
+   * a menos que alguien lo escriba a propósito.
+   */
+  it('A-06a: el artículo que no está en la lista se rechaza con su motivo', async () => {
+    estado.lista = {
+      precioLista: null,
+      monedaLista: 'USD',
+      lista: 'Mayorista USD',
+      monedaVenta: 'USD',
+      precioVenta: null,
+      tipoCambio: 950,
+      precioExacto: null,
+      motivo: 'articulo_sin_precio',
+    } satisfies PrecioDeLista;
+
+    const r = await agregarDetalleVenta(
+      {},
+      formulario({ venta_id: '7', variante_id: '3', zona_id: '2', cajas: '4' }),
+    );
+
+    expect(r.error).toContain('Mayorista USD');
+    expect(escrituras).toHaveLength(0);
+  });
+
+  it('A-06b: sin ninguna lista que aplicar también se avisa', async () => {
+    estado.lista = {
+      precioLista: null,
+      monedaLista: '—',
+      lista: null,
+      monedaVenta: 'USD',
+      precioVenta: null,
+      tipoCambio: 950,
+      precioExacto: null,
+      motivo: 'sin_lista',
+    } satisfies PrecioDeLista;
+
+    const r = await agregarDetalleVenta(
+      {},
+      formulario({ venta_id: '7', variante_id: '3', zona_id: '2', cajas: '4' }),
+    );
+
+    expect(r.error).toContain('lista de precios');
+    expect(escrituras).toHaveLength(0);
+  });
+
+  it('A-06c: con el precio escrito a mano, la línea sí entra', async () => {
+    estado.lista = {
+      precioLista: null,
+      monedaLista: 'USD',
+      lista: 'Mayorista USD',
+      monedaVenta: 'USD',
+      precioVenta: null,
+      tipoCambio: 950,
+      precioExacto: null,
+      motivo: 'articulo_sin_precio',
+    } satisfies PrecioDeLista;
+
+    const r = await agregarDetalleVenta(
+      {},
+      formulario({ venta_id: '7', variante_id: '3', zona_id: '2', cajas: '4', precio_caja: '35' }),
+    );
+
+    expect(r.error).toBeUndefined();
+    expect(escrituras[0]?.valores['precio_caja']).toBe(35);
+  });
+});
