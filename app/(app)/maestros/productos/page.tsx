@@ -7,7 +7,7 @@ import { DistintivoBodega } from '@/components/color-bodega';
 import { Buscador } from '@/components/buscador';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
-import { unidadLegible } from '@/lib/inventario/articulo';
+import { nombreEnvase } from '@/lib/inventario/articulo';
 import { agregarEmpaque, crearProducto, editarEmpaque, editarProducto } from './acciones';
 
 export const metadata = { title: 'Productos · Inventario' };
@@ -81,7 +81,7 @@ function CamposEmpaque({
           ejemplo="45"
           minimo={0.01}
           maximo={99999999}
-          ayuda={`Cuántos ${unidadLegible(unidad)} trae cada caja`}
+          ayuda={`Cuántas unidades trae cada ${nombreEnvase(unidad)}`}
         />
       )}
       <Campo
@@ -221,11 +221,12 @@ function CamposProducto({
         requerido
       />
       <Seleccion
-        etiqueta="Se cuenta en"
+        etiqueta="Se cuenta por"
         nombre="unidad_medida_id"
         valor={p?.unidad_medida_id}
         opciones={unidades}
         requerido
+        ayuda="La caja, docena o par en que llega, se guarda y se vende. Dentro van las unidades"
       />
       {alta ? (
         <Campo
@@ -432,7 +433,7 @@ export default async function Productos({
                 <Th>Categoría</Th>
                 <Th>Proveedor</Th>
                 <Th>Tallas</Th>
-                <Th>Se cuenta en</Th>
+                <Th>Se cuenta por</Th>
                 {/* Las dos columnas del empaque van juntas y a la derecha de
                     las del artículo: cada fila es un empaque, y su existencia
                     es la de esa fila, no la del artículo entero. */}

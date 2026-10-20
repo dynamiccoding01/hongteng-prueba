@@ -13,7 +13,6 @@ import {
   Th,
   type Empresa,
 } from '@/components/impresion';
-import { unidadLegible } from '@/lib/inventario/articulo';
 
 export const metadata = { title: 'Nota de venta · Impresión' };
 
@@ -98,7 +97,8 @@ export default async function ImprimirVenta({ params }: { params: Promise<{ id: 
       codigo: d.variante.producto.codigo,
       descripcion: d.variante.producto.descripcion_es,
       tallas: d.variante.producto.rango_tallas,
-      unidad: unidadLegible(d.variante.producto.unidad?.nombre_es ?? ''),
+      // El papel habla de piezas: el precio unitario es por una de ellas.
+      unidad: 'unidad',
       porCaja,
       bultos,
       unidades: bultos * porCaja,

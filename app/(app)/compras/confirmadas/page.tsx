@@ -6,7 +6,6 @@ import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components
 import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
-import { unidadSingular } from '@/lib/inventario/articulo';
 import { preciosLinea } from '@/lib/compras/precios';
 import { Filtros } from './filtros';
 
@@ -271,7 +270,7 @@ export default async function ImportacionesConfirmadas({
                                     d.precio_venta_caja,
                                     d.variante.unidades_por_caja,
                                     imp.moneda.simbolo,
-                                    unidadSingular(d.variante.producto.unidad?.nombre_es ?? ''),
+                                    'unidad',
                                   );
                                   return (
                                     <tr key={d.id}>
@@ -345,7 +344,7 @@ export default async function ImportacionesConfirmadas({
           {/* Totales de esta página, no del historial completo: sumarlo entero
               exigiría traerlo entero, que es justo lo que evita paginar. */}
           <p className="mt-4 text-sm text-zinc-500">
-            En esta página: {numero(totalPaginaCajas)} cajas · ${' '}
+            En esta página: {numero(totalPaginaCajas)} empaques · ${' '}
             {numero(Math.round(totalPaginaClp))} en pesos
           </p>
         </>

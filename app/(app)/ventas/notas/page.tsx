@@ -9,7 +9,7 @@ import { CamposDetalleVenta, CamposLineaVenta } from '@/components/campos-venta'
 import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
-import { unidadLegible, type ExistenciaZona } from '@/lib/inventario/articulo';
+import { nombreEnvase, piezas, type ExistenciaZona } from '@/lib/inventario/articulo';
 import {
   agregarDetalleVenta,
   confirmarVenta,
@@ -323,8 +323,8 @@ export default async function NotasDeVenta({
                     {lineasSinStock.length === 1
                       ? 'Una línea pide'
                       : `${numero(lineasSinStock.length)} líneas piden`}{' '}
-                    más cajas de las que hay en la zona indicada. Corrija la zona o la cantidad:
-                    confirmar es todo o nada, así que una sola línea basta para que falle.
+                    más de lo que hay en la zona indicada. Corrija la zona o la cantidad: confirmar
+                    es todo o nada, así que una sola línea basta para que falle.
                   </p>
                 ) : null}
 
@@ -352,9 +352,9 @@ export default async function NotasDeVenta({
                             <Td>
                               <code className="text-xs">{d.variante.producto.codigo}</code>
                               <span className="ml-2 text-xs text-zinc-500">
+                                {nombreEnvase(d.variante.producto.unidad?.nombre_es ?? null)} de{' '}
                                 {numero(d.variante.unidades_por_caja)}{' '}
-                                {unidadLegible(d.variante.producto.unidad?.nombre_es ?? '')} por
-                                caja
+                                {piezas(d.variante.unidades_por_caja)}
                               </span>
                             </Td>
                             <Td>
@@ -373,7 +373,7 @@ export default async function NotasDeVenta({
                                   unidades, que es como lo pide el cliente. */}
                               <span className="block text-xs text-tenue">
                                 {numero(Number(d.cajas) * Number(d.variante.unidades_por_caja))}{' '}
-                                {unidadLegible(d.variante.producto.unidad?.nombre_es ?? '')}
+                                unidades
                               </span>
                             </Td>
                             <Td numerico>
@@ -441,7 +441,7 @@ export default async function NotasDeVenta({
                                     <p className="text-sm text-zinc-600 sm:col-span-2 dark:text-zinc-400">
                                       Se quitará{' '}
                                       <code className="text-xs">{d.variante.producto.codigo}</code>{' '}
-                                      ({numero(d.cajas)} cajas desde{' '}
+                                      ({numero(d.cajas)} desde{' '}
                                       <code className="text-xs">{d.zona.codigo}</code>) del detalle
                                       de la venta #{venta.id}. La venta sigue en borrador y la línea
                                       se puede volver a agregar.

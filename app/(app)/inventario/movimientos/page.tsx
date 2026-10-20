@@ -6,6 +6,7 @@ import { CamposMovimiento } from '@/components/campos-inventario';
 import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
+import { nombreEnvase } from '@/lib/inventario/articulo';
 import { anularMovimiento, registrarMovimiento } from './acciones';
 
 export const metadata = { title: 'Movimientos · Inventario' };
@@ -116,8 +117,8 @@ export default async function Movimientos({
                   <Td>
                     <code className="text-xs">{m.variante.producto.codigo}</code>
                     <span className="ml-2 text-xs text-tenue">
-                      {numero(m.variante.unidades_por_caja)}{' '}
-                      {(m.variante.producto.unidad?.nombre_es ?? 'u').toLowerCase()}/caja
+                      {nombreEnvase(m.variante.producto.unidad?.nombre_es ?? null)} de{' '}
+                      {numero(m.variante.unidades_por_caja)}
                     </span>
                   </Td>
                   <Td>

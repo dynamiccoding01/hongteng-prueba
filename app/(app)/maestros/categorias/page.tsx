@@ -60,7 +60,8 @@ function Campos({ c, unidades }: { c?: Categoria; unidades: Opcion[] }) {
         largoMax={60}
       />
       <Seleccion
-        etiqueta="Se cuenta en"
+        etiqueta="Se cuenta por"
+        ayuda="Lo que se propone para los artículos de esta categoría"
         nombre="unidad_medida_default_id"
         valor={c?.unidad_medida_default_id}
         opciones={unidades}
@@ -126,7 +127,7 @@ export default async function Categorias({
               <Th>Código</Th>
               <Th>Nombre</Th>
               <Th>中文</Th>
-              <Th>Se cuenta en</Th>
+              <Th>Se cuenta por</Th>
               <Th>Estado</Th>
               {puedeEditar ? <Th> </Th> : null}
             </tr>

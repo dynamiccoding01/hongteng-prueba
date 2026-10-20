@@ -34,25 +34,64 @@ export function totalDisponible(a: ArticuloEncontrado): number {
   return a.existencias.reduce((s, e) => s + e.cantidad, 0);
 }
 
-/** Cómo se muestra el artículo una vez elegido. */
-export function etiquetaArticulo(a: ArticuloEncontrado): string {
-  return `${a.codigo} — ${a.unidadesPorCaja} por caja`;
-}
+/**
+ * El envase se llama por su unidad de medida; lo de dentro son unidades.
+ *
+ * El sistema guarda dos cosas por artículo: `producto.unidad_medida`, que es
+ * **cómo se cuenta** —la caja, la docena, el par, el bulto en que la mercadería
+ * entra, se guarda y se vende—, y `producto_variante.unidades_por_caja`, que es
+ * **cuántas piezas trae** ese envase. Las frases de la interfaz se escriben
+ * siempre así: «10 docenas × 8 unidades = 80 unidades».
+ *
+ * Antes la palabra «caja» estaba escrita a mano en cada frase y la unidad de
+ * medida se leía como el contenido: el mismo artículo salía como «8 docena por
+ * caja», que no es lo que nadie quiso decir, y un artículo cuya unidad era
+ * «Caja» se leía «12 caja por caja». Había una función que lo tapaba
+ * imprimiendo «unidades» cuando la unidad contenía la palabra caja; ya no hace
+ * falta, porque el nombre del envase y el de su contenido dejaron de competir
+ * por el mismo hueco.
+ */
 
 /**
- * La unidad de medida tal como se lee en la frase «N ___ por caja».
- *
- * Hoy los nueve artículos tienen «Caja» como unidad de medida, así que la frase
- * sale «5 caja por caja», que no dice nada. Eso es un dato mal cargado en el
- * maestro —la unidad debería ser par, pieza o juego, no caja— y se arregla en
- * /maestros/productos. Mientras tanto, aquí se dice «unidades»: es genérico
- * pero cierto, en vez de repetir la palabra caja dos veces.
+ * Excepciones de plural. La regla de abajo resuelve el español corriente
+ * (caja → cajas, par → pares); aquí van las palabras que el cliente usa y que
+ * la regla erraría, casi todas prestadas del inglés.
  */
-export function unidadLegible(unidad: string): string {
-  return /caja/i.test(unidad) ? 'unidades' : unidad.toLowerCase();
+const PLURALES: Record<string, string> = {
+  pack: 'packs',
+  set: 'sets',
+  display: 'displays',
+  kit: 'kits',
+  blister: 'blísteres',
+};
+
+/** Vocales con y sin tilde: una palabra que acaba en vocal pluraliza con «s». */
+const TERMINA_EN_VOCAL = /[aeiouáéíóú]$/i;
+
+/**
+ * El nombre del envase, en singular o en plural según la cantidad.
+ *
+ * Se escribe en minúscula porque va dentro de una frase («10 docenas»), no
+ * como título. Sin unidad —un artículo recién creado, o un dato que no llegó—
+ * se dice «empaque», que es la palabra genérica que el resto del sistema ya
+ * usa para `producto_variante`.
+ */
+export function nombreEnvase(unidad: string | null, cantidad = 1): string {
+  const singular = (unidad ?? '').trim().toLowerCase() || 'empaque';
+  if (cantidad === 1) return singular;
+
+  const excepcion = PLURALES[singular];
+  if (excepcion) return excepcion;
+
+  return TERMINA_EN_VOCAL.test(singular) ? `${singular}s` : `${singular}es`;
 }
 
-/** La misma unidad en singular, para frases como «150 CLP / par». */
-export function unidadSingular(unidad: string): string {
-  return unidadLegible(unidad).replace(/e?s$/, '');
+/** Cómo se muestra el artículo una vez elegido: «A2050 — docena de 8 unidades». */
+export function etiquetaArticulo(a: ArticuloEncontrado): string {
+  return `${a.codigo} — ${nombreEnvase(a.unidad)} de ${a.unidadesPorCaja} ${a.unidadesPorCaja === 1 ? 'unidad' : 'unidades'}`;
+}
+
+/** «unidad» o «unidades» según cuántas piezas trae el envase. */
+export function piezas(cantidad: number): string {
+  return cantidad === 1 ? 'unidad' : 'unidades';
 }

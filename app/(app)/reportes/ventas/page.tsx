@@ -119,7 +119,7 @@ export default async function VentasPorPeriodo({
 
       <FiltroPeriodo desde={desde} hasta={hasta} filas={porPagina} />
 
-      <AvisoSinImporte cuantas={total.sin_importe} que="precio por caja" />
+      <AvisoSinImporte cuantas={total.sin_importe} que="precio por empaque" />
 
       {/*
        * El vacío se decide con el período completo, no con la página que se

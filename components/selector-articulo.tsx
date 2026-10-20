@@ -3,7 +3,13 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { buscarArticulos } from '@/lib/inventario/buscar-articulos';
-import { totalDisponible, unidadLegible, type ArticuloEncontrado } from '@/lib/inventario/articulo';
+import {
+  etiquetaArticulo,
+  nombreEnvase,
+  piezas,
+  totalDisponible,
+  type ArticuloEncontrado,
+} from '@/lib/inventario/articulo';
 import { numero } from './ui';
 
 /**
@@ -121,9 +127,7 @@ export function SelectorArticulo({
           className="flex w-full items-center justify-between gap-2 rounded-md border border-zinc-300 px-3 py-2 text-left outline-none focus-visible:border-acento focus-visible:ring-2 focus-visible:ring-acento/30 dark:border-zinc-700 dark:bg-zinc-900"
         >
           <span className={`truncate ${elegido ? '' : 'text-zinc-400'}`}>
-            {elegido
-              ? `${elegido.codigo} — ${numero(elegido.unidadesPorCaja)} ${unidadLegible(elegido.unidad)} por caja`
-              : 'Busque por código o descripción…'}
+            {elegido ? etiquetaArticulo(elegido) : 'Busque por código o descripción…'}
           </span>
           <ChevronDown className="size-4 shrink-0 text-zinc-400" />
         </button>
@@ -171,7 +175,8 @@ export function SelectorArticulo({
                           <span className="flex flex-wrap items-baseline gap-x-2">
                             <code className="text-xs font-medium">{a.codigo}</code>
                             <span className="text-xs text-tenue">
-                              {numero(a.unidadesPorCaja)} {unidadLegible(a.unidad)} por caja
+                              {nombreEnvase(a.unidad)} de {numero(a.unidadesPorCaja)}{' '}
+                              {piezas(a.unidadesPorCaja)}
                             </span>
                           </span>
                           {a.descripcion ? (

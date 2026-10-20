@@ -48,8 +48,8 @@ export default async function AlertasDeStock({
         {puedeEditar ? (
           <FormularioDesplegable accion={fijarStockMinimo} etiquetaNuevo="Definir mínimo">
             <p className="text-sm text-tenue sm:col-span-2">
-              El mínimo es por empaque y se mide en cajas. Cuando la existencia total del empaque
-              cae en ese número o por debajo, aparece en esta lista.
+              El mínimo es por empaque y se mide en empaques. Cuando la existencia total cae en ese
+              número o por debajo, aparece en esta lista.
             </p>
             <SelectorArticulo nombre="variante_id" requerido ancho="completo" />
             <Campo
@@ -60,7 +60,7 @@ export default async function AlertasDeStock({
               ejemplo="5"
               minimo={0}
               maximo={99999999}
-              ayuda="En cajas. 0 quita la alerta"
+              ayuda="En empaques. 0 quita la alerta"
             />
           </FormularioDesplegable>
         ) : null}

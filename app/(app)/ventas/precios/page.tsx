@@ -56,7 +56,7 @@ export default async function ListasDePrecios({
     <>
       <Encabezado
         titulo="Listas de precios"
-        descripcion="Precios por caja. Con una sola lista activa, sus precios son los de todos los clientes (VEN-04)"
+        descripcion="Precios por empaque. Con una sola lista activa, sus precios son los de todos los clientes (VEN-04)"
       >
         {puedeEditar ? (
           <FormularioDesplegable accion={crearLista} etiquetaNuevo="Nueva lista">
@@ -121,7 +121,7 @@ export default async function ListasDePrecios({
                       <input type="hidden" name="lista_id" value={lista.id} />
                       <SelectorArticulo nombre="variante_id" requerido ancho="completo" />
                       <Campo
-                        etiqueta={`Precio por caja (${lista.moneda.codigo})`}
+                        etiqueta={`Precio por empaque (${lista.moneda.codigo})`}
                         nombre="precio_caja"
                         tipo="number"
                         requerido
