@@ -6,6 +6,7 @@ import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components
 import { Buscador } from '@/components/buscador';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
+import { nombreEnvase, piezas } from '@/lib/inventario/articulo';
 
 export const metadata = { title: 'Kardex · Inventario' };
 
@@ -58,7 +59,9 @@ export default async function Kardex({
 
   let consultaVariantes = supabase
     .from('producto_variante')
-    .select('id, unidades_por_caja, producto:producto_id!inner(codigo, descripcion_es)')
+    .select(
+      'id, unidades_por_caja, producto:producto_id!inner(codigo, descripcion_es, unidad:unidad_medida_id(nombre_es))',
+    )
     .limit(20);
 
   consultaVariantes = variante
@@ -90,7 +93,9 @@ export default async function Kardex({
                   href={`/inventario/kardex?variante=${v.id}`}
                   className="text-sm underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-100"
                 >
-                  <code>{v.producto.codigo}</code> — {numero(v.unidades_por_caja)} u/caja
+                  <code>{v.producto.codigo}</code> —{' '}
+                  {nombreEnvase(v.producto.unidad?.nombre_es ?? null)} de{' '}
+                  {numero(v.unidades_por_caja)}
                   {v.producto.descripcion_es ? ` · ${v.producto.descripcion_es}` : ''}
                 </Link>
               </li>
@@ -127,7 +132,7 @@ export default async function Kardex({
     <>
       <Encabezado
         titulo={`Kardex · ${v.producto.codigo}`}
-        descripcion={`${numero(v.unidades_por_caja)} por caja · existencia actual: ${numero(totalCantidad)} (${numero(totalUnidades)} unidades)`}
+        descripcion={`${nombreEnvase(v.producto.unidad?.nombre_es ?? null)} de ${numero(v.unidades_por_caja)} ${piezas(v.unidades_por_caja)} · existencia actual: ${numero(totalCantidad)} (${numero(totalUnidades)} unidades)`}
       >
         <Suspense fallback={null}>
           <Buscador marcador="Código de artículo…" />

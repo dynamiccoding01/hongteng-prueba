@@ -10,7 +10,7 @@ import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
 import { hoy } from '@/lib/fechas';
-import { unidadLegible, unidadSingular } from '@/lib/inventario/articulo';
+import { nombreEnvase, piezas } from '@/lib/inventario/articulo';
 import { preciosLinea } from '@/lib/compras/precios';
 import { agregarDetalle, confirmarImportacion, crearImportacion } from './acciones';
 
@@ -170,7 +170,7 @@ export default async function Importaciones({
                     {imp.documento_aduana ? ` · doc ${imp.documento_aduana}` : ''}
                   </span>
                   <span className="ml-auto text-sm text-zinc-500">
-                    {numero(totalCajas)} cajas
+                    {numero(totalCajas)} empaques
                     {imp.detalle.length > 0 ? (
                       <>
                         {' · '}
@@ -201,7 +201,9 @@ export default async function Importaciones({
                     </thead>
                     <tbody>
                       {imp.detalle.map((d) => {
-                        const unidad = unidadSingular(d.variante.producto.unidad?.nombre_es ?? '');
+                        // El precio unitario es por pieza, siempre; el envase lo nombra la
+                        // unidad de medida del artículo.
+                        const unidad = 'unidad';
                         const p = preciosLinea(
                           d.costo_caja,
                           d.precio_venta_caja,
@@ -214,9 +216,9 @@ export default async function Importaciones({
                             <Td>
                               <code className="text-xs">{d.variante.producto.codigo}</code>
                               <span className="ml-2 text-xs text-zinc-500">
+                                {nombreEnvase(d.variante.producto.unidad?.nombre_es ?? null)} de{' '}
                                 {numero(d.variante.unidades_por_caja)}{' '}
-                                {unidadLegible(d.variante.producto.unidad?.nombre_es ?? '')} por
-                                caja
+                                {piezas(d.variante.unidades_por_caja)}
                               </span>
                             </Td>
                             <Td>
@@ -233,7 +235,7 @@ export default async function Importaciones({
                               {numero(d.cajas)}
                               <span className="block text-xs text-tenue">
                                 {numero(Number(d.cajas) * Number(d.variante.unidades_por_caja))}{' '}
-                                {unidadLegible(d.variante.producto.unidad?.nombre_es ?? '')}
+                                unidades
                               </span>
                             </Td>
                             <Td numerico>
@@ -269,7 +271,8 @@ export default async function Importaciones({
                         <input type="hidden" name="importacion_id" value={imp.id} />
                         <p className="text-sm text-zinc-600 sm:col-span-2 dark:text-zinc-400">
                           Se generará una ENTRADA por cada línea del detalle ({numero(totalCajas)}{' '}
-                          cajas, {imp.moneda.simbolo ?? ''} {numero(totalCosto)} {imp.moneda.codigo}
+                          empaques, {imp.moneda.simbolo ?? ''} {numero(totalCosto)}{' '}
+                          {imp.moneda.codigo}
                           {sinCosto ? ' —hay líneas sin costo—' : ''}) y la importación quedará
                           sellada. Esta acción no se puede deshacer desde aquí.
                         </p>

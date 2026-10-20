@@ -6,7 +6,6 @@ import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components
 import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
-import { unidadLegible } from '@/lib/inventario/articulo';
 import { Filtros } from './filtros';
 
 export const metadata = { title: 'Ventas confirmadas · Inventario' };
@@ -238,7 +237,7 @@ export default async function VentasConfirmadas({
                                   <Th>Despachado desde</Th>
                                   <Th numerico>Cajas</Th>
                                   <Th numerico>Unidades</Th>
-                                  <Th numerico>Precio por caja</Th>
+                                  <Th numerico>Precio por empaque</Th>
                                   <Th numerico>Subtotal</Th>
                                 </tr>
                               </thead>
@@ -268,7 +267,7 @@ export default async function VentasConfirmadas({
                                       {numero(
                                         Number(d.cajas) * Number(d.variante.unidades_por_caja),
                                       )}{' '}
-                                      {unidadLegible(d.variante.producto.unidad?.nombre_es ?? '')}
+                                      unidades
                                     </Td>
                                     <Td numerico tenue>
                                       {d.precio_caja === null

@@ -16,13 +16,15 @@ import {
   superaElTope,
 } from '@/lib/ventas/descuento';
 import {
-  unidadLegible,
+  nombreEnvase,
+  piezas,
   type ArticuloEncontrado,
   type ExistenciaZona,
 } from '@/lib/inventario/articulo';
 
 /**
- * El precio por caja: relleno y bloqueado cuando lo fija la lista del cliente.
+ * El precio del envase —de la caja, la docena o el par, según el artículo—:
+ * relleno y bloqueado cuando lo fija la lista del cliente.
  *
  * Los precios se llevan en dólares, que es la moneda en la que se compra. Si
  * la venta va en dólares, el de la lista se usa tal cual; si va en pesos, se
@@ -43,6 +45,7 @@ function PrecioVenta({
   hayArticulo,
   lista,
   moneda,
+  unidad,
   valorActual,
   claveCampo,
   alEscribir,
@@ -50,6 +53,8 @@ function PrecioVenta({
   hayArticulo: boolean;
   lista: PrecioDeLista | null;
   moneda: string;
+  /** Unidad de medida del artículo: el precio es por uno de estos. */
+  unidad: string | null;
   /** Precio ya guardado, al corregir una línea existente. */
   valorActual?: number | null;
   /** Cambia para rehacer el campo cuando cambia el artículo o el precio. */
@@ -69,7 +74,7 @@ function PrecioVenta({
     <>
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">
-          Precio por caja ({moneda})
+          Precio por {nombreEnvase(unidad)} ({moneda})
           {fijado ? null : <span className="ml-1 text-zinc-400">(opcional)</span>}
         </span>
         <input
@@ -355,6 +360,7 @@ export function CamposDetalleVenta({
         hayArticulo={articulo !== null}
         lista={lista}
         moneda={moneda}
+        unidad={articulo?.unidad ?? null}
         claveCampo={`${articulo?.id ?? 0}-${lista?.precioVenta ?? 'libre'}`}
         alEscribir={setPrecioEscrito}
       />
@@ -375,8 +381,9 @@ export function CamposDetalleVenta({
           />
           <span>
             En <code className="text-xs">{elegida.zona}</code> hay{' '}
-            <strong>{numero(elegida.cantidad)}</strong> cajas de{' '}
-            {numero(articulo?.unidadesPorCaja ?? 0)} {unidadLegible(articulo?.unidad ?? '')}.
+            <strong>{numero(elegida.cantidad)}</strong>{' '}
+            {nombreEnvase(articulo?.unidad ?? null, elegida.cantidad)} de{' '}
+            {numero(articulo?.unidadesPorCaja ?? 0)} {piezas(articulo?.unidadesPorCaja ?? 0)}.
           </span>
         </p>
       ) : null}
@@ -485,7 +492,8 @@ export function CamposLineaVenta({
         <span className="font-medium">Artículo</span>
         <code className="text-xs">{linea.codigo}</code>
         <span className="text-xs text-tenue">
-          {numero(linea.unidadesPorCaja)} {unidadLegible(linea.unidad)} por caja
+          {nombreEnvase(linea.unidad)} de {numero(linea.unidadesPorCaja)}{' '}
+          {piezas(linea.unidadesPorCaja)}
         </span>
         {existencias.length === 0 ? <Etiqueta tono="rojo">sin existencia</Etiqueta> : null}
       </p>
@@ -526,6 +534,7 @@ export function CamposLineaVenta({
         hayArticulo
         lista={lista}
         moneda={moneda}
+        unidad={linea.unidad}
         valorActual={linea.precioCaja}
         claveCampo={`${linea.id}-${lista?.precioVenta ?? 'libre'}`}
         alEscribir={setPrecioEscrito}

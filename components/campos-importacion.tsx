@@ -7,7 +7,7 @@ import { SelectorArticulo } from './selector-articulo';
 import { SelectorZona, type ZonaOpcion } from './selector-zona';
 import { DistintivoBodega } from './color-bodega';
 import { numero } from './ui';
-import { unidadSingular, type ArticuloEncontrado } from '@/lib/inventario/articulo';
+import { nombreEnvase, type ArticuloEncontrado } from '@/lib/inventario/articulo';
 import { preciosPrevios, type PreciosPrevios } from '@/lib/compras/precios-previos';
 
 /** La fecha de la última compra, corta: solo sirve para ver si está vieja. */
@@ -68,7 +68,7 @@ export function CamposDetalleImportacion({
   const unitarioCompra = porUnidad(numeroCosto);
   const unitarioVenta = porUnidad(numeroVenta);
   const bajoCosto = numeroCosto !== null && numeroVenta !== null && numeroVenta < numeroCosto;
-  const unidad = articulo ? unidadSingular(articulo.unidad) : 'unidad';
+  const envase = nombreEnvase(articulo?.unidad ?? null);
 
   /*
    * Al cambiar de artículo: si solo está en una zona, esa queda puesta. Con
@@ -182,7 +182,8 @@ export function CamposDetalleImportacion({
 
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">
-          Precio de compra por caja ({moneda})<span className="ml-1 text-zinc-400">(opcional)</span>
+          Precio de compra por {envase} ({moneda})
+          <span className="ml-1 text-zinc-400">(opcional)</span>
         </span>
         <input
           name="costo_caja"
@@ -198,7 +199,7 @@ export function CamposDetalleImportacion({
         <span className="text-xs text-tenue">
           {unitarioCompra === null
             ? 'Sin precio de compra, la importación no se puede valorizar'
-            : `${numero(unitarioCompra)} ${moneda} por ${unidad}`}
+            : `${numero(unitarioCompra)} ${moneda} por unidad`}
         </span>
         {origenCosto ? <span className="text-xs text-tenue">{origenCosto}</span> : null}
       </label>
@@ -211,7 +212,8 @@ export function CamposDetalleImportacion({
        */}
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">
-          Precio de venta por caja ({moneda})<span className="ml-1 text-zinc-400">(opcional)</span>
+          Precio de venta por {envase} ({moneda})
+          <span className="ml-1 text-zinc-400">(opcional)</span>
         </span>
         <input
           name="precio_venta_caja"
@@ -227,7 +229,7 @@ export function CamposDetalleImportacion({
         <span className="text-xs text-tenue">
           {unitarioVenta === null
             ? 'Al confirmar se publica en la lista de precios de esta moneda'
-            : `${numero(unitarioVenta)} ${moneda} por ${unidad}`}
+            : `${numero(unitarioVenta)} ${moneda} por unidad`}
         </span>
         {origenVenta ? <span className="text-xs text-tenue">{origenVenta}</span> : null}
         {ultimoCobrado ? <span className="text-xs text-tenue">{ultimoCobrado}</span> : null}
@@ -245,15 +247,15 @@ export function CamposDetalleImportacion({
           {bajoCosto ? (
             <>
               <strong>El precio de venta está por debajo del costo.</strong> Compra{' '}
-              {numero(numeroCosto)} y vende {numero(numeroVenta)} {moneda} por caja. No se puede
+              {numero(numeroCosto)} y vende {numero(numeroVenta)} {moneda} por {envase}. No se puede
               guardar así.
             </>
           ) : (
             <>
-              Margen por caja: <strong>{numero(numeroVenta - numeroCosto)}</strong> {moneda}
+              Margen por {envase}: <strong>{numero(numeroVenta - numeroCosto)}</strong> {moneda}
               {numeroCosto > 0 ? ` · ${(numeroVenta / numeroCosto).toFixed(2)}× el costo` : ''}
               {unitarioCompra !== null && unitarioVenta !== null
-                ? ` · por ${unidad}: ${numero(unitarioCompra)} → ${numero(unitarioVenta)}`
+                ? ` · por unidad: ${numero(unitarioCompra)} → ${numero(unitarioVenta)}`
                 : ''}
             </>
           )}

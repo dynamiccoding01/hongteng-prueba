@@ -83,7 +83,7 @@ export default async function StockPorZona({
                 <Th>Categoría</Th>
                 <Th>Tallas</Th>
                 <Th>Bodega · Zona</Th>
-                <Th>Se cuenta en</Th>
+                <Th>Se cuenta por</Th>
                 <Th numerico>Cantidad unidades</Th>
                 <Th numerico>Cantidad</Th>
                 <Th numerico>Total unidades</Th>

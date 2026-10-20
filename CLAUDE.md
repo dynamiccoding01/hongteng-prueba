@@ -184,9 +184,14 @@ Una ruta no queda visible solo con crear su `page.tsx`. El circuito completo toc
 4. El icono en `ICONOS` de [components/iconos.tsx](components/iconos.tsx) (el tipo `NombreIcono` se deriva de ahí).
 5. La clave del enlace en **ambos** idiomas de [lib/i18n.ts](lib/i18n.ts): el diccionario es un objeto tipado y falta una clave rompe el typecheck.
 
-### Producto: dos conceptos que se confunden
+### Producto: el envase y lo que trae dentro
 
-- `producto.unidad_medida_id` → maestro `unidad_medida` (MAE-07). **En qué se cuenta** el artículo: par, pieza, juego. Lo administra el cliente desde `/maestros/unidades`; era un enum fijo hasta la migración `0014`.
+**El envase se llama por su unidad de medida; lo de dentro son unidades.** Esta es la frase de la que cuelga todo el vocabulario de la interfaz, y conviene leerla antes de escribir cualquier texto que hable de cantidades.
+
+- `producto.unidad_medida_id` → maestro `unidad_medida` (MAE-07). **Cómo se cuenta** el artículo: la caja, la docena, el par o el bulto en que entra, se guarda y se vende. Lo administra el cliente desde `/maestros/unidades`; era un enum fijo hasta la migración `0014`. En pantalla el campo se llama **«Se cuenta por»**.
+- Las frases se arman con `nombreEnvase()` y `piezas()` de [lib/inventario/articulo.ts](lib/inventario/articulo.ts), nunca escribiendo «caja» a mano: «10 docenas × 8 unidades = 80 unidades», «A2050 — docena de 8 unidades». `nombreEnvase` pluraliza con una regla —vocal `+s`, consonante `+es`— y una tabla de excepciones para las palabras prestadas (`pack`, `set`, `display`). Sin unidad dice «empaque», que es también la palabra para las tablas que mezclan artículos y no pueden nombrar un envase concreto.
+- Hasta el 19-10-2026 la palabra «caja» estaba escrita a mano en cada frase y la unidad de medida se leía como el **contenido**: un artículo con unidad «docena» y 8 por caja salía como «8 docena por caja» y «10 cajas × 8 docena = 80 docena», que no es lo que nadie quiso decir. Había una función, `unidadLegible()`, que lo tapaba imprimiendo «unidades» cuando la unidad contenía la palabra caja; desapareció con el arreglo. Si alguien vuelve a necesitar un apaño así, la pregunta correcta es si el envase y su contenido han vuelto a competir por el mismo hueco.
+- **Ese cambio es de palabras, no de datos.** `unidad_medida_id` no entra en ningún cálculo —solo rotula—, y por eso los 1.700 artículos que dicen «Caja» están bien: dicen «lo que guardo es una caja y dentro vienen N unidades». No «corregirlos» a PAR o PIEZA sin hablarlo con el cliente.
 - `producto_variante.unidades_por_caja` (MAE-02) → **cuántas unidades trae la caja**; en pantalla se llama «Cantidad unidades». No es descriptivo: es el factor con el que `fn_aplicar_movimiento` convierte cajas a unidades. Mientras el empaque no tenga kardex se puede corregir; en cuanto lo tiene queda sellado (`tr_variante_cantidad_inmutable`, `0019`) y la salida es agregar otra cantidad, no editar la existente. Un empaque se retira desactivándolo, y solo si ya no tiene existencia (`tr_variante_desactivar`, `0021`): con cajas dentro quedarían inalcanzables, porque un empaque inactivo no admite movimientos. Los cuatro datos del empaque —cantidad, código de barras, SKU y stock mínimo— se editan en el mismo formulario del listado de productos.
 
 ### Inventario: nunca se escribe `stock` directamente
