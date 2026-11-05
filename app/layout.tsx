@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { obtenerIdioma, obtenerTema } from '@/lib/preferencias';
+import { AlertaConexion } from '@/components/alerta-conexion';
 
 export const metadata: Metadata = {
   title: 'Sistema de Gestión e Inventario',
@@ -34,7 +35,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         {temaExplicito ? null : <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />}
       </head>
-      <body>{children}</body>
+      <body>
+        {/* En el layout raíz y no en el de (app): sin conexión tampoco se
+            puede iniciar sesión, y el login es donde más se nota. */}
+        <AlertaConexion />
+        {children}
+      </body>
     </html>
   );
 }

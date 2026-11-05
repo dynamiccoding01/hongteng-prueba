@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import Link from 'next/link';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
@@ -90,7 +90,7 @@ export default async function ImportacionesConfirmadas({
     supabase.from('proveedor').select('id, nombre').eq('activo', true).order('nombre'),
   ]);
 
-  if (error) return <Vacio>No se pudo cargar el historial: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudo cargar el historial</ErrorCarga>;
 
   const filas = importaciones ?? [];
   const hayFiltro = Boolean(desdeF || hastaF || proveedorF || documentoF);

@@ -1,6 +1,16 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Tarjeta, Td, Th, Vacio, numero } from '@/components/ui';
+import {
+  Encabezado,
+  ErrorCarga,
+  Etiqueta,
+  Tabla,
+  Tarjeta,
+  Td,
+  Th,
+  Vacio,
+  numero,
+} from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SelectorArticulo } from '@/components/selector-articulo';
 import { Paginacion } from '@/components/paginacion';
@@ -46,7 +56,7 @@ export default async function ListasDePrecios({
       supabase.from('lista_precio').select('id', { count: 'exact', head: true }).eq('activo', true),
     ]);
 
-  if (error) return <Vacio>No se pudieron cargar las listas: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar las listas</ErrorCarga>;
 
   const opcionesMoneda = (monedas ?? []).map((m) => ({
     valor: m.id,

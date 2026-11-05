@@ -162,8 +162,10 @@ async function main() {
          and v.producto_id = (select id from producto where codigo = 'TEST-001');
 
     select
-      s.cajas::text                                as cajas,
-      s.unidades::text                             as unidades,
+      -- Desde 0020 las columnas de stock son cantidad y total_unidades;
+      -- con los nombres viejos esta comprobación fallaba siempre.
+      s.cantidad::text                             as cajas,
+      s.total_unidades::text                       as unidades,
       (select count(*)::int from movimiento m
         where m.variante_id = s.variante_id)       as movimientos,
       (select max(saldo_cajas)::text from movimiento m

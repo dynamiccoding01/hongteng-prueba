@@ -29,6 +29,7 @@
 --
 --   T-01  Una toma de inventario aceptaba zonas de otra bodega.
 --   U-01  `ultimo_acceso` solo se guardaba para quien tenia `usuario.editar`.
+--   R-06  El valor del inventario del resumen se sumaba en TypeScript.
 --
 -- Guardias: `lib/seguridad/rls-api.integracion.test.ts` (G-12 ... G-17) y
 -- `lib/seguridad/migraciones.regresion.test.ts` (M-03 ... M-05).
@@ -363,6 +364,31 @@ $$;
 
 comment on function fn_registrar_acceso is
   'Marca el ultimo acceso de quien llama. security definer: la RLS de usuario no deja a cada uno escribir su fila, y no debe.';
+
+
+-- ---------------------------------------------------------------------------
+-- R-06 · El valor del inventario se suma en la base
+--
+-- El resumen (`app/(app)/page.tsx`) se traia `v_valorizacion` entera para
+-- sumarla en TypeScript. La vista tiene una fila por empaque y el catalogo pasa
+-- de mil: PostgREST corta en `db-max-rows` sin decirlo, y la cifra principal de
+-- la pantalla de inicio era un numero corto con toda la pinta de estar bien.
+-- Es R-01 en otra pantalla.
+--
+-- Sin `security definer`: corre con la identidad de quien llama y la vista es
+-- `security_invoker`, asi que la RLS de abajo decide que se suma.
+-- ---------------------------------------------------------------------------
+create or replace function fn_valorizacion_total()
+returns numeric
+language sql
+stable
+set search_path = public
+as $$
+  select coalesce(sum(valor_clp), 0) from v_valorizacion;
+$$;
+
+comment on function fn_valorizacion_total is
+  'REP-04: valor total del inventario en pesos, agregado en la base para que no lo corte db-max-rows.';
 
 
 -- ---------------------------------------------------------------------------

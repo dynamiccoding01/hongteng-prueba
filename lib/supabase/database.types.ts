@@ -1807,6 +1807,7 @@ export type Database = {
         Returns: string;
       };
       fn_tipo_cambio_vigente: { Args: { p_fecha?: string }; Returns: number };
+      fn_valorizacion_total: { Args: never; Returns: number };
       fn_traspasar: {
         Args: {
           p_cajas: number;

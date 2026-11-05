@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Tarjeta, Td, Th, Vacio } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Tarjeta, Td, Th, Vacio } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
@@ -45,7 +45,7 @@ export default async function Usuarios({
     supabase.from('rol').select('id, nombre').eq('activo', true).order('nombre'),
   ]);
 
-  if (error) return <Vacio>No se pudieron cargar los usuarios: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar los usuarios</ErrorCarga>;
 
   const opcionesRol = (roles ?? []).map((r) => ({ valor: r.id, texto: r.nombre }));
 

@@ -153,7 +153,7 @@ async function main() {
   }
 
   // ----------------------------------------------------------- conciliación
-  const [stock] = await consultar(`select coalesce(sum(cajas), 0)::numeric as total from stock`);
+  const [stock] = await consultar(`select coalesce(sum(cantidad), 0)::numeric as total from stock`);
   const esperadoTotal = plan.movimientos.reduce((s, m) => s + m.cajas, 0);
   const cargadoTotal = Number(stock?.total);
 

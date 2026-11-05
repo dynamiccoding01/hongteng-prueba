@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Buscador } from '@/components/buscador';
 import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
@@ -44,7 +44,7 @@ export default async function StockPorZona({
 
   const { data: filas, count, error } = await consulta;
 
-  if (error) return <Vacio>No se pudo consultar el stock: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudo consultar el stock</ErrorCarga>;
 
   const ordenadas = filas ?? [];
   const totalCantidad = ordenadas.reduce((s, f) => s + Number(f.cantidad), 0);

@@ -1,7 +1,7 @@
 import { requerirPermiso } from '@/lib/auth';
 import { hoy } from '@/lib/fechas';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { SelectorArticulo } from '@/components/selector-articulo';
@@ -42,7 +42,7 @@ export default async function TomaDeInventario({
     supabase.from('zona').select('id, codigo, bodega_id').eq('activo', true).order('codigo'),
   ]);
 
-  if (error) return <Vacio>No se pudieron cargar las tomas: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar las tomas</ErrorCarga>;
 
   // Solo la existencia de los empaques que aparecen en las tomas visibles.
   // Antes se traía la tabla `stock` entera para armar esta comparación.

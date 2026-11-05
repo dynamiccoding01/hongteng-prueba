@@ -1,7 +1,7 @@
 import { Fragment, Suspense } from 'react';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { AreaTexto, Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { DistintivoBodega } from '@/components/color-bodega';
 import { Buscador } from '@/components/buscador';
@@ -323,7 +323,7 @@ export default async function Productos({
     supabase.from('proveedor').select('id, codigo, nombre').eq('activo', true).order('nombre'),
   ]);
 
-  if (error) return <Vacio>No se pudieron cargar los productos: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar los productos</ErrorCarga>;
 
   // Dos consultas más, ambas acotadas a los empaques de ESTA página: no son
   // listados, son el detalle de las filas que ya se están mostrando.

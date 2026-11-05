@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Vacio } from '@/components/ui';
+import { Encabezado, ErrorCarga } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
 import { guardarEmpresa } from './acciones';
 
@@ -14,7 +14,7 @@ export default async function Empresa() {
   const supabase = await crearClienteServidor();
   const { data: empresa, error } = await supabase.from('empresa').select('*').eq('id', 1).single();
 
-  if (error) return <Vacio>No se pudo cargar la empresa: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudo cargar la empresa</ErrorCarga>;
 
   return (
     <>

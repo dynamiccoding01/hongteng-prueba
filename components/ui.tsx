@@ -135,6 +135,26 @@ export function Vacio({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Lo que se pinta cuando falla la consulta de una página.
+ *
+ * Antes cada página escribía `{error.message}` dentro de un `Vacio`: el texto
+ * crudo de PostgREST —«permission denied for table…», «column x does not
+ * exist»— le llegaba a quien estaba en el mostrador, que no puede hacer nada
+ * con él, y le describía el esquema a quien no tiene por qué conocerlo (X-07).
+ * El detalle va al log del servidor; en pantalla, qué no cargó y qué hacer.
+ */
+export function ErrorCarga({
+  error,
+  children,
+}: {
+  error: { message: string };
+  children: React.ReactNode;
+}) {
+  console.error('Consulta de página fallida:', error.message);
+  return <Vacio>{children}. Recargue la página; si el problema sigue, avise al área de TI.</Vacio>;
+}
+
 /** Formatea cantidades con separador de miles en formato chileno. */
 export function numero(valor: number | string | null): string {
   const n = typeof valor === 'string' ? Number(valor) : (valor ?? 0);

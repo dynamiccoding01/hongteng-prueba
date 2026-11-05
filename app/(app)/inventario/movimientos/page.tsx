@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
 import { CamposMovimiento } from '@/components/campos-inventario';
 import { DistintivoBodega } from '@/components/color-bodega';
@@ -61,7 +61,7 @@ export default async function Movimientos({
       .order('codigo'),
   ]);
 
-  if (error) return <Vacio>No se pudieron cargar los movimientos: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar los movimientos</ErrorCarga>;
 
   const anulados = new Set(
     (movimientos ?? []).map((m) => m.anulado_por).filter((id): id is number => id !== null),

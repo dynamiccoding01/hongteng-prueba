@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
@@ -101,7 +101,7 @@ export default async function Categorias({
     supabase.from('unidad_medida').select('id, nombre_es').eq('activo', true).order('codigo'),
   ]);
 
-  if (error) return <Vacio>No se pudieron cargar las categorías: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar las categorías</ErrorCarga>;
 
   const opcionesUnidad: Opcion[] = (unidadesMedida ?? []).map((u) => ({
     valor: u.id,
