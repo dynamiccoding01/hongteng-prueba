@@ -4,9 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { NO_ENCONTRADO, esquemaImporte, sinFilas } from '@/lib/validacion';
 
 const esquemaLista = z.object({
-  nombre: z.string().trim().min(1, 'El nombre es obligatorio'),
+  nombre: z.string().trim().min(1, 'El nombre es obligatorio').max(80),
   moneda_id: z.coerce.number().int().positive('Seleccione la moneda'),
 });
 
@@ -35,7 +36,7 @@ export async function crearLista(
 
 const esquemaEdicion = z.object({
   id: z.coerce.number().int().positive(),
-  nombre: z.string().trim().min(1, 'El nombre es obligatorio'),
+  nombre: z.string().trim().min(1, 'El nombre es obligatorio').max(80),
   activo: z.enum(['1', '0']),
 });
 
@@ -70,12 +71,16 @@ export async function editarLista(
   const queda = activo === '1';
 
   const supabase = await crearClienteServidor();
-  const { error } = await supabase
+  const { data: tocadas, error } = await supabase
     .from('lista_precio')
     .update({ nombre, activo: queda })
-    .eq('id', id);
+    .eq('id', id)
+    .select('id');
 
   if (error) return { error: mensajeError(error, 'lista de precios') };
+  // Desactivar una lista es lo que vuelve a encender la publicación automática
+  // de precios: decir «desactivada» sin haberlo hecho deja la avería en pie.
+  if (sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/ventas/precios');
   return { ok: queda ? 'Lista actualizada' : 'Lista desactivada' };
@@ -84,7 +89,8 @@ export async function editarLista(
 const esquemaItem = z.object({
   lista_id: z.coerce.number().int().positive(),
   variante_id: z.coerce.number().int().positive('Seleccione el artículo'),
-  precio_caja: z.coerce.number().min(0, 'Precio no válido'),
+  // `numeric(14,4)`: un quinto decimal se redondeaba sin avisar.
+  precio_caja: esquemaImporte('Precio no válido'),
 });
 
 /** VEN-04: fija (o actualiza) el precio por caja de un artículo en la lista. */

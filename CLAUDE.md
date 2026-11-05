@@ -98,7 +98,7 @@ Next.js 15 (App Router, React 19, Tailwind 4) sobre Supabase (PostgreSQL + Auth)
 2. `app/(app)/layout.tsx` vuelve a exigir sesión; cada página llama `requerirPermiso('<codigo>')` de [lib/auth.ts](lib/auth.ts) y la navegación oculta enlaces sin permiso.
 3. **RLS en PostgreSQL** (`0005_rls.sql`) consultando `tiene_permiso()` sobre usuario → rol → rol_permiso → permiso.
 
-Las capas 1 y 2 son comodidad de UX: **la autorización que cuenta es la 3**. Nunca reemplazar una política RLS por una comprobación en la app.
+Las capas 1 y 2 son comodidad de UX: **la autorización que cuenta es la 3**. Nunca reemplazar una política RLS por una comprobación en la app. Y la RLS tiene dos puertas traseras que hay que cerrar cada vez: una vista sin `with (security_invoker = true)` corre como su dueño y se la salta, y una función `security definer` también —por eso **empieza** con `tiene_permiso(...)`—. `lib/seguridad/migraciones.regresion.test.ts` lo vigila en CI (migración `0036`, BACKEND.md § 4.16).
 
 **La sesión caduca a los 15 minutos de inactividad** ([lib/sesion.ts](lib/sesion.ts)). Supabase no lo hace solo: renueva el token mientras viva el refresh token, así que quien no cerraba sesión seguía dentro al día siguiente —inaceptable en un mostrador con el computador compartido—. La cuenta la lleva una cookie propia, `ultima_actividad`, que el middleware lee y reescribe en cada petición; pasado el plazo cierra la sesión y manda a `/login?expirada=1`. Dos detalles que parecen menores y no lo son: la cookie **ausente cuenta como caducada** (se emite con `maxAge` de 15 min, así que «volví al día siguiente» llega como ausencia, no como marca vieja; por eso `iniciarSesion` la escribe al entrar), y la **prerecarga de `<Link>` no renueva** el plazo, solo lo comprueba —si no, un menú en pantalla mantendría viva la sesión sin que nadie tocara nada—. `VigiaInactividad` ([components/vigia-inactividad.tsx](components/vigia-inactividad.tsx)) es el complemento en el navegador, para quien deja la pantalla abierta y no genera peticiones; comparte la marca entre pestañas por `localStorage` y sale con `window.location` —navegación dura— para que se vaya también la caché de rutas de Next. El vigía es comodidad; **la barrera es el middleware**.
 
@@ -127,6 +127,8 @@ Cada ruta bajo `app/(app)/` es un Server Component que:
 3. renderiza con los primitivos de [components/ui.tsx](components/ui.tsx) (`Encabezado`, `Tabla`, `Th`, `Td`, `Vacio`, `numero`).
 
 Las escrituras van en un `acciones.ts` hermano con `'use server'`: valida con Zod → escribe con el cliente de servidor → traduce el error de PostgREST con `mensajeError()` de [lib/errores.ts](lib/errores.ts) → `revalidatePath()` → devuelve `EstadoFormulario` (`{ ok }` o `{ error }`) para `useActionState`.
+
+Dos trampas que [lib/validacion.ts](lib/validacion.ts) ya resuelve y que no hay que volver a escribir a mano (W-01 … W-03): un UPDATE o DELETE que la RLS filtra **no da error** en PostgREST —responde 200 con cero filas—, así que toda edición lleva `.select('id')` y `if (sinFilas(...)) return { error: NO_ENCONTRADO }`; y el `id` de un formulario se lee con `leerId()`, nunca con `Number(...)`. Las cantidades y los importes se validan con `esquemaCajas` / `esquemaImporte`, que rechazan los decimales que la columna redondearía.
 
 ### Listados: siempre paginados
 
@@ -235,7 +237,7 @@ Para acciones que no son cambios de tabla (login, exportar, imprimir) se usa `re
 
 ### Migraciones
 
-`supabase/migrations/` es la **única fuente de verdad** del esquema; se aplican en orden alfabético, por eso van numeradas (`0001_utilidades` … `0035_tope_descuento_rol`, el último aplicado). Una migración ya aplicada **no se edita**: se corrige con otra encima, y por eso la historia tiene enmiendas (`0006` arregla `fn_aplicar_movimiento` de `0004`, `0018` el color de `0016`, `0028` retira las comisiones de `0012`). Nunca cambiar el esquema desde el panel de Supabase. Tras una migración, regenerar los tipos con `npm run db:types` — `lib/supabase/database.types.ts` es generado, no se edita a mano.
+`supabase/migrations/` es la **única fuente de verdad** del esquema; se aplican en orden alfabético, por eso van numeradas (`0001_utilidades` … `0035_tope_descuento_rol`, el último aplicado; `0036_cerrar_huecos_rls` está escrita y pendiente de aplicar). Una migración ya aplicada **no se edita**: se corrige con otra encima, y por eso la historia tiene enmiendas (`0006` arregla `fn_aplicar_movimiento` de `0004`, `0018` el color de `0016`, `0028` retira las comisiones de `0012`). Nunca cambiar el esquema desde el panel de Supabase. Tras una migración, regenerar los tipos con `npm run db:types` — `lib/supabase/database.types.ts` es generado, no se edita a mano.
 
 Convenciones del esquema (detalle en [BACKEND.md § 3](BACKEND.md)): `snake_case`, tablas en **singular**, PK `bigint generated always as identity` (nunca el código de negocio), `created_at`/`updated_at` en toda tabla, `activo` para borrado lógico, dinero `numeric(14,4)` (jamás `float`), texto `text`.
 

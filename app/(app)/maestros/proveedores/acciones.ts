@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { NO_ENCONTRADO, leerId, sinFilas } from '@/lib/validacion';
 
 const esquema = z.object({
   codigo: z
@@ -35,7 +37,9 @@ export async function guardarProveedor(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  const id = datos.get('id');
+  const lectura = leerId(datos.get('id'));
+  if ('error' in lectura) return { error: lectura.error };
+  const { id } = lectura;
 
   const analisis = esquema.safeParse({
     codigo: datos.get('codigo'),
@@ -66,12 +70,23 @@ export async function guardarProveedor(
   };
 
   const supabase = await crearClienteServidor();
-  const { error } = id
-    ? await supabase.from('proveedor').update(valores).eq('id', Number(id))
-    : await supabase.from('proveedor').insert(valores);
+  let tocadas: readonly unknown[] | null = null;
+  let error: PostgrestError | null = null;
+  if (id === null) {
+    ({ error } = await supabase.from('proveedor').insert(valores));
+  } else {
+    // PostgREST no da error cuando la RLS filtra un UPDATE, o cuando la fila ya
+    // no existe: responde que salió bien con cero filas.
+    ({ data: tocadas, error } = await supabase
+      .from('proveedor')
+      .update(valores)
+      .eq('id', id)
+      .select('id'));
+  }
 
   if (error) return { error: mensajeError(error, 'proveedor') };
+  if (id !== null && sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/maestros/proveedores');
-  return { ok: id ? 'Proveedor actualizado' : 'Proveedor creado' };
+  return { ok: id !== null ? 'Proveedor actualizado' : 'Proveedor creado' };
 }

@@ -11,6 +11,9 @@ import { anularMovimiento, registrarMovimiento } from './acciones';
 
 export const metadata = { title: 'Movimientos · Inventario' };
 
+/** Los mismos que rechaza `fn_anular_movimiento` (migración 0036). */
+const DOCUMENTOS_NO_ANULABLES = new Set(['VENTA', 'IMPORTACION', 'TRASPASO', 'INVENTARIO']);
+
 const TIPOS: Record<string, { texto: string; tono: 'verde' | 'ambar' | 'neutro' }> = {
   ENTRADA: { texto: 'Entrada', tono: 'verde' },
   SALIDA: { texto: 'Salida', tono: 'neutro' },
@@ -43,7 +46,7 @@ export default async function Movimientos({
     supabase
       .from('movimiento')
       .select(
-        'id, tipo, cajas, unidades, saldo_cajas, motivo, fecha, anulado_por, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, unidad:unidad_medida_id(nombre_es))), usuario:usuario_id(nombre)',
+        'id, tipo, cajas, unidades, saldo_cajas, motivo, fecha, anulado_por, documento_tipo, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, unidad:unidad_medida_id(nombre_es))), usuario:usuario_id(nombre)',
         { count: 'exact' },
       )
       .order('fecha', { ascending: false })
@@ -111,6 +114,10 @@ export default async function Movimientos({
               const t = TIPOS[m.tipo] ?? { texto: m.tipo, tono: 'neutro' as const };
               const esAnulacion = m.anulado_por !== null;
               const fueAnulado = anulados.has(m.id);
+              // 0036: las líneas de un documento (traspaso, venta, importación,
+              // toma) se corrigen desde el documento; la base rechaza anularlas.
+              const esDeDocumento =
+                m.documento_tipo !== null && DOCUMENTOS_NO_ANULABLES.has(m.documento_tipo);
               return (
                 <tr key={m.id} className={fueAnulado ? 'opacity-50' : ''}>
                   <Td tenue>{fecha(m.fecha)}</Td>
@@ -149,7 +156,7 @@ export default async function Movimientos({
                   <Td tenue>{m.motivo ?? '—'}</Td>
                   {puedeAnular ? (
                     <Td>
-                      {!fueAnulado && !esAnulacion ? (
+                      {!fueAnulado && !esAnulacion && !esDeDocumento ? (
                         <FormularioDesplegable accion={anularMovimiento} etiquetaNuevo="" esEdicion>
                           <input type="hidden" name="movimiento_id" value={m.id} />
                           <Campo

@@ -60,8 +60,30 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && ruta === '/login') {
+    /*
+     * Una sesion valida cuyo perfil esta desactivado (lo desactivaron mientras
+     * trabajaba). Sin esta salida, el layout la mandaba aqui y esta linea la
+     * devolvia a `/`: un bucle de redirecciones sin salida, ni siquiera para
+     * cerrar sesion. Se comprueba el perfil antes de cerrar para que un enlace
+     * con `?inactiva=1` no sirva para echar a nadie.
+     */
+    if (request.nextUrl.searchParams.has('inactiva')) {
+      const { data: perfil } = await supabase
+        .from('usuario')
+        .select('activo')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!perfil?.activo) {
+        await supabase.auth.signOut();
+        respuesta.cookies.delete(COOKIE_ULTIMA_ACTIVIDAD);
+        return respuesta;
+      }
+    }
+
     const url = request.nextUrl.clone();
     url.pathname = '/';
+    url.search = '';
     return NextResponse.redirect(url);
   }
 

@@ -1,6 +1,6 @@
 'use server';
 
-import { requerirUsuario } from '@/lib/auth';
+import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 
 /** Lo que ya se sabe de los precios de un artículo, para proponerlos al comprar. */
@@ -62,7 +62,17 @@ const VACIO: PreciosPrevios = {
  * criterio que usa `fn_confirmar_importacion` al publicar precios.
  */
 export async function preciosPrevios(varianteId: number): Promise<PreciosPrevios> {
-  await requerirUsuario();
+  /*
+   * Es un Server Action: cualquiera con sesión puede llamarlo con el id que
+   * quiera, no solo el formulario de compras. Devuelve costos de importación y
+   * lo último que se cobró a un cliente, así que se le pone la misma puerta que
+   * a `precioDeLista` (S-02): el permiso del módulo que lo usa. La RLS de las
+   * tablas sigue decidiendo qué filas se leen.
+   */
+  await requerirPermiso('importacion.crear');
+
+  // El argumento llega del navegador: puede ser cualquier cosa, no solo un número.
+  if (!Number.isSafeInteger(varianteId) || varianteId <= 0) return VACIO;
 
   const supabase = await crearClienteServidor();
 

@@ -4,12 +4,24 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { esquemaDia } from '@/lib/fechas';
+import { esquemaCajas, esquemaImporte } from '@/lib/validacion';
 
 const esquemaCabecera = z.object({
   proveedor_id: z.coerce.number().int().positive('Seleccione el proveedor'),
-  documento_aduana: z.string().trim().optional(),
-  fecha: z.string().trim().optional(),
-  notas: z.string().trim().optional(),
+  documento_aduana: z
+    .string()
+    .trim()
+    .max(60, 'El documento de aduana no puede pasar de 60 caracteres')
+    .optional(),
+  /*
+   * Mismo arreglo que A-03 hizo en ventas, que aquí faltaba: de la fecha sale
+   * el tipo de cambio que `fn_documento_tipo_cambio` congela en la
+   * importación, y con él la valorización de todo lo que entra. «mañana»
+   * llegaba a PostgreSQL y volvía en inglés; «2026-02-30» ni siquiera existe.
+   */
+  fecha: esquemaDia.optional(),
+  notas: z.string().trim().max(2000, 'Las notas no pueden pasar de 2000 caracteres').optional(),
 });
 
 /**
@@ -68,9 +80,11 @@ const esquemaDetalle = z
     importacion_id: z.coerce.number().int().positive(),
     variante_id: z.coerce.number().int().positive('Seleccione el artículo'),
     zona_id: z.coerce.number().int().positive('Seleccione la zona de destino'),
-    cajas: z.coerce.number().positive('Las cajas deben ser mayores que cero'),
-    costo_caja: z.coerce.number().min(0, 'Costo no válido').optional(),
-    precio_venta_caja: z.coerce.number().min(0, 'Precio de venta no válido').optional(),
+    // `numeric(14,2)` y `numeric(14,4)`: lo que no cabe, la base lo redondea
+    // sin avisar, y entra a stock una cantidad distinta de la que llegó.
+    cajas: esquemaCajas('Las cajas deben ser mayores que cero'),
+    costo_caja: esquemaImporte('Costo no válido').optional(),
+    precio_venta_caja: esquemaImporte('Precio de venta no válido').optional(),
   })
   // Mismo criterio que `importacion_detalle_margen_ck` en la base. Aquí solo
   // para dar un mensaje en castellano; la barrera es la restricción, que se

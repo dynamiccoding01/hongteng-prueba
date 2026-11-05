@@ -52,7 +52,15 @@ const { agregarDetalleVenta, crearVenta, editarLineaVenta } =
  * Cliente de Supabase mínimo: devuelve `fila` en las lecturas y apunta las
  * escrituras. Solo implementa las llamadas que hacen estas acciones.
  */
-function clienteFalso(fila: Record<string, unknown> | null, escrituras: Escritura[]) {
+function clienteFalso(
+  fila: Record<string, unknown> | null,
+  escrituras: Escritura[],
+  /**
+   * Cuántas filas toca el UPDATE. Como PostgREST, cero no es un error: es lo
+   * que devuelve cuando la RLS filtra la escritura (A-07).
+   */
+  filasTocadas = 1,
+) {
   return {
     from(tabla: string) {
       return {
@@ -67,7 +75,14 @@ function clienteFalso(fila: Record<string, unknown> | null, escrituras: Escritur
         },
         update: (valores: Record<string, unknown>) => {
           escrituras.push({ tabla, operacion: 'update', valores });
-          return { eq: () => Promise.resolve({ error: null }) };
+          return {
+            eq: () => ({
+              select: async () => ({
+                data: Array.from({ length: filasTocadas }, (_, i) => ({ id: i + 1 })),
+                error: null,
+              }),
+            }),
+          };
         },
       };
     },
@@ -375,5 +390,29 @@ describe('A-06 · una línea sin precio no se guarda en silencio', () => {
 
     expect(r.error).toBeUndefined();
     expect(escrituras[0]?.valores['precio_caja']).toBe(35);
+  });
+});
+
+describe('A-07 · una escritura que la RLS filtra no se da por hecha', () => {
+  /*
+   * PostgREST no devuelve error cuando la RLS deja fuera la fila de un UPDATE:
+   * responde 200 con cero filas. `editarLineaVenta` solo miraba `error`, así
+   * que a quien no podía escribir —o a quien corregía una línea que otro ya
+   * había borrado— le decía «Línea actualizada» sin haber guardado nada.
+   */
+  it('A-07 / W-01: con cero filas tocadas, la acción lo dice', async () => {
+    estado.cliente = clienteFalso(
+      { venta_id: 7, variante_id: 3, cajas: 7, precio_caja: 850, descuento: 0 },
+      escrituras,
+      0,
+    );
+
+    const r = await editarLineaVenta(
+      {},
+      formulario({ id: '1', zona_id: '2', cajas: '7', precio_caja: '850' }),
+    );
+
+    expect(r.ok).toBeUndefined();
+    expect(r.error).toMatch(/no se guardó/i);
   });
 });

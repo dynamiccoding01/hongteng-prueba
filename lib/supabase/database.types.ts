@@ -1801,6 +1801,7 @@ export type Database = {
         };
         Returns: number;
       };
+      fn_registrar_acceso: { Args: never; Returns: undefined };
       fn_siguiente_correlativo: {
         Args: { p_tipo_documento: string };
         Returns: string;

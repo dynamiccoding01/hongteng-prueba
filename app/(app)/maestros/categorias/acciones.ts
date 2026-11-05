@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { NO_ENCONTRADO, leerId, sinFilas } from '@/lib/validacion';
 
 /**
  * Validacion en el borde. La base de datos vuelve a validar con NOT NULL,
@@ -28,7 +30,9 @@ export async function guardarCategoria(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  const id = datos.get('id');
+  const lectura = leerId(datos.get('id'));
+  if ('error' in lectura) return { error: lectura.error };
+  const { id } = lectura;
 
   const analisis = esquemaCategoria.safeParse({
     codigo: datos.get('codigo'),
@@ -51,13 +55,24 @@ export async function guardarCategoria(
     activo: analisis.data.activo === '1',
   };
 
-  const { error } = id
-    ? await supabase.from('categoria').update(valores).eq('id', Number(id))
-    : await supabase.from('categoria').insert(valores);
+  let tocadas: readonly unknown[] | null = null;
+  let error: PostgrestError | null = null;
+  if (id === null) {
+    ({ error } = await supabase.from('categoria').insert(valores));
+  } else {
+    // PostgREST no da error cuando la RLS filtra un UPDATE, o cuando la fila ya
+    // no existe: responde que salió bien con cero filas.
+    ({ data: tocadas, error } = await supabase
+      .from('categoria')
+      .update(valores)
+      .eq('id', id)
+      .select('id'));
+  }
 
   if (error) return { error: mensajeError(error, 'categoría') };
+  if (id !== null && sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/maestros/categorias');
   revalidatePath('/maestros/productos');
-  return { ok: id ? 'Categoría actualizada' : 'Categoría creada' };
+  return { ok: id !== null ? 'Categoría actualizada' : 'Categoría creada' };
 }

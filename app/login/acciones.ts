@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { COOKIE_ULTIMA_ACTIVIDAD, INACTIVIDAD_MAXIMA_MS } from '@/lib/sesion';
+import { destinoSeguro } from '@/lib/destino';
 
 /**
  * Arranca el reloj de inactividad.
@@ -26,8 +27,10 @@ async function marcarActividad(): Promise<void> {
 }
 
 const esquemaLogin = z.object({
-  email: z.string().min(1, 'Ingrese su correo').email('Correo no válido'),
-  password: z.string().min(1, 'Ingrese su contraseña'),
+  email: z.string().trim().toLowerCase().min(1, 'Ingrese su correo').email('Correo no válido'),
+  // 72 es el tope de bcrypt, que es lo que usa Supabase Auth: más largo no se
+  // compara entero.
+  password: z.string().min(1, 'Ingrese su contraseña').max(72, 'Correo o contraseña incorrectos'),
   // FormData.get() devuelve null cuando el input oculto no se renderiza (entrada
   // directa a /login, sin ?destino=). .nullish() acepta string, null y undefined;
   // .optional() rechazaba el null y bloqueaba TODO inicio de sesión directo.
@@ -53,14 +56,35 @@ export async function iniciarSesion(
   }
 
   const supabase = await crearClienteServidor();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: sesion, error } = await supabase.auth.signInWithPassword({
     email: analisis.data.email,
     password: analisis.data.password,
   });
 
-  if (error) {
+  if (error || !sesion.user) {
     // Mensaje deliberadamente generico: no revela si el correo existe.
     return { error: 'Correo o contraseña incorrectos' };
+  }
+
+  /*
+   * Desactivar a alguien (`usuario.activo = false`) no toca su cuenta de
+   * Supabase Auth, así que la contraseña seguía funcionando. Antes la sesión se
+   * abría igual y el layout, al no encontrar un perfil activo, mandaba a
+   * `/login`; el middleware, al ver una sesión, devolvía a `/`, y así hasta que
+   * el navegador cortaba con «demasiadas redirecciones». Ahora se comprueba
+   * aquí, se cierra la sesión recién abierta y se dice por qué.
+   */
+  const { data: perfil } = await supabase
+    .from('usuario')
+    .select('activo')
+    .eq('id', sesion.user.id)
+    .maybeSingle();
+
+  if (!perfil?.activo) {
+    await supabase.auth.signOut();
+    return {
+      error: 'Su cuenta está desactivada. Pídale al administrador del sistema que la reactive.',
+    };
   }
 
   // Queda registrado quien entro y cuando (ADM-02).
@@ -70,17 +94,23 @@ export async function iniciarSesion(
     p_descripcion: 'Inicio de sesión',
   });
 
-  await supabase
-    .from('usuario')
-    .update({ ultimo_acceso: new Date().toISOString() })
-    .eq('email', analisis.data.email);
+  /*
+   * Antes era un `update usuario ... where email = …` con el cliente de sesión.
+   * La RLS solo deja escribir en `usuario` a quien tiene `usuario.editar`, así
+   * que para todos los demás el UPDATE se filtraba en silencio y
+   * `ultimo_acceso` no se movía nunca. Además comparaba el correo tal como se
+   * tecleó, y con una mayúscula tampoco encontraba la fila. La función (0036)
+   * marca la fila de quien llama, y solo esa columna.
+   */
+  const { error: errorAcceso } = await supabase.rpc('fn_registrar_acceso');
+  if (errorAcceso) console.error('No se pudo registrar el último acceso:', errorAcceso.message);
 
   await marcarActividad();
 
   revalidatePath('/', 'layout');
-  redirect(
-    analisis.data.destino && analisis.data.destino !== '/login' ? analisis.data.destino : '/',
-  );
+  // Solo rutas de este sitio: `destino` viene de la URL y cualquiera puede
+  // escribirlo (L-01, ver lib/destino.ts).
+  redirect(destinoSeguro(analisis.data.destino));
 }
 
 export async function cerrarSesion(): Promise<never> {

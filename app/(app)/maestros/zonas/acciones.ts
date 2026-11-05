@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { NO_ENCONTRADO, leerId, sinFilas } from '@/lib/validacion';
 
 // `activo` en ambos esquemas: baja lógica. Una bodega o una zona con
 // existencias no se borra, se desactiva.
@@ -35,7 +37,9 @@ export async function guardarBodega(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  const id = datos.get('id');
+  const lectura = leerId(datos.get('id'));
+  if ('error' in lectura) return { error: lectura.error };
+  const { id } = lectura;
   const analisis = esquemaBodega.safeParse({
     codigo: datos.get('codigo'),
     nombre: datos.get('nombre'),
@@ -55,14 +59,25 @@ export async function guardarBodega(
   };
 
   const supabase = await crearClienteServidor();
-  const { error } = id
-    ? await supabase.from('bodega').update(valores).eq('id', Number(id))
-    : await supabase.from('bodega').insert(valores);
+  let tocadas: readonly unknown[] | null = null;
+  let error: PostgrestError | null = null;
+  if (id === null) {
+    ({ error } = await supabase.from('bodega').insert(valores));
+  } else {
+    // PostgREST no da error cuando la RLS filtra un UPDATE, o cuando la fila ya
+    // no existe: responde que salió bien con cero filas.
+    ({ data: tocadas, error } = await supabase
+      .from('bodega')
+      .update(valores)
+      .eq('id', id)
+      .select('id'));
+  }
 
   if (error) return { error: mensajeError(error, 'bodega') };
+  if (id !== null && sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/maestros/zonas');
-  return { ok: id ? 'Bodega actualizada' : 'Bodega creada' };
+  return { ok: id !== null ? 'Bodega actualizada' : 'Bodega creada' };
 }
 
 /**
@@ -73,7 +88,9 @@ export async function guardarZona(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  const id = datos.get('id');
+  const lectura = leerId(datos.get('id'));
+  if ('error' in lectura) return { error: lectura.error };
+  const { id } = lectura;
   const analisis = esquemaZona.safeParse({
     bodega_id: datos.get('bodega_id'),
     codigo: datos.get('codigo'),
@@ -95,12 +112,23 @@ export async function guardarZona(
   };
 
   const supabase = await crearClienteServidor();
-  const { error } = id
-    ? await supabase.from('zona').update(valores).eq('id', Number(id))
-    : await supabase.from('zona').insert(valores);
+  let tocadas: readonly unknown[] | null = null;
+  let error: PostgrestError | null = null;
+  if (id === null) {
+    ({ error } = await supabase.from('zona').insert(valores));
+  } else {
+    // PostgREST no da error cuando la RLS filtra un UPDATE, o cuando la fila ya
+    // no existe: responde que salió bien con cero filas.
+    ({ data: tocadas, error } = await supabase
+      .from('zona')
+      .update(valores)
+      .eq('id', id)
+      .select('id'));
+  }
 
   if (error) return { error: mensajeError(error, 'zona') };
+  if (id !== null && sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/maestros/zonas');
-  return { ok: id ? 'Zona actualizada' : 'Zona creada' };
+  return { ok: id !== null ? 'Zona actualizada' : 'Zona creada' };
 }

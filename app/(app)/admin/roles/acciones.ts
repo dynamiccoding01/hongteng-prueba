@@ -5,6 +5,23 @@ import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { requerirPermiso } from '@/lib/auth';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { NO_ENCONTRADO, sinFilas } from '@/lib/validacion';
+
+/**
+ * El rol con el que nace todo usuario nuevo. `fn_crear_usuario_desde_auth`
+ * (0002) lo busca **por nombre** al crear la cuenta: renombrarlo o darlo de
+ * baja hace fallar todas las altas de usuario con un «Database error creating
+ * new user» que no dice nada a nadie.
+ */
+const ROL_POR_DEFECTO = 'Consulta';
+
+/**
+ * Permisos que nadie se puede quitar a sí mismo. Es la misma regla que
+ * `actualizarUsuario` aplica al rol y al estado: quitarle `rol.editar` al rol
+ * propio deja a esa persona —y, si es el último administrador, al sistema
+ * entero— sin forma de deshacerlo desde la pantalla.
+ */
+const PERMISOS_DE_RESCATE = new Set(['rol.editar']);
 
 /**
  * ADM-01: edición de la matriz rol → rol_permiso ← permiso.
@@ -26,30 +43,46 @@ export async function alternarPermiso(
   permisoId: number,
   activar: boolean,
 ): Promise<EstadoFormulario> {
-  await requerirPermiso('rol.editar');
+  const usuario = await requerirPermiso('rol.editar');
 
+  // Los argumentos llegan de un componente de cliente: se usan los validados,
+  // no los crudos.
   const analisis = esquemaAlternar.safeParse({ rolId, permisoId, activar });
   if (!analisis.success) return { error: 'Datos no válidos' };
+  const datos = analisis.data;
 
   const supabase = await crearClienteServidor();
 
-  if (activar) {
+  if (!datos.activar) {
+    const [{ data: propio }, { data: permiso }] = await Promise.all([
+      supabase.from('usuario').select('rol_id').eq('id', usuario.id).maybeSingle(),
+      supabase.from('permiso').select('codigo').eq('id', datos.permisoId).maybeSingle(),
+    ]);
+
+    if (propio?.rol_id === datos.rolId && permiso && PERMISOS_DE_RESCATE.has(permiso.codigo)) {
+      return {
+        error: `No puede quitarle «${permiso.codigo}» a su propio rol: se quedaría sin poder deshacerlo. Pídaselo a otro administrador.`,
+      };
+    }
+  }
+
+  if (datos.activar) {
     const { error } = await supabase
       .from('rol_permiso')
-      .insert({ rol_id: rolId, permiso_id: permisoId });
+      .insert({ rol_id: datos.rolId, permiso_id: datos.permisoId });
     // 23505 = ya existía: para un alternar es el resultado deseado, no un error.
     if (error && error.code !== '23505') return { error: mensajeError(error, 'permiso') };
   } else {
     const { error } = await supabase
       .from('rol_permiso')
       .delete()
-      .eq('rol_id', rolId)
-      .eq('permiso_id', permisoId);
+      .eq('rol_id', datos.rolId)
+      .eq('permiso_id', datos.permisoId);
     if (error) return { error: mensajeError(error, 'permiso') };
   }
 
   revalidatePath('/admin/roles');
-  return { ok: activar ? 'Permiso agregado' : 'Permiso quitado' };
+  return { ok: datos.activar ? 'Permiso agregado' : 'Permiso quitado' };
 }
 
 const esquemaCrearRol = z.object({
@@ -97,7 +130,7 @@ const esquemaEditarRol = esquemaCrearRol.extend({
    * distingue la cadena vacia del cero en vez de tratar los dos como falta.
    */
   descuento_maximo: z.coerce
-    .number()
+    .number({ message: 'El tope de descuento tiene que ser un número entre 0 y 100' })
     .min(0, 'El tope va entre 0 y 100')
     .max(100, 'El tope va entre 0 y 100')
     .optional(),
@@ -114,7 +147,7 @@ export async function editarRol(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  await requerirPermiso('rol.editar');
+  const operador = await requerirPermiso('rol.editar');
 
   const crudoTope = datos.get('descuento_maximo');
   const analisis = esquemaEditarRol.safeParse({
@@ -132,9 +165,29 @@ export async function editarRol(
   const { id, nombre, descripcion, activo, descuento_maximo } = analisis.data;
   const supabase = await crearClienteServidor();
 
+  const { data: previo } = await supabase.from('rol').select('nombre').eq('id', id).maybeSingle();
+  if (!previo) return { error: NO_ENCONTRADO };
+
+  if (previo.nombre === ROL_POR_DEFECTO && (nombre !== ROL_POR_DEFECTO || activo === '0')) {
+    return {
+      error: `«${ROL_POR_DEFECTO}» es el rol con el que nace todo usuario nuevo: no se renombra ni se desactiva. Edite sus permisos si necesita cambiar lo que puede hacer.`,
+    };
+  }
+
   // Un rol sin usuarios se puede desactivar sin más; con usuarios dentro, no:
   // `usuario.rol_id` es obligatorio y quedarían con un perfil inhabilitado.
   if (activo === '0') {
+    /*
+     * El conteo pasa por la RLS de `usuario`: sin `usuario.ver` solo se ve la
+     * fila propia, el conteo salía 0 y el rol se desactivaba con gente dentro.
+     * Sin ese permiso no hay forma honesta de saberlo, así que no se adivina.
+     */
+    if (!operador.permisos.has('usuario.ver')) {
+      return {
+        error: 'Para desactivar un rol hay que poder ver a los usuarios (permiso usuario.ver)',
+      };
+    }
+
     const { count, error: errorConteo } = await supabase
       .from('usuario')
       .select('id', { count: 'exact', head: true })
@@ -149,7 +202,7 @@ export async function editarRol(
     }
   }
 
-  const { error } = await supabase
+  const { data: tocadas, error } = await supabase
     .from('rol')
     .update({
       nombre,
@@ -157,9 +210,11 @@ export async function editarRol(
       activo: activo === '1',
       descuento_maximo: descuento_maximo ?? null,
     })
-    .eq('id', id);
+    .eq('id', id)
+    .select('id');
 
   if (error) return { error: mensajeError(error, 'rol') };
+  if (sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/admin/roles');
   // El nombre del rol se muestra en la lista de usuarios.

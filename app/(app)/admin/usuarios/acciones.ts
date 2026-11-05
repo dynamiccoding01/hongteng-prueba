@@ -6,6 +6,7 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { AVISO_SIN_CLAVE, crearClienteAdmin } from '@/lib/supabase/admin';
 import { obtenerUsuario, registrarEnBitacora, requerirPermiso } from '@/lib/auth';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { sinFilas } from '@/lib/validacion';
 
 /**
  * ADM-01 · Alta y mantención de usuarios.
@@ -21,12 +22,26 @@ import { mensajeError, type EstadoFormulario } from '@/lib/errores';
  */
 
 const MIN_CLAVE = 8;
+/**
+ * Supabase Auth guarda la contraseña con bcrypt, que solo mira los primeros
+ * 72 bytes: una más larga se acepta, pero lo que sobra no protege nada, y la
+ * persona cree tener una clave que no tiene.
+ */
+const MAX_CLAVE = 72;
+
+const esquemaClaveNueva = z
+  .string()
+  .min(MIN_CLAVE, `La contraseña debe tener al menos ${MIN_CLAVE} caracteres`)
+  .refine(
+    (clave) => new TextEncoder().encode(clave).length <= MAX_CLAVE,
+    `La contraseña no puede pasar de ${MAX_CLAVE} caracteres`,
+  );
 
 const esquemaCrear = z.object({
   nombre: z.string().trim().min(1, 'Ingrese el nombre de la persona').max(80),
-  email: z.string().trim().toLowerCase().email('El correo no es válido'),
+  email: z.string().trim().toLowerCase().email('El correo no es válido').max(120),
   rol_id: z.coerce.number().int().positive('Seleccione un rol'),
-  clave: z.string().min(MIN_CLAVE, `La contraseña debe tener al menos ${MIN_CLAVE} caracteres`),
+  clave: esquemaClaveNueva,
 });
 
 /**
@@ -58,8 +73,16 @@ export async function crearUsuario(
 
   // El rol se valida con el cliente de sesión: RLS no le muestra los roles
   // protegidos a un Administrador, así que si no lo ve, no puede asignarlo.
-  const { data: rol } = await supabase.from('rol').select('id, nombre').eq('id', rol_id).single();
+  const { data: rol } = await supabase
+    .from('rol')
+    .select('id, nombre, activo')
+    .eq('id', rol_id)
+    .maybeSingle();
   if (!rol) return { error: 'El rol indicado no existe o no está disponible para usted' };
+  // `tiene_permiso()` no mira `rol.activo`: un rol dado de baja sigue
+  // concediendo sus permisos a quien lo tenga. Desactivarlo es para que no se
+  // asigne más, y eso solo lo hacía cumplir el desplegable.
+  if (!rol.activo) return { error: `El rol «${rol.nombre}» está desactivado: no se asigna` };
 
   let admin: ReturnType<typeof crearClienteAdmin>;
   try {
@@ -88,16 +111,27 @@ export async function crearUsuario(
   // El trigger tr_auth_user_creado ya insertó la fila en `usuario` con el rol
   // por defecto (Consulta); aquí se le pone el rol elegido. Va con el cliente de
   // sesión a propósito: RLS revalida que ese rol sea asignable.
-  const { error: errorRol } = await supabase
+  const { data: asignado, error: errorRol } = await supabase
     .from('usuario')
     .update({ rol_id, nombre })
-    .eq('id', creado.user.id);
+    .eq('id', creado.user.id)
+    .select('id');
 
-  if (errorRol) {
+  /*
+   * Cero filas no es un error para PostgREST, y aquí pasaba: crear exige
+   * `usuario.crear` pero el UPDATE exige `usuario.editar`. Un rol con lo
+   * primero y sin lo segundo dejaba la cuenta creada como «Consulta» mientras
+   * la pantalla decía «creado con rol X».
+   */
+  if (errorRol || sinFilas(asignado)) {
     // Sin rol correcto la cuenta queda a medias: se deshace para no dejar un
     // acceso huérfano que nadie sabe de dónde salió.
     await admin.auth.admin.deleteUser(creado.user.id);
-    return { error: `No se pudo asignar el rol: ${mensajeError(errorRol, 'usuario')}` };
+    return {
+      error: errorRol
+        ? `No se pudo asignar el rol: ${mensajeError(errorRol, 'usuario')}`
+        : 'No se pudo asignar el rol: su perfil puede crear cuentas pero no editarlas (falta usuario.editar)',
+    };
   }
 
   await registrarEnBitacora('INSERT', 'admin', `Alta de usuario ${email} con rol ${rol.nombre}`);
@@ -109,7 +143,7 @@ export async function crearUsuario(
 const esquemaEditar = z.object({
   id: z.string().uuid(),
   nombre: z.string().trim().min(1, 'El nombre es obligatorio').max(80),
-  email: z.string().trim().toLowerCase().email('El correo no es válido'),
+  email: z.string().trim().toLowerCase().email('El correo no es válido').max(120),
   rol_id: z.coerce.number().int().positive('Seleccione un rol'),
   activo: z.enum(['1', '0']),
 });
@@ -155,6 +189,20 @@ export async function actualizarUsuario(
     }
   }
 
+  // Mismo criterio que en el alta: un rol dado de baja no se asigna. Se mira
+  // solo si el rol cambia, para no bloquear la edición de quien ya lo tenía.
+  if (previo.rol_id !== rol_id) {
+    const { data: rolNuevo } = await supabase
+      .from('rol')
+      .select('nombre, activo')
+      .eq('id', rol_id)
+      .maybeSingle();
+    if (!rolNuevo) return { error: 'El rol indicado no existe o no está disponible para usted' };
+    if (!rolNuevo.activo) {
+      return { error: `El rol «${rolNuevo.nombre}» está desactivado: no se asigna` };
+    }
+  }
+
   // El correo es la credencial de acceso: cambiarlo en la tabla sin cambiarlo en
   // auth.users dejaría a la persona entrando con el correo viejo.
   const cambioCorreo = previo.email !== email;
@@ -180,27 +228,46 @@ export async function actualizarUsuario(
     }
   }
 
-  const { error } = await supabase
+  const { data: tocadas, error: errorTabla } = await supabase
     .from('usuario')
     .update({ nombre, email, rol_id, activo: activo === '1' })
-    .eq('id', id);
+    .eq('id', id)
+    .select('id');
 
-  if (error) {
+  // Cero filas es un fallo igual que un error: la RLS filtró el UPDATE y nada
+  // se guardó. Si el correo de acceso ya se había cambiado, hay que devolverlo.
+  const noGuardo = errorTabla !== null || sinFilas(tocadas);
+
+  if (noGuardo) {
     // La tabla manda: si no se pudo guardar, se devuelve el correo de acceso a
     // como estaba, para que ambos lados no queden discrepando.
     if (cambioCorreo) {
+      /*
+       * `updateUserById` no lanza: devuelve `{ error }`. El `try` de antes solo
+       * atrapaba la falta de clave, así que un rechazo de Auth al revertir se
+       * perdía y la pantalla callaba que el correo de acceso quedó cambiado.
+       */
+      let revertido = false;
       try {
-        await crearClienteAdmin().auth.admin.updateUserById(id, {
+        const { error: errorRevertir } = await crearClienteAdmin().auth.admin.updateUserById(id, {
           email: previo.email,
           email_confirm: true,
         });
+        revertido = !errorRevertir;
       } catch {
+        revertido = false;
+      }
+      if (!revertido) {
         return {
           error: `No se pudo guardar y el correo de acceso quedó en ${email}. Avise al área de TI.`,
         };
       }
     }
-    return { error: mensajeError(error, 'usuario') };
+    return {
+      error: errorTabla
+        ? mensajeError(errorTabla, 'usuario')
+        : 'No se guardó nada: el usuario ya no existe o su rol no puede modificarlo',
+    };
   }
 
   revalidatePath('/admin/usuarios');
@@ -209,7 +276,7 @@ export async function actualizarUsuario(
 
 const esquemaClave = z.object({
   id: z.string().uuid(),
-  clave: z.string().min(MIN_CLAVE, `La contraseña debe tener al menos ${MIN_CLAVE} caracteres`),
+  clave: esquemaClaveNueva,
 });
 
 /** ADM-01: el administrador le fija una contraseña nueva a alguien que la perdió. */

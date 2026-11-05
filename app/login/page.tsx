@@ -7,9 +7,9 @@ export const metadata: Metadata = { title: 'Ingresar · Sistema de Inventario' }
 export default async function PaginaLogin({
   searchParams,
 }: {
-  searchParams: Promise<{ destino?: string; expirada?: string }>;
+  searchParams: Promise<{ destino?: string; expirada?: string; inactiva?: string }>;
 }) {
-  const { destino, expirada } = await searchParams;
+  const { destino, expirada, inactiva } = await searchParams;
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -26,6 +26,16 @@ export default async function PaginaLogin({
             className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200"
           >
             Su sesión se cerró tras 15 minutos sin actividad. Vuelva a entrar.
+          </p>
+        ) : null}
+
+        {inactiva ? (
+          <p
+            role="status"
+            className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+          >
+            Su cuenta fue desactivada y la sesión se cerró. Si es un error, pídale al administrador
+            del sistema que la reactive.
           </p>
         ) : null}
 

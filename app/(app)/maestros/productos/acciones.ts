@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { NO_ENCONTRADO, decimalesValidos, esquemaCajas, leerId, sinFilas } from '@/lib/validacion';
 
 /**
  * Datos del artículo en sí. Las unidades por caja NO están aquí a propósito:
@@ -35,7 +36,11 @@ const esquemaAlta = esquemaProducto.extend({
   unidades_por_caja: z.coerce
     .number()
     .positive('Indique cuántas unidades trae cada caja')
-    .max(99999999, 'Cantidad por caja fuera de rango'),
+    .max(99999999, 'Cantidad por caja fuera de rango')
+    // Es el factor con el que `fn_aplicar_movimiento` convierte cajas a
+    // unidades, y `numeric(10,2)` redondea el tercer decimal: 12,345 quedaba en
+    // 12,35 y cada movimiento convertía con un factor que nadie escribió.
+    .refine((v) => decimalesValidos(v, 2), 'La cantidad por caja admite dos decimales como mucho'),
 });
 
 function leerFormulario(datos: FormData) {
@@ -116,8 +121,12 @@ export async function editarProducto(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  const id = Number(datos.get('id'));
-  if (!id) return { error: 'No se pudo identificar el artículo' };
+  // `Number(...)` dejaba pasar «1.5», que llegaba a la base como `id=eq.1.5`.
+  const lectura = leerId(datos.get('id'));
+  if ('error' in lectura || lectura.id === null) {
+    return { error: 'No se pudo identificar el artículo' };
+  }
+  const { id } = lectura;
 
   const analisis = esquemaProducto.safeParse(leerFormulario(datos));
 
@@ -126,9 +135,15 @@ export async function editarProducto(
   }
 
   const supabase = await crearClienteServidor();
-  const { error } = await supabase.from('producto').update(aValores(analisis.data)).eq('id', id);
+  const { data: tocadas, error } = await supabase
+    .from('producto')
+    .update(aValores(analisis.data))
+    .eq('id', id)
+    .select('id');
 
   if (error) return { error: mensajeError(error, 'producto') };
+  // Sin `producto.editar` la RLS filtra el UPDATE y PostgREST no da error.
+  if (sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/maestros/productos');
   return { ok: 'Artículo actualizado' };
@@ -150,16 +165,14 @@ const codigoEmpaque = z
 const esquemaEmpaque = z.object({
   codigo_barras: codigoEmpaque,
   sku_interno: codigoEmpaque,
-  stock_minimo: z.coerce
-    .number()
-    .min(0, 'El mínimo no puede ser negativo')
-    .max(99999999, 'Mínimo fuera de rango'),
+  stock_minimo: esquemaCajas('El mínimo no puede ser negativo', true),
 });
 
 const cantidadEmpaque = z.coerce
   .number()
   .positive('Indique la cantidad de unidades por caja')
-  .max(99999999, 'Cantidad por caja fuera de rango');
+  .max(99999999, 'Cantidad por caja fuera de rango')
+  .refine((v) => decimalesValidos(v, 2), 'La cantidad por caja admite dos decimales como mucho');
 
 function valoresEmpaque(datos: z.infer<typeof esquemaEmpaque>) {
   return {
@@ -215,7 +228,7 @@ export async function editarEmpaque(
   const { variante_id, unidades_por_caja, activo, ...resto } = analisis.data;
 
   const supabase = await crearClienteServidor();
-  const { error } = await supabase
+  const { data: tocadas, error } = await supabase
     .from('producto_variante')
     .update({
       ...valoresEmpaque(resto),
@@ -224,9 +237,11 @@ export async function editarEmpaque(
       // no dispara el trigger de inmutabilidad por reenviar el mismo valor.
       ...(unidades_por_caja === undefined ? {} : { unidades_por_caja }),
     })
-    .eq('id', variante_id);
+    .eq('id', variante_id)
+    .select('id');
 
   if (error) return { error: errorEmpaque(error) };
+  if (sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/maestros/productos');
   revalidatePath('/inventario/alertas');
