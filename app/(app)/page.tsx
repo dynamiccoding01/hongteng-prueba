@@ -90,7 +90,10 @@ export default async function Resumen() {
   ] = await Promise.all([
     supabase.from('v_resumen_categoria').select('*').order('categoria'),
     puedeVerValor
-      ? supabase.from('v_valorizacion').select('valor_clp')
+      ? // R-06: antes se traía `v_valorizacion` entera para sumarla aquí. Tiene
+        // una fila por empaque y el catálogo pasa de mil: PostgREST cortaba en
+        // `db-max-rows` y el valor del inventario salía corto sin decirlo.
+        supabase.rpc('fn_valorizacion_total')
       : Promise.resolve({ data: null }),
     puedeVerAlertas
       ? supabase.from('v_alertas_stock').select('variante_id', { count: 'exact', head: true })
@@ -112,7 +115,7 @@ export default async function Resumen() {
   const totalCantidad = (categorias ?? []).reduce((s, c) => s + Number(c.cantidad ?? 0), 0);
   const totalUnidades = (categorias ?? []).reduce((s, c) => s + Number(c.total_unidades ?? 0), 0);
   const totalArticulos = (categorias ?? []).reduce((s, c) => s + Number(c.articulos ?? 0), 0);
-  const valorTotal = (valorizacion.data ?? []).reduce((s, f) => s + Number(f.valor_clp ?? 0), 0);
+  const valorTotal = Number(valorizacion.data ?? 0);
 
   const acciones: { href: string; icono: LucideIcon; texto: string }[] = [];
   if (permisos.has('movimiento.crear'))

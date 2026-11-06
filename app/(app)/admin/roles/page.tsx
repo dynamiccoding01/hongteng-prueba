@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Tarjeta, Td, Th, Vacio } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Tarjeta, Td, Th } from '@/components/ui';
 import { FormularioDesplegable, Campo, Seleccion } from '@/components/formulario';
 import { MatrizPermisos, type ModuloPermisos } from '@/components/matriz-permisos';
 import { Paginacion } from '@/components/paginacion';
@@ -54,7 +54,7 @@ export default async function Roles({
       .range(desde, hasta),
   ]);
 
-  if (error) return <Vacio>No se pudieron cargar los roles: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar los roles</ErrorCarga>;
 
   // Permisos agrupados por módulo, respetando el orden de aparición.
   const modulos: ModuloPermisos[] = [];

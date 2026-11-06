@@ -75,6 +75,17 @@ export async function precioDeLista(
    */
   await requerirPermiso('venta.ver');
 
+  // Los dos ids llegan del navegador. Sin esto, un `NaN` o un texto viajaban a
+  // PostgREST como `id=eq.NaN` y volvían como error de sintaxis.
+  if (
+    !Number.isSafeInteger(ventaId) ||
+    ventaId <= 0 ||
+    !Number.isSafeInteger(varianteId) ||
+    varianteId <= 0
+  ) {
+    return null;
+  }
+
   const supabase = await crearClienteServidor();
 
   const { data: venta } = await supabase

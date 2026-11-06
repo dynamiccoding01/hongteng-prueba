@@ -1801,11 +1801,13 @@ export type Database = {
         };
         Returns: number;
       };
+      fn_registrar_acceso: { Args: never; Returns: undefined };
       fn_siguiente_correlativo: {
         Args: { p_tipo_documento: string };
         Returns: string;
       };
       fn_tipo_cambio_vigente: { Args: { p_fecha?: string }; Returns: number };
+      fn_valorizacion_total: { Args: never; Returns: number };
       fn_traspasar: {
         Args: {
           p_cajas: number;

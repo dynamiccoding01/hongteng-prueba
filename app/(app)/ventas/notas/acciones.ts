@@ -8,6 +8,7 @@ import { mensajeError, type EstadoFormulario } from '@/lib/errores';
 import { precioDeLista, type PrecioDeLista } from '@/lib/ventas/precio-lista';
 import { descuentoParaSubtotal, descuentoVigente, superaElTope } from '@/lib/ventas/descuento';
 import { esquemaDia } from '@/lib/fechas';
+import { NO_ENCONTRADO, esquemaImporte, sinFilas } from '@/lib/validacion';
 
 const esquemaCabecera = z.object({
   cliente_id: z.coerce.number().int().positive('Seleccione el cliente'),
@@ -91,7 +92,7 @@ export async function editarVenta(
   }
 
   const supabase = await crearClienteServidor();
-  const { error } = await supabase
+  const { data: tocadas, error } = await supabase
     .from('venta')
     .update({
       cliente_id: analisis.data.cliente_id,
@@ -99,9 +100,12 @@ export async function editarVenta(
       fecha: analisis.data.fecha || undefined,
       notas: analisis.data.notas ?? null,
     })
-    .eq('id', analisis.data.id);
+    .eq('id', analisis.data.id)
+    .select('id');
 
   if (error) return { error: mensajeError(error, 'venta') };
+  // PostgREST no da error cuando la RLS filtra el UPDATE: devuelve cero filas.
+  if (sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/ventas/notas');
   return { ok: 'Nota de venta actualizada' };
@@ -112,7 +116,8 @@ const esquemaDetalle = z.object({
   variante_id: z.coerce.number().int().positive('Seleccione el artículo'),
   zona_id: z.coerce.number().int().positive('Seleccione la zona de origen'),
   cajas: z.coerce.number().positive('Las cajas deben ser mayores que cero'),
-  precio_caja: z.coerce.number().min(0, 'Precio no válido').optional(),
+  // `numeric(14,4)`: con un quinto decimal la base redondeaba el precio sin avisar.
+  precio_caja: esquemaImporte('Precio no válido').optional(),
   /*
    * VEN-07: lo que se escribió en «Subtotal». Llega el subtotal acordado y no
    * la rebaja porque es lo que se habla en el mostrador; el descuento se saca
@@ -258,7 +263,7 @@ const esquemaLinea = z.object({
   id: z.coerce.number().int().positive(),
   zona_id: z.coerce.number().int().positive('Seleccione la zona de origen'),
   cajas: z.coerce.number().positive('Las cajas deben ser mayores que cero'),
-  precio_caja: z.coerce.number().min(0, 'Precio no válido').optional(),
+  precio_caja: esquemaImporte('Precio no válido').optional(),
   subtotal: z.coerce.number().min(0, 'Subtotal no válido').optional(),
 });
 
@@ -340,7 +345,7 @@ export async function editarLineaVenta(
   const tope = superaElTope(analisis.data.cajas, precio, rebaja.descuento, topeDelRol);
   if (tope) return { error: tope };
 
-  const { error } = await supabase
+  const { data: tocadas, error } = await supabase
     .from('venta_detalle')
     .update({
       zona_id: analisis.data.zona_id,
@@ -348,9 +353,11 @@ export async function editarLineaVenta(
       precio_caja: precio,
       descuento: rebaja.descuento,
     })
-    .eq('id', analisis.data.id);
+    .eq('id', analisis.data.id)
+    .select('id');
 
   if (error) return { error: mensajeError(error, 'detalle') };
+  if (sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/ventas/notas');
   return { ok: conDescuento('Línea actualizada', rebaja.descuento) };
@@ -371,9 +378,16 @@ export async function eliminarLineaVenta(
   if (!analisis.success) return { error: 'Línea no válida' };
 
   const supabase = await crearClienteServidor();
-  const { error } = await supabase.from('venta_detalle').delete().eq('id', analisis.data);
+  const { data: borradas, error } = await supabase
+    .from('venta_detalle')
+    .delete()
+    .eq('id', analisis.data)
+    .select('id');
 
   if (error) return { error: mensajeError(error, 'detalle') };
+  // Sin `venta.crear` la RLS filtra el DELETE y PostgREST responde que todo
+  // salió bien: la pantalla decía «Línea eliminada» y la línea seguía ahí.
+  if (sinFilas(borradas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/ventas/notas');
   return { ok: 'Línea eliminada' };

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { CamposDetalleImportacion } from '@/components/campos-importacion';
@@ -73,7 +73,7 @@ export default async function Importaciones({
       .order('codigo'),
   ]);
 
-  if (error) return <Vacio>No se pudieron cargar las importaciones: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar las importaciones</ErrorCarga>;
 
   const opcionesProveedor = (proveedores ?? []).map((p) => ({
     valor: p.id,

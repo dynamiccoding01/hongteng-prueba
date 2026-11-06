@@ -189,7 +189,8 @@ describe.runIf(hayCredenciales)(
       );
       expect((await stockActual(zonaId2)).cantidad).toBe(0);
 
-      const [anulacion] = await consultar(
+      // Con identidad desde 0036: la función pregunta por movimiento.anular.
+      const [anulacion] = await comoAdmin(
         `select fn_anular_movimiento(${n(mov, 'id')}, 'test de anulación') as id`,
       );
 
@@ -203,7 +204,7 @@ describe.runIf(hayCredenciales)(
       expect(n(inverso, 'anulado_por')).toBe(n(mov, 'id'));
 
       await expect(
-        consultar(`select fn_anular_movimiento(${n(mov, 'id')}, 'segunda vez')`),
+        comoAdmin(`select fn_anular_movimiento(${n(mov, 'id')}, 'segunda vez')`),
       ).rejects.toThrow(/ya fue anulado/);
     });
 

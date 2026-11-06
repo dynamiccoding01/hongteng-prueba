@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
@@ -100,7 +100,7 @@ export default async function TipoDeCambio({
     supabase.rpc('fn_tipo_cambio_vigente', { p_fecha: hoy }),
   ]);
 
-  if (error) return <Vacio>No se pudo cargar el tipo de cambio: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudo cargar el tipo de cambio</ErrorCarga>;
 
   const filas = cambios ?? [];
   const deHoy = filas.find((c) => c.fecha === hoy);

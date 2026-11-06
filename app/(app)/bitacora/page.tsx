@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { requerirUsuario } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { ZONA, comoDia, diasAtras, limites } from '@/lib/bitacora/rango-fechas';
 import { esquemaDia } from '@/lib/fechas';
 import { leerPaginacion } from '@/lib/paginacion';
@@ -109,7 +109,7 @@ export default async function Bitacora({
       : Promise.resolve({ data: null }),
   ]);
 
-  if (error) return <Vacio>No se pudo cargar la bitácora: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudo cargar la bitácora</ErrorCarga>;
 
   const total = count ?? 0;
   const opcionesUsuario: OpcionUsuario[] | null =

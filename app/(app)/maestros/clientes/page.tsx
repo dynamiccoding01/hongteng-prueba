@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio } from '@/components/ui';
 import { AreaTexto, Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
@@ -128,7 +128,7 @@ export default async function Clientes({
     .order('nombre')
     .range(desde, hasta);
 
-  if (error) return <Vacio>No se pudieron cargar los clientes: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar los clientes</ErrorCarga>;
 
   return (
     <>

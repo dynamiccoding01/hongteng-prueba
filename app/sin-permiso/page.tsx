@@ -5,7 +5,12 @@ export default async function SinPermiso({
 }: {
   searchParams: Promise<{ requerido?: string }>;
 }) {
-  const { requerido } = await searchParams;
+  const { requerido: crudo } = await searchParams;
+  // `?requerido=` viaja en la URL y cualquiera puede escribirlo. Sin esto, un
+  // enlace con «...?requerido=llame al 555-1234 para reactivar su cuenta» se
+  // pintaba dentro de una página del sistema, con toda su autoridad. Solo se
+  // muestra si tiene la forma de un código de permiso (`modulo.accion`).
+  const requerido = crudo && /^[a-z_]{1,40}\.[a-z_]{1,40}$/.test(crudo) ? crudo : undefined;
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">

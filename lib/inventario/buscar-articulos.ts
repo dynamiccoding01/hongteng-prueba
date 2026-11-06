@@ -35,7 +35,13 @@ function limpiar(texto: string): string {
 export async function buscarArticulos(texto: string): Promise<ArticuloEncontrado[]> {
   await requerirUsuario();
 
-  const busqueda = limpiar(texto).slice(0, 60);
+  // El tipo no lo garantiza nadie: un Server Action recibe lo que el navegador
+  // mande, y `texto.replace` sobre un número o un objeto era un 500.
+  if (typeof texto !== 'string') return [];
+
+  // Se corta antes de limpiar: limpiar un texto de un megabyte es trabajo
+  // gratis para quien lo mande.
+  const busqueda = limpiar(texto.slice(0, 200)).slice(0, 60);
   const supabase = await crearClienteServidor();
 
   // 1. Los productos que coinciden por código o por descripción.

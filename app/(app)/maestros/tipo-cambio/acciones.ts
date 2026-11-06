@@ -2,13 +2,21 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { NO_ENCONTRADO, leerId, sinFilas } from '@/lib/validacion';
+import { esquemaDia } from '@/lib/fechas';
 
 const esquemaTipoCambio = z.object({
-  fecha: z.string().trim().min(1, 'La fecha es obligatoria'),
-  valor: z.coerce.number().positive('El valor debe ser mayor que cero'),
-  fuente: z.string().trim().optional(),
+  // Antes bastaba con que no estuviera vacía: «2026-02-30» llegaba a la base,
+  // y de esta fecha sale el tipo de cambio de cada documento nuevo.
+  fecha: esquemaDia,
+  valor: z.coerce
+    .number({ message: 'El valor debe ser un número' })
+    .positive('El valor debe ser mayor que cero')
+    .max(1_000_000, 'El valor es demasiado grande para un tipo de cambio'),
+  fuente: z.string().trim().max(120).optional(),
 });
 
 /**
@@ -27,7 +35,9 @@ export async function guardarTipoCambio(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  const id = datos.get('id');
+  const lectura = leerId(datos.get('id'));
+  if ('error' in lectura) return { error: lectura.error };
+  const { id } = lectura;
 
   const analisis = esquemaTipoCambio.safeParse({
     fecha: datos.get('fecha'),
@@ -56,9 +66,19 @@ export async function guardarTipoCambio(
     fuente: analisis.data.fuente ?? null,
   };
 
-  const { error } = id
-    ? await supabase.from('tipo_cambio').update(valores).eq('id', Number(id))
-    : await supabase.from('tipo_cambio').insert(valores);
+  let tocadas: readonly unknown[] | null = null;
+  let error: PostgrestError | null = null;
+  if (id === null) {
+    ({ error } = await supabase.from('tipo_cambio').insert(valores));
+  } else {
+    // PostgREST no da error cuando la RLS filtra un UPDATE, o cuando la fila ya
+    // no existe: responde que salió bien con cero filas.
+    ({ data: tocadas, error } = await supabase
+      .from('tipo_cambio')
+      .update(valores)
+      .eq('id', id)
+      .select('id'));
+  }
 
   if (error) {
     // `tipo_cambio_uk` es (moneda_id, fecha): hay uno por día y no dos.
@@ -69,6 +89,7 @@ export async function guardarTipoCambio(
     }
     return { error: mensajeError(error, 'tipo de cambio') };
   }
+  if (id !== null && sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/maestros/tipo-cambio');
   // De aquí salen el precio en pesos de las ventas nuevas y la valorización.
@@ -77,8 +98,9 @@ export async function guardarTipoCambio(
   revalidatePath('/reportes/valorizacion');
 
   return {
-    ok: id
-      ? 'Tipo de cambio corregido. Los documentos ya emitidos conservan el suyo'
-      : 'Tipo de cambio cargado',
+    ok:
+      id !== null
+        ? 'Tipo de cambio corregido. Los documentos ya emitidos conservan el suyo'
+        : 'Tipo de cambio cargado',
   };
 }

@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
 import { SelectorArticulo } from '@/components/selector-articulo';
 import { Paginacion } from '@/components/paginacion';
@@ -37,7 +37,7 @@ export default async function AlertasDeStock({
       .gt('stock_minimo', 0),
   ]);
 
-  if (error) return <Vacio>No se pudieron cargar las alertas: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar las alertas</ErrorCarga>;
 
   return (
     <>

@@ -1,7 +1,7 @@
 import { requerirPermiso } from '@/lib/auth';
 import { hoy } from '@/lib/fechas';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { SelectorArticulo } from '@/components/selector-articulo';
@@ -33,16 +33,16 @@ export default async function TomaDeInventario({
     supabase
       .from('toma_inventario')
       .select(
-        'id, fecha, estado, notas, bodega:bodega_id(codigo, nombre), detalle:toma_inventario_detalle(id, cajas_contadas, zona:zona_id(id, codigo), variante:variante_id(id, unidades_por_caja, producto:producto_id(codigo)))',
+        'id, fecha, estado, notas, bodega_id, bodega:bodega_id(codigo, nombre), detalle:toma_inventario_detalle(id, cajas_contadas, zona:zona_id(id, codigo), variante:variante_id(id, unidades_por_caja, producto:producto_id(codigo)))',
         { count: 'exact' },
       )
       .order('id', { ascending: false })
       .range(desde, hasta),
     supabase.from('bodega').select('id, codigo, nombre').eq('activo', true).order('codigo'),
-    supabase.from('zona').select('id, codigo').eq('activo', true).order('codigo'),
+    supabase.from('zona').select('id, codigo, bodega_id').eq('activo', true).order('codigo'),
   ]);
 
-  if (error) return <Vacio>No se pudieron cargar las tomas: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar las tomas</ErrorCarga>;
 
   // Solo la existencia de los empaques que aparecen en las tomas visibles.
   // Antes se traía la tabla `stock` entera para armar esta comparación.
@@ -63,7 +63,12 @@ export default async function TomaDeInventario({
     valor: b.id,
     texto: `${b.codigo} — ${b.nombre}`,
   }));
-  const opcionesZona = (zonas ?? []).map((z) => ({ valor: z.id, texto: z.codigo }));
+  // T-01: cada toma ofrece solo las zonas de su bodega. Antes salían todas, y
+  // un conteo en una zona de otra bodega ajustaba stock que nadie había contado.
+  const zonasDeBodega = (bodegaId: number) =>
+    (zonas ?? [])
+      .filter((z) => z.bodega_id === bodegaId)
+      .map((z) => ({ valor: z.id, texto: z.codigo }));
 
   return (
     <>
@@ -160,7 +165,7 @@ export default async function TomaDeInventario({
                       <SeleccionBuscable
                         etiqueta="Zona"
                         nombre="zona_id"
-                        opciones={opcionesZona}
+                        opciones={zonasDeBodega(toma.bodega_id)}
                         requerido
                       />
                       <Campo

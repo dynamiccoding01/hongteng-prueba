@@ -1,6 +1,6 @@
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
 
@@ -31,7 +31,7 @@ export default async function Valorizacion({
     supabase.from('v_valorizacion').select('cantidad, valor_clp, costo_caja').gt('cantidad', 0),
   ]);
 
-  if (error) return <Vacio>No se pudo cargar la valorización: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudo cargar la valorización</ErrorCarga>;
 
   const totalValor = (paraTotales ?? []).reduce((s, f) => s + Number(f.valor_clp ?? 0), 0);
   const totalCantidad = (paraTotales ?? []).reduce((s, f) => s + Number(f.cantidad), 0);

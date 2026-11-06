@@ -54,10 +54,25 @@ export const obtenerUsuario = cache(async (): Promise<UsuarioSesion | null> => {
   };
 });
 
-/** Exige sesion iniciada. Redirige al login si no la hay. */
+/**
+ * Exige sesion iniciada. Redirige al login si no la hay.
+ *
+ * Hay dos maneras de no tener usuario, y antes se trataban igual: sin sesion,
+ * y con sesion de Supabase pero sin perfil activo (alguien desactivado
+ * mientras trabajaba). La segunda mandaba a `/login`, el middleware veia una
+ * sesion y devolvia a `/`, y el navegador terminaba en «demasiadas
+ * redirecciones». Con `?inactiva=1` el middleware cierra esa sesion y el login
+ * explica por que.
+ */
 export async function requerirUsuario(): Promise<UsuarioSesion> {
   const usuario = await obtenerUsuario();
-  if (!usuario) redirect('/login');
+  if (!usuario) {
+    const supabase = await crearClienteServidor();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    redirect(user ? '/login?inactiva=1' : '/login');
+  }
   return usuario;
 }
 

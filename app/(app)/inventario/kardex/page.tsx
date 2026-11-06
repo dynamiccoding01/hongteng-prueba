@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Buscador } from '@/components/buscador';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
@@ -123,7 +123,7 @@ export default async function Kardex({
     supabase.from('stock').select('cantidad, total_unidades').eq('variante_id', v.id),
   ]);
 
-  if (error) return <Vacio>No se pudo cargar el kardex: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudo cargar el kardex</ErrorCarga>;
 
   const totalCantidad = (stock ?? []).reduce((s, f) => s + Number(f.cantidad), 0);
   const totalUnidades = (stock ?? []).reduce((s, f) => s + Number(f.total_unidades), 0);

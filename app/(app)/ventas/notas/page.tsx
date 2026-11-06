@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { requerirPermiso } from '@/lib/auth';
 import { hoy } from '@/lib/fechas';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable, Seleccion } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
 import { CamposDetalleVenta, CamposLineaVenta } from '@/components/campos-venta';
@@ -173,7 +173,7 @@ export default async function NotasDeVenta({
     supabase.from('lista_precio').select('nombre').eq('activo', true).limit(2),
   ]);
 
-  if (error) return <Vacio>No se pudieron cargar las ventas: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudieron cargar las ventas</ErrorCarga>;
 
   /*
    * Ya no se asigna lista cliente por cliente: si hay una sola activa, es la

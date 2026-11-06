@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
 
@@ -43,7 +43,7 @@ export default async function Estadistica({
       : Promise.resolve({ data: [], count: 0 }),
   ]);
 
-  if (error) return <Vacio>No se pudo cargar la estadística: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudo cargar la estadística</ErrorCarga>;
 
   const porMes = new Map<string, { cajas: number; unidades: number; productos: number }>();
   for (const f of filas ?? []) {

@@ -4,10 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { NO_ENCONTRADO, esquemaCajas, sinFilas } from '@/lib/validacion';
 
 const esquema = z.object({
   variante_id: z.coerce.number().int().positive('Seleccione el artículo'),
-  stock_minimo: z.coerce.number().min(0, 'El mínimo no puede ser negativo'),
+  stock_minimo: esquemaCajas('El mínimo no puede ser negativo', true),
 });
 
 /** INV-05: fija el stock mínimo (en cajas) de una variante. 0 = sin alerta. */
@@ -25,12 +26,14 @@ export async function fijarStockMinimo(
   }
 
   const supabase = await crearClienteServidor();
-  const { error } = await supabase
+  const { data: tocadas, error } = await supabase
     .from('producto_variante')
     .update({ stock_minimo: analisis.data.stock_minimo })
-    .eq('id', analisis.data.variante_id);
+    .eq('id', analisis.data.variante_id)
+    .select('id');
 
   if (error) return { error: mensajeError(error, 'stock mínimo') };
+  if (sinFilas(tocadas)) return { error: NO_ENCONTRADO };
 
   revalidatePath('/inventario/alertas');
   return { ok: 'Stock mínimo actualizado' };

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { obtenerUsuario } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { esquemaCajas } from '@/lib/validacion';
 
 const esquema = z.object({
   variante_id: z.coerce.number().int().positive('Seleccione el artículo'),
@@ -12,8 +13,10 @@ const esquema = z.object({
   tipo: z.enum(['ENTRADA', 'SALIDA', 'AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO'], {
     message: 'Seleccione el tipo de movimiento',
   }),
-  cajas: z.coerce.number().positive('Las cajas deben ser mayores que cero'),
-  motivo: z.string().trim().optional(),
+  // `numeric(14,2)`: 1,005 cajas se guardaban como 1,01 y el kardex quedaba
+  // con una cantidad que nadie registró.
+  cajas: esquemaCajas('Las cajas deben ser mayores que cero'),
+  motivo: z.string().trim().max(500, 'El motivo no puede pasar de 500 caracteres').optional(),
 });
 
 /**
@@ -62,7 +65,11 @@ export async function registrarMovimiento(
 
 const esquemaAnulacion = z.object({
   movimiento_id: z.coerce.number().int().positive(),
-  motivo: z.string().trim().min(1, 'Indique el motivo de la anulación'),
+  motivo: z
+    .string()
+    .trim()
+    .min(1, 'Indique el motivo de la anulación')
+    .max(500, 'El motivo no puede pasar de 500 caracteres'),
 });
 
 /** INV-02: anula registrando el movimiento inverso (el kardex nunca se borra). */
@@ -70,6 +77,9 @@ export async function anularMovimiento(
   _previo: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
+  // Comodidad para dar el mensaje sin ir a la base. Desde 0036 la puerta de
+  // verdad es `fn_anular_movimiento`, que pregunta lo mismo por su cuenta:
+  // antes este `if` era lo único que había.
   const usuario = await obtenerUsuario();
   if (!usuario?.permisos.has('movimiento.anular')) {
     return { error: 'No tiene permiso para anular movimientos' };

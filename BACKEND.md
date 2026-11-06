@@ -572,6 +572,27 @@ Lo hace cumplir `fn_venta_detalle_tope_descuento`, un trigger `before insert or 
 
 La aplicación lo comprueba además en el `acciones.ts` (`superaElTope`) y el campo Subtotal escribe el mínimo que se puede cobrar —«puede bajarlo hasta 5.355»— en vez del porcentaje: es lo que hay que poder decir en el mostrador sin hacer la cuenta de cabeza. Como siempre, la página es comodidad y la barrera es la base.
 
+**Límite conocido:** el tope se calcula sobre el `precio_caja` de la fila, y la base no exige que ese precio sea el de la lista. Cuando el artículo no tiene precio de lista, quien vende lo escribe, y bajar el precio rebaja sin pasar por el tope. Cerrarlo es una decisión de negocio (¿el precio de lista es obligatorio cuando existe?), no un arreglo técnico.
+
+### 4.16 La base se defiende sola (migración 0036)
+
+La regla «la autorización de verdad es RLS» tenía cinco excepciones: el control estaba en TypeScript y la base dejaba pasar a quien hablara directo con PostgREST. `0036` las cierra (detalle e identificadores en [REVISION_CRITICA.md](REVISION_CRITICA.md)):
+
+| Qué                                                                                    | Cómo quedó                                                                                                                                                    |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v_bitacora`, `v_stock_variante`, `v_resumen_categoria` corrían como su dueño          | `security_invoker = true`. `v_bitacora` muestra el correo congelado cuando la RLS de `usuario` oculta el nombre, en vez de «Sistema».                         |
+| `fn_anular_movimiento` no preguntaba por el permiso                                    | Exige `movimiento.anular` y motivo, bloquea la fila (`for update`) y **no anula** anulaciones ni líneas de un documento (traspaso, venta, importación, toma). |
+| El estado de venta, importación y toma se cambiaba con un UPDATE                       | `fn_sello_solo_desde_su_funcion`: desde la API, el documento nace en BORRADOR y su sello (estado, folio, `confirmada_*`, `aplicada_*`) no se toca.            |
+| Un INSERT directo en `movimiento` podía ser medio traspaso, una anulación o ajeno      | `fn_movimiento_desde_la_api`: desde la API solo entradas, salidas y ajustes sueltos, firmados con `auth.uid()` y con la hora del servidor.                    |
+| `anon` ejecutaba funciones y leía vistas                                               | Sin EXECUTE (también quitado a PUBLIC, del que `anon` lo heredaba) ni SELECT. `fn_siguiente_correlativo` tampoco es ejecutable por `authenticated`.           |
+| Una toma aceptaba zonas de otra bodega                                                 | `fn_toma_zona_de_su_bodega`, trigger sobre `toma_inventario_detalle`.                                                                                         |
+| `ultimo_acceso` solo se movía para quien tenía `usuario.editar`                        | `fn_registrar_acceso()`: marca la fila de quien llama, y solo esa columna.                                                                                    |
+| El valor del inventario del resumen se sumaba en TypeScript y se cortaba en 1000 filas | `fn_valorizacion_total()`: agrega `v_valorizacion` en la base, sin `security definer`.                                                                        |
+
+**Cómo distinguen los triggers «lo hizo la función» de «llegó por la API».** Las funciones `security definer` corren como su dueño (`postgres`), así que dentro de ellas `current_user` no es `authenticated` ni `anon`. Una petición de PostgREST sí lo es. Los triggers nuevos solo aplican la regla cuando `current_user` es un rol de la API; las funciones de confirmación, los scripts y los tests (que hablan como `postgres`) pasan. Por eso no hizo falta reescribir `fn_confirmar_venta` ni sus hermanas.
+
+**Para lo que venga:** toda función `security definer` nueva empieza con `tiene_permiso(...)`, o se agrega con su razón a `SIN_PERMISO_A_PROPOSITO` en `lib/seguridad/migraciones.regresion.test.ts`. Toda vista nueva lleva `with (security_invoker = true)`. Las dos cosas las vigila ese test, que corre en CI sin credenciales.
+
 ---
 
 ## 5. Diagrama entidad-relación
@@ -685,6 +706,7 @@ Estas reglas no son opcionales ni "para cuando haya tiempo". El sistema va a ope
 - Las migraciones son **incrementales y reproducibles**: cualquiera debe poder levantar la BD desde cero ejecutándolas en orden.
 - Índices en toda FK y en las columnas por las que se filtra (`movimiento(variante_id, fecha)`, `producto(codigo)`).
 - RLS **habilitado en todas las tablas**. Una tabla sin política es una tabla pública.
+- Toda vista con `security_invoker = true`, y toda función `security definer` empieza preguntando por el permiso (§ 4.16). Sin lo primero la vista se salta la RLS; sin lo segundo, la función.
 - La `service_role key` nunca llega al navegador. Solo en Server Actions / Route Handlers.
 
 ### Código

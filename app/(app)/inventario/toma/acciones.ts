@@ -4,11 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
+import { esquemaDia } from '@/lib/fechas';
+import { esquemaCajas } from '@/lib/validacion';
 
 const esquemaCabecera = z.object({
   bodega_id: z.coerce.number().int().positive('Seleccione la bodega'),
-  fecha: z.string().trim().optional(),
-  notas: z.string().trim().optional(),
+  fecha: esquemaDia.optional(),
+  notas: z.string().trim().max(2000, 'Las notas no pueden pasar de 2000 caracteres').optional(),
 });
 
 /** INV-06: crea una toma de inventario en estado BORRADOR. */
@@ -43,7 +45,9 @@ const esquemaConteo = z.object({
   toma_id: z.coerce.number().int().positive(),
   variante_id: z.coerce.number().int().positive('Seleccione el artículo'),
   zona_id: z.coerce.number().int().positive('Seleccione la zona'),
-  cajas_contadas: z.coerce.number().min(0, 'Las cajas no pueden ser negativas'),
+  // Cero es un conteo válido (la zona quedó vacía). Más de dos decimales, no:
+  // la base los redondeaba y el ajuste se calculaba contra otra cifra.
+  cajas_contadas: esquemaCajas('Las cajas no pueden ser negativas', true),
 });
 
 /** INV-06: registra el conteo físico de un artículo en una zona. */
@@ -63,6 +67,29 @@ export async function agregarConteo(
   }
 
   const supabase = await crearClienteServidor();
+
+  /*
+   * T-01: la toma es de una bodega, y el formulario ofrecía las zonas de todas.
+   * Un conteo en la zona de otra bodega se aplicaba igual y ajustaba stock que
+   * nadie había contado. La barrera es el trigger de 0036; esto es para decirlo
+   * con una frase antes de ir a la base.
+   */
+  const [{ data: toma }, { data: zona }] = await Promise.all([
+    supabase
+      .from('toma_inventario')
+      .select('bodega_id')
+      .eq('id', analisis.data.toma_id)
+      .maybeSingle(),
+    supabase.from('zona').select('bodega_id').eq('id', analisis.data.zona_id).maybeSingle(),
+  ]);
+
+  if (!toma) return { error: 'La toma de inventario ya no existe' };
+  if (!zona || zona.bodega_id !== toma.bodega_id) {
+    return {
+      error: 'Esa zona no es de la bodega de esta toma: cuente solo las zonas de su bodega',
+    };
+  }
+
   const { error } = await supabase
     .from('toma_inventario_detalle')
     .upsert(analisis.data, { onConflict: 'toma_id,variante_id,zona_id' });

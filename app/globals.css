@@ -18,6 +18,7 @@
  *   z-50   menú lateral en móvil         components/marco.tsx
  *   z-60   modal de formulario           components/formulario.tsx
  *   z-70   avisos (toast)                components/proveedor-toast.tsx
+ *   z-80   alerta sin conexión           components/alerta-conexion.tsx
  *
  * El toast va arriba de todo porque casi siempre nace dentro de un modal
  * abierto: si queda debajo, el usuario no ve por qué no se guardó.
@@ -96,6 +97,44 @@ body {
     -apple-system,
     'Segoe UI',
     sans-serif;
+}
+
+/*
+ * ALERTA DE CONEXIÓN (components/alerta-conexion.tsx).
+ *
+ * z-80, por encima del toast: se pierde la conexión justo cuando hay un modal
+ * abierto con datos escritos, y es ahí donde el aviso tiene que verse.
+ *
+ * Colores fijos y no tokens a propósito: ámbar y verde con texto blanco se
+ * leen igual en los dos temas, y un aviso de estado no debe cambiar de aspecto
+ * según la preferencia de cada uno.
+ *
+ * `[hidden]` hay que reafirmarlo: el `display: flex` de la clase le gana al
+ * estilo por defecto del atributo, y el aviso quedaría siempre visible.
+ */
+.alerta {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: center;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  text-align: center;
+  color: #ffffff;
+  background: #b45309;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+  animation: aparecer 150ms ease-out;
+}
+
+.alerta[data-estado='restablecida'] {
+  background: #047857;
+}
+
+.alerta[hidden] {
+  display: none;
 }
 
 /*

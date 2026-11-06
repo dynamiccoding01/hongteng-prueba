@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { requerirPermiso } from '@/lib/auth';
 import { crearClienteServidor } from '@/lib/supabase/server';
-import { Encabezado, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
+import { Encabezado, ErrorCarga, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Buscador } from '@/components/buscador';
 import { Paginacion } from '@/components/paginacion';
 import { leerPaginacion } from '@/lib/paginacion';
@@ -35,7 +35,7 @@ export default async function Articulos({
 
   const { data: articulos, count, error } = await consulta;
 
-  if (error) return <Vacio>No se pudo consultar el stock: {error.message}</Vacio>;
+  if (error) return <ErrorCarga error={error}>No se pudo consultar el stock</ErrorCarga>;
 
   return (
     <>
