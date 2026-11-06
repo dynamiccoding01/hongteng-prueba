@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { crearClienteServidor } from '@/lib/supabase/server';
 import { mensajeError, type EstadoFormulario } from '@/lib/errores';
 import { esquemaDia } from '@/lib/fechas';
-import { esquemaCajas, esquemaImporte } from '@/lib/validacion';
+import { NO_ENCONTRADO, esquemaCajas, esquemaImporte, sinFilas } from '@/lib/validacion';
 
 const esquemaCabecera = z.object({
   proveedor_id: z.coerce.number().int().positive('Seleccione el proveedor'),
@@ -129,6 +129,102 @@ export async function agregarDetalle(
 
   revalidatePath('/compras/importaciones');
   return { ok: 'Detalle agregado' };
+}
+
+/*
+ * Corregir y quitar una línea del borrador. La base ya lo permitía desde
+ * 0008 —`tr_detalle_solo_borrador` contempla el DELETE y solo lo frena con la
+ * importación confirmada—, pero no había ni acción ni botón: lo único que se
+ * podía hacer con una línea equivocada era confirmarla.
+ *
+ * Eso dejaba dos callejones sin salida. Agregar dos veces el mismo artículo
+ * obligaba a ingresar a stock cajas que nunca llegaron, y una línea sin costo
+ * no se podía arreglar ni sacar: `fn_confirmar_importacion` se niega a
+ * confirmar sin importe (0032), así que la importación quedaba en BORRADOR
+ * para siempre.
+ */
+const esquemaEditarLinea = z
+  .object({
+    id: z.coerce.number().int().positive(),
+    zona_id: z.coerce.number().int().positive('Seleccione la zona de destino'),
+    cajas: esquemaCajas('Las cajas deben ser mayores que cero'),
+    costo_caja: esquemaImporte('Costo no válido').optional(),
+    precio_venta_caja: esquemaImporte('Precio de venta no válido').optional(),
+  })
+  .refine(
+    (d) =>
+      d.costo_caja === undefined ||
+      d.precio_venta_caja === undefined ||
+      d.precio_venta_caja >= d.costo_caja,
+    { message: 'El precio de venta no puede ser menor al costo de compra' },
+  );
+
+/**
+ * COM-02: corrige una línea del detalle.
+ *
+ * El artículo no se cambia —cambiarlo es otra línea, no una corrección de
+ * esta—, igual que en la nota de venta. La zona sí, porque equivocarse de
+ * destino al digitar es lo habitual.
+ */
+export async function editarLineaImportacion(
+  _previo: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const analisis = esquemaEditarLinea.safeParse({
+    id: datos.get('id'),
+    zona_id: datos.get('zona_id'),
+    cajas: datos.get('cajas'),
+    costo_caja: datos.get('costo_caja') || undefined,
+    precio_venta_caja: datos.get('precio_venta_caja') || undefined,
+  });
+
+  if (!analisis.success) {
+    return { error: analisis.error.issues[0]?.message ?? 'Datos no válidos' };
+  }
+
+  const supabase = await crearClienteServidor();
+  const { data: tocadas, error } = await supabase
+    .from('importacion_detalle')
+    .update({
+      zona_id: analisis.data.zona_id,
+      cajas: analisis.data.cajas,
+      costo_caja: analisis.data.costo_caja ?? null,
+      precio_venta_caja: analisis.data.precio_venta_caja ?? null,
+    })
+    .eq('id', analisis.data.id)
+    .select('id');
+
+  if (error) return { error: mensajeError(error, 'detalle') };
+  // Sin `importacion.crear` la RLS filtra la escritura y PostgREST responde
+  // que todo salió bien: la pantalla diría «Línea corregida» sin haber tocado
+  // nada. Es el mismo hueco que D-05 tapó en la venta.
+  if (sinFilas(tocadas)) return { error: NO_ENCONTRADO };
+
+  revalidatePath('/compras/importaciones');
+  return { ok: 'Línea corregida' };
+}
+
+/** COM-02: quita una línea del detalle (solo en BORRADOR, lo exige la BD). */
+export async function eliminarLineaImportacion(
+  _previo: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const analisis = z.coerce.number().int().positive().safeParse(datos.get('id'));
+
+  if (!analisis.success) return { error: 'Línea no válida' };
+
+  const supabase = await crearClienteServidor();
+  const { data: borradas, error } = await supabase
+    .from('importacion_detalle')
+    .delete()
+    .eq('id', analisis.data)
+    .select('id');
+
+  if (error) return { error: mensajeError(error, 'detalle') };
+  if (sinFilas(borradas)) return { error: NO_ENCONTRADO };
+
+  revalidatePath('/compras/importaciones');
+  return { ok: 'Línea quitada' };
 }
 
 const esquemaConfirmacion = z.object({
