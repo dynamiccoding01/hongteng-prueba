@@ -7,7 +7,7 @@ import { SelectorArticulo } from './selector-articulo';
 import { SelectorZona, type ZonaOpcion } from './selector-zona';
 import { DistintivoBodega } from './color-bodega';
 import { numero } from './ui';
-import { nombreEnvase, type ArticuloEncontrado } from '@/lib/inventario/articulo';
+import { nombreEnvase, piezas, type ArticuloEncontrado } from '@/lib/inventario/articulo';
 import { preciosPrevios, type PreciosPrevios } from '@/lib/compras/precios-previos';
 
 /** La fecha de la última compra, corta: solo sirve para ver si está vieja. */
@@ -274,6 +274,163 @@ export function CamposDetalleImportacion({
             <strong>{numero(elegida.cantidad)}</strong> de este artículo; la entrada se suma a esa
             existencia.
           </span>
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** COM-02: una línea del detalle que ya está en el borrador. */
+export type LineaImportacion = {
+  id: number;
+  zonaId: number;
+  cajas: number;
+  costoCaja: number | null;
+  precioVentaCaja: number | null;
+  codigo: string;
+  unidadesPorCaja: number;
+  unidad: string | null;
+};
+
+/**
+ * COM-02: corrige una línea que ya está en el borrador de la importación.
+ *
+ * El artículo se muestra fijo: cambiarlo es otra línea, no una corrección de
+ * esta. Se editan la zona de destino, las cajas y los dos precios, que es lo
+ * que de verdad se equivoca al digitar.
+ *
+ * Aquí no se proponen precios previos como en el alta. Lo que hay escrito en
+ * la línea es una decisión ya tomada, y pisarla con la última compra sería
+ * deshacerla justo cuando se entra a arreglar otra cosa.
+ */
+export function CamposEditarLineaImportacion({
+  linea,
+  zonas,
+  moneda,
+}: {
+  linea: LineaImportacion;
+  zonas: ZonaOpcion[];
+  /** Código de la moneda de la cabecera, para rotular los precios. */
+  moneda: string;
+}) {
+  const [zonaId, setZonaId] = useState(String(linea.zonaId));
+  const [costo, setCosto] = useState(linea.costoCaja === null ? '' : String(linea.costoCaja));
+  const [venta, setVenta] = useState(
+    linea.precioVentaCaja === null ? '' : String(linea.precioVentaCaja),
+  );
+
+  function aNumero(texto: string): number | null {
+    if (texto.trim() === '') return null;
+    const n = Number(texto);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function porUnidad(total: number | null): number | null {
+    if (total === null || linea.unidadesPorCaja <= 0) return null;
+    return Math.round((total / linea.unidadesPorCaja) * 10000) / 10000;
+  }
+
+  const numeroCosto = aNumero(costo);
+  const numeroVenta = aNumero(venta);
+  const unitarioCompra = porUnidad(numeroCosto);
+  const unitarioVenta = porUnidad(numeroVenta);
+  const bajoCosto = numeroCosto !== null && numeroVenta !== null && numeroVenta < numeroCosto;
+  const envase = nombreEnvase(linea.unidad);
+
+  return (
+    <>
+      <input type="hidden" name="id" value={linea.id} />
+
+      <p className="flex flex-wrap items-center gap-2 text-sm sm:col-span-2">
+        <span className="font-medium">Artículo</span>
+        <code className="text-xs">{linea.codigo}</code>
+        <span className="text-xs text-tenue">
+          {envase} de {numero(linea.unidadesPorCaja)} {piezas(linea.unidadesPorCaja)}
+        </span>
+      </p>
+
+      <SelectorZona
+        etiqueta="Zona de destino"
+        nombre="zona_id"
+        zonas={zonas}
+        valor={zonaId}
+        alCambiar={setZonaId}
+        requerido
+        ancho="completo"
+      />
+
+      <CampoCantidad
+        valorInicial={linea.cajas}
+        unidadesPorCaja={linea.unidadesPorCaja}
+        unidad={linea.unidad}
+      />
+
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">
+          Precio de compra por {envase} ({moneda})
+          <span className="ml-1 text-zinc-400">(opcional)</span>
+        </span>
+        <input
+          name="costo_caja"
+          type="number"
+          value={costo}
+          onChange={(e) => setCosto(e.target.value)}
+          min={0}
+          step="any"
+          inputMode="decimal"
+          placeholder="50"
+          className={CLASE_CONTROL}
+        />
+        <span className="text-xs text-tenue">
+          {unitarioCompra === null
+            ? 'Sin precio de compra, la importación no se puede confirmar'
+            : `${numero(unitarioCompra)} ${moneda} por unidad`}
+        </span>
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">
+          Precio de venta por {envase} ({moneda})
+          <span className="ml-1 text-zinc-400">(opcional)</span>
+        </span>
+        <input
+          name="precio_venta_caja"
+          type="number"
+          value={venta}
+          onChange={(e) => setVenta(e.target.value)}
+          min={numeroCosto ?? 0}
+          step="any"
+          inputMode="decimal"
+          placeholder="120"
+          className={CLASE_CONTROL}
+        />
+        <span className="text-xs text-tenue">
+          {unitarioVenta === null
+            ? 'Al confirmar se publica en la lista de precios de esta moneda'
+            : `${numero(unitarioVenta)} ${moneda} por unidad`}
+        </span>
+      </label>
+
+      {numeroCosto !== null && numeroVenta !== null ? (
+        <p
+          className={`rounded-lg px-3 py-2 text-xs sm:col-span-2 ${
+            bajoCosto
+              ? 'border border-red-300 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300'
+              : 'text-tenue'
+          }`}
+        >
+          {bajoCosto ? (
+            <>
+              <strong>El precio de venta está por debajo del costo.</strong> Compra{' '}
+              {numero(numeroCosto)} y vende {numero(numeroVenta)} {moneda} por {envase}. No se puede
+              guardar así.
+            </>
+          ) : (
+            <>
+              Margen por {envase}: <strong>{numero(numeroVenta - numeroCosto)}</strong> {moneda}
+              {numeroCosto > 0 ? ` · ${(numeroVenta / numeroCosto).toFixed(2)}× el costo` : ''}
+            </>
+          )}
         </p>
       ) : null}
     </>

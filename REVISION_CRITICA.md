@@ -8,20 +8,21 @@ Estado: **todo en verde, sin pendientes**. Las tres decisiones que quedaban abie
 
 ## Dónde vive cada guardia
 
-| Archivo                                          | Cubre                         | Corre                 |
-| ------------------------------------------------ | ----------------------------- | --------------------- |
-| `lib/ventas/descuento.regresion.test.ts`         | D-01 … D-08                   | siempre               |
-| `lib/ventas/acciones-notas.regresion.test.ts`    | A-01 … A-06 (Supabase falso)  | siempre               |
-| `lib/ventas/conversion.regresion.test.ts`        | C-02, C-03                    | siempre               |
-| `lib/errores.regresion.test.ts`                  | E-01, E-02                    | siempre               |
-| `lib/fechas.test.ts`                             | R-03, F-01 y F-02 en el borde | siempre               |
-| `lib/paginacion.regresion.test.ts`               | P-01, P-02                    | siempre               |
-| `lib/bitacora/rango-fechas.regresion.test.ts`    | F-01, F-02                    | siempre               |
-| `lib/inventario/regresiones.integracion.test.ts` | G-01 … G-11                   | solo con `.env.local` |
-| `lib/seguridad/migraciones.regresion.test.ts`    | M-03 … M-05 (lee el SQL)      | siempre               |
-| `lib/seguridad/rls-api.integracion.test.ts`      | G-12 … G-17                   | solo con `.env.local` |
-| `lib/destino.regresion.test.ts`                  | L-01                          | siempre               |
-| `lib/validacion.regresion.test.ts`               | W-01 … W-03                   | siempre               |
+| Archivo                                                | Cubre                         | Corre                 |
+| ------------------------------------------------------ | ----------------------------- | --------------------- |
+| `lib/ventas/descuento.regresion.test.ts`               | D-01 … D-08                   | siempre               |
+| `lib/ventas/acciones-notas.regresion.test.ts`          | A-01 … A-06 (Supabase falso)  | siempre               |
+| `lib/ventas/conversion.regresion.test.ts`              | C-02, C-03                    | siempre               |
+| `lib/errores.regresion.test.ts`                        | E-01, E-02                    | siempre               |
+| `lib/fechas.test.ts`                                   | R-03, F-01 y F-02 en el borde | siempre               |
+| `lib/paginacion.regresion.test.ts`                     | P-01, P-02                    | siempre               |
+| `lib/bitacora/rango-fechas.regresion.test.ts`          | F-01, F-02                    | siempre               |
+| `lib/inventario/regresiones.integracion.test.ts`       | G-01 … G-11                   | solo con `.env.local` |
+| `lib/seguridad/migraciones.regresion.test.ts`          | M-03 … M-05 (lee el SQL)      | siempre               |
+| `lib/seguridad/rls-api.integracion.test.ts`            | G-12 … G-17                   | solo con `.env.local` |
+| `lib/destino.regresion.test.ts`                        | L-01                          | siempre               |
+| `lib/validacion.regresion.test.ts`                     | W-01 … W-03                   | siempre               |
+| `lib/compras/acciones-importaciones.regresion.test.ts` | I-01, I-02 (Supabase falso)   | siempre               |
 
 Migraciones nuevas: `0032_confirmar_con_importe.sql`, `0033_resumen_reportes.sql`, `0034_reporte_compras_permiso.sql` y `0035_tope_descuento_rol.sql`, todas aplicadas al proyecto (`npm run db:migrar`) y con los tipos regenerados (`npm run db:types`).
 
@@ -228,3 +229,22 @@ Lo que la segunda revisión no había mirado: las páginas, los componentes de c
 - **Abrir la vista de impresión registra `IMPRIMIR`** aunque no se imprima: la bitácora cuenta vistas previas como copias impresas.
 - **Las cookies de sesión de Supabase se pueden leer desde JavaScript** (es como las emite `@supabase/ssr`). Sin `script-src` en la CSP, un XSS se llevaría la sesión. La CSP con nonce por petición desde el middleware es el siguiente paso de H-03.
 - **`registrar_en_bitacora`** acepta cualquier acción de la lista (`ANULAR`, `MIGRAR`…) de cualquier usuario con sesión. Queda a su nombre, así que no es suplantación, pero sí ruido que se puede fabricar.
+
+---
+
+## Encontrado por el cliente (05-11-2026)
+
+Lo primero que sale de alguien usando el sistema de verdad, no de leer el código. Las dos cosas son el mismo hueco: **el detalle de una importación en borrador no se podía tocar**.
+
+| ID       | Qué pasaba                                                                                                                                                                                                                                                                         | Cómo quedó                                                                                     |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **I-01** | `compras/importaciones` no tenía «Quitar». El cliente agregó varias veces el mismo artículo y se quedó con un borrador que solo podía confirmar: ingresar a stock cajas que nunca llegaron. La nota de venta tenía su «Quitar» desde siempre; la importación, nunca.               | `eliminarLineaImportacion` y el botón, calcados de `ventas/notas`.                             |
+| **I-02** | Callejón sin salida: `fn_confirmar_importacion` se niega a confirmar con una línea sin costo (G-01/G-02, migración 0032). Sin «Editar» ni «Quitar», esa importación no se podía confirmar **ni** arreglar, y quedaba en BORRADOR para siempre. Es la Importación #163 que reportó. | `editarLineaImportacion`: zona, cantidad y los dos precios. El artículo no, que es otra línea. |
+
+La base no hizo falta tocarla: `tr_detalle_solo_borrador` (0008) ya contemplaba `update` y `delete` y solo los frena con la importación confirmada, y la política `importacion_detalle_escritura` es `for all` con `importacion.crear`. Era un hueco de la capa de arriba: la base lo permitía y no había por dónde pedirlo.
+
+Las dos acciones comprueban `sinFilas()` sobre `.select('id')`, que es A-07: sin `importacion.crear` la RLS filtra la escritura y PostgREST responde que todo salió bien.
+
+### Decidido no cambiar
+
+- **Agregar dos veces el mismo artículo y zona sigue creando dos líneas.** Con «Quitar» el problema del cliente queda resuelto, y dos líneas del mismo artículo son legítimas si llegaron a distinto costo. Fusionarlas obligaría a decidir con qué costo se quedan, que es una decisión de negocio que nadie ha tomado.

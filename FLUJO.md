@@ -22,7 +22,12 @@ flowchart TD
     D --> E["Trigger actualiza stock<br/>(cajas y unidades por zona)"]
     E --> F["Kardex registra entrada<br/>con usuario, fecha y referencia"]
     C -->|No| G["Queda en borrador<br/>sin afectar stock"]
+    G --> B
 ```
+
+**Mientras es borrador, el detalle se corrige.** Cada línea se puede editar —zona de destino, cantidad y los dos precios— o quitar, igual que en la nota de venta. El artículo no se cambia: eso es otra línea. Confirmada, la importación es historia y no se toca (`tr_detalle_solo_borrador`).
+
+Que se pueda corregir no es un adorno: una línea sin precio de compra impide confirmar (`fn_confirmar_importacion`, migración 0032), así que sin editar ni quitar esa importación se quedaba en borrador para siempre (I-01 e I-02 en [REVISION_CRITICA.md](REVISION_CRITICA.md)).
 
 ## 3. Flujo de inventario / bodega (INV-01 a INV-07)
 

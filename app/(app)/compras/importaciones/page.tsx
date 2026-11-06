@@ -4,7 +4,10 @@ import { crearClienteServidor } from '@/lib/supabase/server';
 import { Encabezado, ErrorCarga, Etiqueta, Tabla, Td, Th, Vacio, numero } from '@/components/ui';
 import { Campo, FormularioDesplegable } from '@/components/formulario';
 import { SeleccionBuscable } from '@/components/seleccion-buscable';
-import { CamposDetalleImportacion } from '@/components/campos-importacion';
+import {
+  CamposDetalleImportacion,
+  CamposEditarLineaImportacion,
+} from '@/components/campos-importacion';
 import type { ZonaOpcion } from '@/components/selector-zona';
 import { DistintivoBodega } from '@/components/color-bodega';
 import { Paginacion } from '@/components/paginacion';
@@ -12,7 +15,13 @@ import { leerPaginacion } from '@/lib/paginacion';
 import { hoy } from '@/lib/fechas';
 import { nombreEnvase, piezas } from '@/lib/inventario/articulo';
 import { preciosLinea } from '@/lib/compras/precios';
-import { agregarDetalle, confirmarImportacion, crearImportacion } from './acciones';
+import {
+  agregarDetalle,
+  confirmarImportacion,
+  crearImportacion,
+  editarLineaImportacion,
+  eliminarLineaImportacion,
+} from './acciones';
 
 export const metadata = { title: 'Importaciones en borrador · Inventario' };
 
@@ -51,7 +60,7 @@ export default async function Importaciones({
     supabase
       .from('importacion')
       .select(
-        'id, fecha, documento_aduana, tipo_cambio, notas, proveedor:proveedor_id(nombre), moneda:moneda_id(codigo, simbolo), detalle:importacion_detalle(id, cajas, costo_caja, precio_venta_caja, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, unidad:unidad_medida_id(nombre_es))))',
+        'id, fecha, documento_aduana, tipo_cambio, notas, proveedor:proveedor_id(nombre), moneda:moneda_id(codigo, simbolo), detalle:importacion_detalle(id, cajas, costo_caja, precio_venta_caja, zona_id, zona:zona_id(codigo, bodega:bodega_id(codigo, nombre, color)), variante:variante_id(unidades_por_caja, producto:producto_id(codigo, unidad:unidad_medida_id(nombre_es))))',
         { count: 'exact' },
       )
       .eq('estado', 'BORRADOR')
@@ -197,6 +206,7 @@ export default async function Importaciones({
                         <Th numerico>Precio de compra</Th>
                         <Th numerico>Precio de venta</Th>
                         <Th numerico>Margen</Th>
+                        {puedeCrear ? <Th>Acciones</Th> : null}
                       </tr>
                     </thead>
                     <tbody>
@@ -249,6 +259,52 @@ export default async function Importaciones({
                             <Td numerico tenue>
                               {p.margen}
                             </Td>
+                            {puedeCrear ? (
+                              <Td>
+                                <div className="flex gap-3 whitespace-nowrap">
+                                  <FormularioDesplegable
+                                    accion={editarLineaImportacion}
+                                    etiquetaNuevo=""
+                                    esEdicion
+                                  >
+                                    <CamposEditarLineaImportacion
+                                      zonas={opcionesZona}
+                                      moneda={imp.moneda.codigo}
+                                      linea={{
+                                        id: d.id,
+                                        zonaId: d.zona_id,
+                                        cajas: Number(d.cajas),
+                                        costoCaja:
+                                          d.costo_caja === null ? null : Number(d.costo_caja),
+                                        precioVentaCaja:
+                                          d.precio_venta_caja === null
+                                            ? null
+                                            : Number(d.precio_venta_caja),
+                                        codigo: d.variante.producto.codigo,
+                                        unidadesPorCaja: Number(d.variante.unidades_por_caja),
+                                        unidad: d.variante.producto.unidad?.nombre_es ?? null,
+                                      }}
+                                    />
+                                  </FormularioDesplegable>
+
+                                  <FormularioDesplegable
+                                    accion={eliminarLineaImportacion}
+                                    etiquetaNuevo="Quitar"
+                                    esEdicion
+                                  >
+                                    <input type="hidden" name="id" value={d.id} />
+                                    <p className="text-sm text-zinc-600 sm:col-span-2 dark:text-zinc-400">
+                                      Se quitará{' '}
+                                      <code className="text-xs">{d.variante.producto.codigo}</code>{' '}
+                                      ({numero(d.cajas)} hacia{' '}
+                                      <code className="text-xs">{d.zona.codigo}</code>) del detalle
+                                      de la importación #{imp.id}. La importación sigue en borrador
+                                      y la línea se puede volver a agregar.
+                                    </p>
+                                  </FormularioDesplegable>
+                                </div>
+                              </Td>
+                            ) : null}
                           </tr>
                         );
                       })}
